@@ -8,14 +8,13 @@ from pyspark.sql import types as T
 from pyspark.sql import Window
 from pyspark.sql import DataFrame as SparkDataFrame
 
-
 def get_cust_exposed_activated(
     txn: SparkDataFrame,  
     cp_start_date: str, 
     cp_end_date: str, 
     wk_type: str,
     switching_lv: str, 
-    brand_df: str,
+    prmt_band_df: SparkDataFrame,
     test_store_sf: SparkDataFrame, 
     ctr_store_list: List,
     adj_prod_sf: SparkDataFrame, 
@@ -31,6 +30,74 @@ def get_cust_exposed_activated(
     wk_type:
         "fis_week" or "promo_week"
     """
+    spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
+    
+    print("-"*80)
+    print('Customer movement for "OFFLINE" + "ONLINE"')
+    print("-"*80)
+    
+    #---- During camapign - exposed customer, 
+    dur_campaign_exposed_cust = \
+    (txn
+     .filter(F.col('channel')=='OFFLINE') # for offline media     
+     .join(test_store_sf, 'store_id','inner') # Mapping cmp_start, cmp_end, mech_count by store
+     .join(adj_prod_sf, 'upc_id', 'inner')
+     .fillna(str(cp_start_date), subset='c_start')
+     .fillna(str(cp_end_date), subset='c_end')
+     .filter(F.col('date_id').between(F.col('c_start'), F.col('c_end'))) # Filter only period in each mechanics
+     .filter(F.col('household_id').isNotNull())
+     
+     .groupBy('household_id')
+     .agg(F.min('date_id').alias('first_exposed_date'))
+    )
+    #---- During campaign - Exposed & Feature Brand buyer
+    dur_campaign_brand_shopper = \
+    (txn
+     .filter(F.col('date_id').between(cp_start_date, cp_end_date))
+     .filter(F.col('household_id').isNotNull())
+     .join(prmt_band_df, 'upc_id')
+     .groupBy('household_id')
+     .agg(F.min('date_id').alias('first_brand_buy_date'))
+     .drop_duplicates()
+    )
+    
+    dur_campaign_exposed_cust_and_brand_shopper = \
+    (dur_campaign_exposed_cust
+     .join(dur_campaign_brand_shopper, 'household_id', 'inner')
+     .filter(F.col('first_exposed_date').isNotNull())
+     .filter(F.col('first_brand_buy_date').isNotNull())
+     .filter(F.col('first_exposed_date') <= F.col('first_brand_buy_date'))
+     .select('household_id')
+    )
+    
+    activated_brand = dur_campaign_exposed_cust_and_brand_shopper.count()
+    print(f'Total exposed and brand shopper (Activated Brand) : {activated_brand}')    
+    
+    #---- During campaign - Exposed & Features SKU shopper
+    dur_campaign_sku_shopper = \
+    (txn
+     .filter(F.col('date_id').between(cp_start_date, cp_end_date))
+     .filter(F.col('household_id').isNotNull())
+     .filter(F.col('upc_id').isin(feat_list))
+     .groupBy('household_id')
+     .agg(F.min('date_id').alias('first_sku_buy_date'))
+     .drop_duplicates()
+    )
+    
+    dur_campaign_exposed_cust_and_sku_shopper = \
+    (dur_campaign_exposed_cust
+     .join(dur_campaign_sku_shopper, 'household_id', 'inner')
+     .filter(F.col('first_exposed_date').isNotNull())
+     .filter(F.col('first_sku_buy_date').isNotNull())
+     .filter(F.col('first_exposed_date') <= F.col('first_sku_buy_date'))
+     .select('household_id')
+    )
+    
+    activated_sku = dur_campaign_exposed_cust_and_sku_shopper.count()
+    print(f'Total exposed and sku shopper (Activated SKU) : {activated_sku}')    
+    
+    activated_df = pd.DataFrame({'customer_exposed_brand_activated':[activated_brand], 'customer_exposed_sku_activated':[activated_sku]})
+
     
     
 
