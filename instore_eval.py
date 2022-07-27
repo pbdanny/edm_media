@@ -130,7 +130,7 @@ def get_cust_activated(
     cmp_brand_activated = _get_activated(exposed_cust=cmp_exposed, shppr_cust=cmp_brand_shppr)
 
     nmbr_brand_activated = cmp_brand_activated.count()
-    print(f'Total exposed and brand shopper (Brand Activated) : {nmbr_brand_activated}')
+    print(f'Total exposed and Feature Brand (in Category scope) shopper (Brand Activated) : {nmbr_brand_activated}')
     
     # Sku Activated
     cmp_sku_shppr = _get_shpper(txn=txn, period_wk_col_nm=period_wk_col, prd_scope_df=feat_sf)
