@@ -116,7 +116,7 @@ def get_cust_activated(
     #---- Main
     print("-"*80)
     print("Customer Exposure -> Activated")
-    print("Exposure = shopped media aisle in media period (base on target input file) at target store , channel OFFLINE ")
+    print("Exposed = shopped media aisle in media period (base on target input file) at target store , channel OFFLINE ")
     print("Activate = Exposed & Shop (Feature SKU/Feature Brand) in campaign period at any store format and any channel")
     print("-"*80)
     period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
@@ -141,12 +141,16 @@ def get_cust_activated(
     
     return cmp_brand_activated, cmp_sku_activated
 
-
-
-
-def cust_movement_2(txn: SparkDataFrame, 
-                    switching_lv: str, 
-                    cp_start_date: str, 
+def get_cust_movement(txn: SparkDataFrame, 
+                      wk_type: str,
+                      feat_sf: SparkDataFrame,
+                      sku_activated: SparkDataFrame,
+                      brand_activated: SparkDataFrame,
+                      class_df: SparkDataFrame,
+                      sclass_df: SparkDataFrame,
+                      
+                      switching_lv: str, 
+                      cp_start_date: str, 
                     cp_end_date: str, 
                     wk_type: str,
                     brand_df: str,
@@ -154,154 +158,83 @@ def cust_movement_2(txn: SparkDataFrame,
                     adj_prod_sf: SparkDataFrame, 
                     feat_list: List
                     ):
-    """Media evaluation solution, Customer movement and switching v3
-    - Exposure based on each store media period
-    - 
+    """Customer movement based on tagged feature activated & brand activated
     
     """
     spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
-    
-    print('Customer movement for "OFFLINE" + "ONLINE"')
-    
-    #---- Get scope for brand in class / brand in subclass
-    # Get section id - class id of feature products
-    sec_id_class_id_feature_product = \
-    (spark.table('tdm.v_prod_dim_c')
-     .filter(F.col('division_id').isin([1,2,3,4,9,10,13]))
-     .filter(F.col('upc_id').isin(feat_list))
-     .select('section_id', 'class_id')
-     .drop_duplicates()
-    )
-    # Get section id - class id - subclass id of feature products
-    sec_id_class_id_subclass_id_feature_product = \
-    (spark.table('tdm.v_prod_dim_c')
-     .filter(F.col('division_id').isin([1,2,3,4,9,10,13]))
-     .filter(F.col('upc_id').isin(feat_list))
-     .select('section_id', 'class_id', 'subclass_id')
-     .drop_duplicates()
-    )
-    # Get list of feature brand name
-    brand_of_feature_product = \
-    (spark.table('tdm.v_prod_dim_c')
-     .filter(F.col('division_id').isin([1,2,3,4,9,10,13]))
-     .filter(F.col('upc_id').isin(feat_list))
-     .select('brand_name')
-     .drop_duplicates()
-    )
-        
-    #---- During camapign - exposed customer, 
-    dur_campaign_exposed_cust = \
-    (txn
-     .filter(F.col('channel')=='OFFLINE') # for offline media     
-     .join(test_store_sf, 'store_id','inner') # Mapping cmp_start, cmp_end, mech_count by store
-     .join(adj_prod_sf, 'upc_id', 'inner')
-     .fillna(str(cp_start_date), subset='c_start')
-     .fillna(str(cp_end_date), subset='c_end')
-     .filter(F.col('date_id').between(F.col('c_start'), F.col('c_end'))) # Filter only period in each mechanics
-     .filter(F.col('household_id').isNotNull())
-     
-     .groupBy('household_id')
-     .agg(F.min('date_id').alias('first_exposed_date'))
-    )
-    
-    #---- During campaign - Exposed & Feature Brand buyer
-    dur_campaign_brand_shopper = \
-    (txn
-     .filter(F.col('date_id').between(cp_start_date, cp_end_date))
-     .filter(F.col('household_id').isNotNull())
-     .join(brand_df, 'upc_id')
-     .groupBy('household_id')
-     .agg(F.min('date_id').alias('first_brand_buy_date'))
-     .drop_duplicates()
-    )
-    
-    dur_campaign_exposed_cust_and_brand_shopper = \
-    (dur_campaign_exposed_cust
-     .join(dur_campaign_brand_shopper, 'household_id', 'inner')
-     .filter(F.col('first_exposed_date').isNotNull())
-     .filter(F.col('first_brand_buy_date').isNotNull())
-     .filter(F.col('first_exposed_date') <= F.col('first_brand_buy_date'))
-     .select('household_id')
-    )
-    
-    activated_brand = dur_campaign_exposed_cust_and_brand_shopper.count()
-    print(f'Total exposed and brand shopper (Activated Brand) : {activated_brand}')    
-    
-    #---- During campaign - Exposed & Features SKU shopper
-    dur_campaign_sku_shopper = \
-    (txn
-     .filter(F.col('date_id').between(cp_start_date, cp_end_date))
-     .filter(F.col('household_id').isNotNull())
-     .filter(F.col('upc_id').isin(feat_list))
-     .groupBy('household_id')
-     .agg(F.min('date_id').alias('first_sku_buy_date'))
-     .drop_duplicates()
-    )
-    
-    dur_campaign_exposed_cust_and_sku_shopper = \
-    (dur_campaign_exposed_cust
-     .join(dur_campaign_sku_shopper, 'household_id', 'inner')
-     .filter(F.col('first_exposed_date').isNotNull())
-     .filter(F.col('first_sku_buy_date').isNotNull())
-     .filter(F.col('first_exposed_date') <= F.col('first_sku_buy_date'))
-     .select('household_id')
-    )
-    
-    activated_sku = dur_campaign_exposed_cust_and_sku_shopper.count()
-    print(f'Total exposed and sku shopper (Activated SKU) : {activated_sku}')    
-    
-    activated_df = pd.DataFrame({'customer_exposed_brand_activated':[activated_brand], 'customer_exposed_sku_activated':[activated_sku]})
-    
-    #---- Find Customer movement from (PPP+PRE) -> CMP period
-    
+    #---- Helper function
+    def _get_period_wk_col_nm(wk_type:str) -> str:
+        """Column name for period week identification
+        """
+        if wk_type in ["promo"]:
+            period_wk_col_nm = "period_promo_wk" 
+        else:
+            period_wk_col_nm = "period_fis_wk"
+        return period_wk_col_nm
+       
+    #---- Main
+    # Movement 
     # Existing and New SKU buyer (movement at micro level)
+    print("-"*80)
+    print("Customer movement")
+    print("Movement consider only Feature SKU activated / Feature Brand activated customer")
+    print("-"*80)    
+    
+    print("-"*80)
+    period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
+    print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
+    print("-"*80)
+    
+    # Features SKU movement
     prior_pre_sku_shopper = \
     (txn
-     .filter(F.col('period_fis_wk').isin(['pre', 'ppp']))
-     .filter(F.col('household_id').isNotNull())
-     .filter(F.col('upc_id').isin(feat_list))
+     .where(F.col('household_id').isNotNull())
+     .where(F.col(period_wk_col).isin(['pre', 'ppp']))
+     .join(feat_sf, "upc_id", "inner")
      .select('household_id')
      .drop_duplicates()
     )
     
     existing_exposed_cust_and_sku_shopper = \
-    (dur_campaign_exposed_cust_and_sku_shopper
+    (sku_activated
      .join(prior_pre_sku_shopper, 'household_id', 'inner')
      .withColumn('customer_macro_flag', F.lit('existing'))
      .withColumn('customer_micro_flag', F.lit('existing_sku'))
+     .checkpoint()
     )
-    
-    existing_exposed_cust_and_sku_shopper = existing_exposed_cust_and_sku_shopper.checkpoint()
     
     new_exposed_cust_and_sku_shopper = \
-    (dur_campaign_exposed_cust_and_sku_shopper
+    (sku_activated
      .join(existing_exposed_cust_and_sku_shopper, 'household_id', 'leftanti')
      .withColumn('customer_macro_flag', F.lit('new'))
+     .checkpoint()
     )
-    new_exposed_cust_and_sku_shopper = new_exposed_cust_and_sku_shopper.checkpoint()
         
-    #---- Movement macro level for New to SKU
+    # Customer movement for Feature SKU
+    ## Macro level (New/Existing/Lapse)
     prior_pre_cc_txn = \
     (txn
-     .filter(F.col('household_id').isNotNull())
-     .filter(F.col('period_fis_wk').isin(['pre', 'ppp']))
+     .where(F.col('household_id').isNotNull())
+     .where(F.col(period_wk_col).isin(['pre', 'ppp']))
     )
 
     prior_pre_store_shopper = prior_pre_cc_txn.select('household_id').drop_duplicates()
 
     prior_pre_class_shopper = \
     (prior_pre_cc_txn
-     .join(sec_id_class_id_feature_product, ['section_id', 'class_id'])
+     .join(class_df, "upc_id", "inner")
      .select('household_id')
-    ).drop_duplicates()
+     .drop_duplicates()
+    )
     
     prior_pre_subclass_shopper = \
     (prior_pre_cc_txn
-     .join(sec_id_class_id_subclass_id_feature_product, ['section_id', 'class_id', 'subclass_id'])
+     .join(sclass_df, "upc_id", "inner")
      .select('household_id')
-    ).drop_duplicates()
+     .drop_duplicates()
+    )
         
-    #---- Grouping, flag customer macro flag
+    ## Micro level
     new_sku_new_store = \
     (new_exposed_cust_and_sku_shopper
      .join(prior_pre_store_shopper, 'household_id', 'leftanti')
