@@ -148,12 +148,13 @@ def get_cust_movement(txn: SparkDataFrame,
                       brand_activated: SparkDataFrame,
                       class_df: SparkDataFrame,
                       sclass_df: SparkDataFrame,
+                      brand_df: SparkDataFrame,                      
                       
                       switching_lv: str, 
                       cp_start_date: str, 
                     cp_end_date: str, 
                     wk_type: str,
-                    brand_df: str,
+
                     test_store_sf: SparkDataFrame, 
                     adj_prod_sf: SparkDataFrame, 
                     feat_list: List
@@ -163,7 +164,9 @@ def get_cust_movement(txn: SparkDataFrame,
     """
     spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
     #---- Helper function
-    def _get_period_wk_col_nm(wk_type:str) -> str:
+    def _get_period_wk_col_nm(
+        wk_type:str
+        ) -> str:
         """Column name for period week identification
         """
         if wk_type in ["promo"]:
@@ -171,7 +174,7 @@ def get_cust_movement(txn: SparkDataFrame,
         else:
             period_wk_col_nm = "period_fis_wk"
         return period_wk_col_nm
-       
+
     #---- Main
     # Movement 
     # Existing and New SKU buyer (movement at micro level)
@@ -262,10 +265,11 @@ def get_cust_movement(txn: SparkDataFrame,
         
         prior_pre_brand_in_subclass_shopper = \
         (prior_pre_cc_txn
-         .join(sec_id_class_id_subclass_id_feature_product, ['section_id', 'class_id', 'subclass_id'])
-         .join(brand_of_feature_product, ['brand_name'])
+         .join(sclass_df, "upc_id", "inner")
+         .join(brand_df, "upc_id")
          .select('household_id')
-        ).drop_duplicates()
+         .drop_duplicates()
+        )
         
         #---- Current subclass shopper , new to brand : brand switcher within sublass
         new_sku_new_brand_shopper = \
@@ -296,17 +300,17 @@ def get_cust_movement(txn: SparkDataFrame,
          .unionByName(new_sku_new_subclass)
          .unionByName(new_sku_new_brand_shopper)
          .unionByName(new_sku_within_brand_shopper)
+         .checkpoint()
         )
-        result_movement = result_movement.checkpoint()
         
-        return result_movement, new_exposed_cust_and_sku_shopper, activated_df
+        return result_movement, new_exposed_cust_and_sku_shopper
 
     elif switching_lv == 'class':
         
         prior_pre_brand_in_class_shopper = \
         (prior_pre_cc_txn
-         .join(sec_id_class_id_feature_product, ['section_id', 'class_id'])
-         .join(brand_of_feature_product, ['brand_name'])
+         .join(sclass_df, "upc_id", "inner")
+         .join(brand_df, "upc_id")
          .select('household_id')
         ).drop_duplicates()
 
@@ -336,9 +340,10 @@ def get_cust_movement(txn: SparkDataFrame,
          .unionByName(new_sku_new_class)
          .unionByName(new_sku_new_brand_shopper)
          .unionByName(new_sku_within_brand_shopper)
+         .checkpoint()
         )
-        result_movement = result_movement.checkpoint()
-        return result_movement, new_exposed_cust_and_sku_shopper, activated_df
+        
+        return result_movement, new_exposed_cust_and_sku_shopper
 
     else:
         print('Not recognized Movement and Switching level param')
