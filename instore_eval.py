@@ -7,18 +7,17 @@ from pyspark.sql import functions as F
 from pyspark.sql import types as T
 from pyspark.sql import Window
 from pyspark.sql import DataFrame as SparkDataFrame
-
-def get_cust_exposed_activated(
+    
+def get_cust_activated(
     txn: SparkDataFrame,  
     cp_start_date: str, 
     cp_end_date: str, 
     wk_type: str,
-    switching_lv: str, 
-    prmt_band_df: SparkDataFrame,
     test_store_sf: SparkDataFrame, 
-    ctr_store_list: List,
     adj_prod_sf: SparkDataFrame, 
-    feat_list: List) -> SparkDataFrame:
+    brand_sf: SparkDataFrame,
+    feat_sf: SparkDataFrame,
+    ):
     """Get customer exposed & unexposed / shopped, not shop
     
     Parameters
@@ -32,74 +31,116 @@ def get_cust_exposed_activated(
     """
     spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
     
-    print("-"*80)
-    print('Customer movement for "OFFLINE" + "ONLINE"')
-    print("-"*80)
+    #--- Helper fn
+    def _get_period_wk_col_nm(wk_type:str) -> str:
+        """Column name for period week identification
+        """
+        if wk_type in ["promo"]:
+            period_wk_col_nm = "period_promo_wk" 
+        else:
+            period_wk_col_nm = "period_fis_wk"
+        return period_wk_col_nm
+            
+    def _create_test_store_sf(
+        test_store_sf: SparkDataFrame,
+        cp_start_date: str, 
+        cp_end_date: str
+        ) -> SparkDataFrame:
+        """From target store definition, fill c_start, c_end 
+        based on cp_start_date, cp_end_date
+        """
+        filled_test_store_sf = \
+            (test_store_sf
+            .fillna(str(cp_start_date), subset='c_start')
+            .fillna(str(cp_end_date), subset='c_end')
+            )
+        return filled_test_store_sf
     
-    #---- During camapign - exposed customer, 
-    dur_campaign_exposed_cust = \
-    (txn
-     .filter(F.col('channel')=='OFFLINE') # for offline media     
-     .join(test_store_sf, 'store_id','inner') # Mapping cmp_start, cmp_end, mech_count by store
-     .join(adj_prod_sf, 'upc_id', 'inner')
-     .fillna(str(cp_start_date), subset='c_start')
-     .fillna(str(cp_end_date), subset='c_end')
-     .filter(F.col('date_id').between(F.col('c_start'), F.col('c_end'))) # Filter only period in each mechanics
-     .filter(F.col('household_id').isNotNull())
-     
-     .groupBy('household_id')
-     .agg(F.min('date_id').alias('first_exposed_date'))
-    )
-    #---- During campaign - Exposed & Feature Brand buyer
-    dur_campaign_brand_shopper = \
-    (txn
-     .filter(F.col('date_id').between(cp_start_date, cp_end_date))
-     .filter(F.col('household_id').isNotNull())
-     .join(prmt_band_df, 'upc_id')
-     .groupBy('household_id')
-     .agg(F.min('date_id').alias('first_brand_buy_date'))
-     .drop_duplicates()
-    )
+    def _get_exposed_cust(
+        txn: SparkDataFrame,
+        test_store_sf: SparkDataFrame,
+        adj_prod_sf: SparkDataFrame,
+        channel: str = "OFFLINE",
+        ) -> SparkDataFrame:
+        """Get exposed customer & first exposed date
+        """
+        out = \
+            (txn
+             .where(F.col("channel")==channel)
+             .where(F.col("household_id").isNotNull())
+             .join(test_store_sf, "store_id","inner") # Mapping cmp_start, cmp_end, mech_count by store
+             .join(adj_prod_sf, "upc_id", "inner")
+             .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
+             .groupBy("household_id")
+             .agg(F.min("date_id").alias("first_exposed_date"))
+            )
+        return out
     
-    dur_campaign_exposed_cust_and_brand_shopper = \
-    (dur_campaign_exposed_cust
-     .join(dur_campaign_brand_shopper, 'household_id', 'inner')
-     .filter(F.col('first_exposed_date').isNotNull())
-     .filter(F.col('first_brand_buy_date').isNotNull())
-     .filter(F.col('first_exposed_date') <= F.col('first_brand_buy_date'))
-     .select('household_id')
-    )
+    def _get_shpper(
+        txn: SparkDataFrame,
+        period_wk_col_nm: str,
+        prd_scope_df: SparkDataFrame,
+        ) -> SparkDataFrame:
+        """Get first brand shopped date or feature shopped date, based on input upc_id
+        Shopper in campaign period at any store format & any channel
+        """
+        out = \
+            (txn
+             .where(F.col('household_id').isNotNull())    
+             .where(F.col(period_wk_col_nm).isin(["cmp"]))
+             .join(prd_scope_df, 'upc_id')
+             .groupBy('household_id')
+             .agg(F.min('date_id').alias('first_shp_date'))
+             .drop_duplicates()
+            )
+        return out
     
-    activated_brand = dur_campaign_exposed_cust_and_brand_shopper.count()
-    print(f'Total exposed and brand shopper (Activated Brand) : {activated_brand}')    
-    
-    #---- During campaign - Exposed & Features SKU shopper
-    dur_campaign_sku_shopper = \
-    (txn
-     .filter(F.col('date_id').between(cp_start_date, cp_end_date))
-     .filter(F.col('household_id').isNotNull())
-     .filter(F.col('upc_id').isin(feat_list))
-     .groupBy('household_id')
-     .agg(F.min('date_id').alias('first_sku_buy_date'))
-     .drop_duplicates()
-    )
-    
-    dur_campaign_exposed_cust_and_sku_shopper = \
-    (dur_campaign_exposed_cust
-     .join(dur_campaign_sku_shopper, 'household_id', 'inner')
-     .filter(F.col('first_exposed_date').isNotNull())
-     .filter(F.col('first_sku_buy_date').isNotNull())
-     .filter(F.col('first_exposed_date') <= F.col('first_sku_buy_date'))
-     .select('household_id')
-    )
-    
-    activated_sku = dur_campaign_exposed_cust_and_sku_shopper.count()
-    print(f'Total exposed and sku shopper (Activated SKU) : {activated_sku}')    
-    
-    activated_df = pd.DataFrame({'customer_exposed_brand_activated':[activated_brand], 'customer_exposed_sku_activated':[activated_sku]})
+    def _get_activated(
+        exposed_cust: SparkDataFrame,
+        shppr_cust: SparkDataFrame
+        ) -> SparkDataFrame:
+        """Get activated customer : First exposed date <= First (brand/sku) shopped date
+        """
+        out = \
+            (exposed_cust.join(shppr_cust, "household_id", "inner")
+             .where(F.col('first_exposed_date').isNotNull())
+             .where(F.col('first_shp_date').isNotNull())
+             .where(F.col('first_exposed_date') <= F.col('first_shp_date'))
+             .select("household_id")
+             .drop_duplicates()
+             )
+        return out
 
+    #---- Main
+    print("-"*80)
+    print("Customer Exposure -> Activated")
+    print("Exposure = shopped media aisle in media period (base on target input file) at target store , channel OFFLINE ")
+    print("Activate = Exposed & Shop (Feature SKU/Feature Brand) in campaign period at any store format and any channel")
+    print("-"*80)
+    period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
+    print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
+    print("-"*80)
     
+    # Brand activate
+    target_str = _create_test_store_sf(test_store_sf=test_store_sf, cp_start_date=cp_start_date, cp_end_date=cp_end_date)
+    cmp_exposed = _get_exposed_cust(txn=txn, test_store_sf=target_str, adj_prod_sf=adj_prod_sf)
+    cmp_brand_shppr = _get_shpper(txn=txn, period_wk_col_nm=period_wk_col, prd_scope_df=brand_sf)
+    cmp_brand_activated = _get_activated(exposed_cust=cmp_exposed, shppr_cust=cmp_brand_shppr)
+
+    nmbr_brand_activated = cmp_brand_activated.count()
+    print(f'Total exposed and brand shopper (Activated Brand) : {nmbr_brand_activated}')
     
+    # Sku Activated
+    cmp_sku_shppr = _get_shpper(txn=txn, period_wk_col_nm=period_wk_col, prd_scope_df=feat_sf)
+    cmp_sku_activated = _get_activated(exposed_cust=cmp_exposed, shppr_cust=cmp_sku_shppr)
+
+    nmbr_sku_activated = cmp_sku_activated.count()
+    print(f'Total exposed and brand shopper (Activated Brand) : {nmbr_sku_activated}')
+    
+    return cmp_brand_activated, cmp_sku_activated
+
+
+
 
 def cust_movement_2(txn: SparkDataFrame, 
                     switching_lv: str, 
