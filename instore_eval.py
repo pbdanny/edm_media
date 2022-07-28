@@ -504,5 +504,10 @@ def get_cust_switching_and_penetration(txn: SparkDataFrame,
     print("-"*80)
     
     new_to_brand_switching, cust_mv_pre_dur_spend, brand_cust_pen = _get_swtchng_pntrtn(switching_lv=switching_lv)
-    
-    return new_to_brand_switching, cust_mv_pre_dur_spend, brand_cust_pen
+    cust_brand_switching_and_pen = \
+        (new_to_brand_switching.alias("a")
+         .join(brand_cust_pen.alias("b"), 
+               F.col("a.oth_brand_in_category")==F.col("b.brand_name"), "left")
+        )
+        
+    return new_to_brand_switching, cust_mv_pre_dur_spend, brand_cust_pen, cust_brand_switching_and_pen
