@@ -510,4 +510,4 @@ def get_cust_switching_and_penetration(txn: SparkDataFrame,
                F.col("a.oth_brand_in_category")==F.col("b.brand_name"), "left")
         )
         
-    return new_to_brand_switching, cust_mv_pre_dur_spend, brand_cust_pen, cust_brand_switching_and_pen
+    return new_to_brand_switching, brand_cust_pen, cust_brand_switching_and_pen
