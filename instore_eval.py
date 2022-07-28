@@ -333,15 +333,15 @@ def get_cust_movement(txn: SparkDataFrame,
         print('Not recognized Movement and Switching level param')
         return None
     
-def get_cust_switching_and_penetration(txn: SparkDataFrame,
-                                       switching_lv: str, 
-                                       brand_df: SparkDataFrame,
-                                       class_df: SparkDataFrame,
-                                       sclass_df: SparkDataFrame,
-                                       cust_movement_sf: SparkDataFrame,
-                                       wk_type: str,
-                                       feat_list
-                                       ):
+def get_cust_brand_switching_and_penetration(
+        txn: SparkDataFrame,
+        switching_lv: str, 
+        brand_df: SparkDataFrame,
+        class_df: SparkDataFrame,
+        sclass_df: SparkDataFrame,
+        cust_movement_sf: SparkDataFrame,
+        wk_type: str,
+        ):
     """Media evaluation solution, customer switching
     """
     spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
