@@ -1,3 +1,4 @@
+from _typeshed import StrOrBytesPath
 from typing import List
 from copy import deepcopy
 from datetime import datetime, timedelta
@@ -110,8 +111,8 @@ def get_cust_activated(txn: SparkDataFrame,
 
     #---- Main
     print("-"*80)
-    print("Customer Exposure -> Activated")
-    print("Exposed = shopped media aisle in media period (base on target input file) at target store , channel OFFLINE ")
+    print("Customer Media Exposed -> Activated")
+    print("Media Exposed = shopped in media aisle within campaign period (base on target input file) at target store , channel OFFLINE ")
     print("Activate = Exposed & Shop (Feature SKU/Feature Brand) in campaign period at any store format and any channel")
     print("-"*80)
     period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
@@ -164,7 +165,7 @@ def get_cust_movement(txn: SparkDataFrame,
     # Existing and New SKU buyer (movement at micro level)
     print("-"*80)
     print("Customer movement")
-    print("Movement consider only Feature SKU activated / Feature Brand activated customer")
+    print("Movement consider only Feature SKU activated")
     print("-"*80)    
     
     print("-"*80)
@@ -331,4 +332,301 @@ def get_cust_movement(txn: SparkDataFrame,
 
     else:
         print('Not recognized Movement and Switching level param')
+        return None
+    
+def get_cust_switching_and_penetration(txn: SparkDataFrame,
+                                       switching_lv: str, 
+                                       brand_df: SparkDataFrame,
+                                       class_df: SparkDataFrame,
+                                       sclass_df: SparkDataFrame,
+                                       cust_movement_sf: SparkDataFrame,
+                                       wk_type: str,
+                                       feat_list
+                                       ):
+    """Media evaluation solution, customer switching
+    """
+    spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
+    #---- Helper fn
+    def _get_period_wk_col_nm(wk_type: str) -> str:
+        """Column name for period week identification
+        """
+        if wk_type in ["promo"]:
+            period_wk_col_nm = "period_promo_wk" 
+        else:
+            period_wk_col_nm = "period_fis_wk"
+        return period_wk_col_nm
+    
+    ## Customer Switching by Sai
+    def _switching(switching_lv:str, micro_flag: str, cust_movement_sf: SparkDataFrame, 
+                   prod_trans: SparkDataFrame, grp: List, 
+                   prod_lev: str, full_prod_lev: str , 
+                   col_rename: str, period: str
+                   ):
+        """Customer switching from Sai
+        """
+        print(f'\t\t\t\t\t\t Switching of customer movement at : {micro_flag}')        
+        # List of customer movement at analysis micro level
+        cust_micro_df = cust_movement_sf.where(F.col('customer_micro_flag') == micro_flag)
+        prod_trans_cust_micro = prod_trans.join(cust_micro_df.select('household_id').dropDuplicates()
+                                                , on='household_id', how='inner')
+        cust_micro_kpi_prod_lv = \
+        (prod_trans_cust_micro
+         .groupby(grp)
+         .agg(F.sum('net_spend_amt').alias('oth_'+prod_lev+'_spend'),
+              F.countDistinct('household_id').alias('oth_'+prod_lev+'_customers'))
+         .withColumnRenamed(col_rename, 'oth_'+full_prod_lev)
+        )
+                
+        total_oth = \
+        (cust_micro_kpi_prod_lv
+         .agg(F.sum('oth_'+prod_lev+'_spend').alias('_total_oth_spend'))
+        ).collect()[0][0]
+        
+        cust_micro_kpi_prod_lv = cust_micro_kpi_prod_lv.withColumn('total_oth_'+prod_lev+'_spend', F.lit(float(total_oth)))
+        
+        print("\t\t\t\t\t\t**Running micro df2")
+        # Join micro df with prod trans
+        if (prod_lev == 'brand') & (switching_lv == 'subclass'):
+            cust_micro_df2 = \
+            (cust_micro_df
+             .groupby('division_name','department_name','section_name',
+                      'class_name',
+                      # 'subclass_name',
+                      F.col('brand_name').alias('original_brand'),
+                      'customer_macro_flag','customer_micro_flag')
+             .agg(F.sum('brand_spend_'+period).alias('total_ori_brand_spend'),
+                  F.countDistinct('household_id').alias('total_ori_brand_cust'))
+            )
+            micro_df_summ = cust_micro_df2.join(cust_micro_kpi_prod_lv, on='class_name', how='inner')
+            
+        elif (prod_lev == 'brand') & (switching_lv == 'class'):
+            cust_micro_df2 = \
+            (cust_micro_df
+             .groupby('division_name','department_name','section_name','class_name',
+                      F.col('brand_name').alias('original_brand'),
+                      'customer_macro_flag','customer_micro_flag')
+             .agg(F.sum('brand_spend_'+period).alias('total_ori_brand_spend'),
+                  F.countDistinct('household_id').alias('total_ori_brand_cust'))
+            )            
+            micro_df_summ = cust_micro_df2.join(cust_micro_kpi_prod_lv, on='class_name', how='inner')
+            
+        elif prod_lev == 'class':
+            micro_df_summ = cust_micro_df2.join(cust_micro_kpi_prod_lv, on='section_name', how='inner')
+        
+        print("\t\t\t\t\t\t**Running Summary of micro df")
+        switching_result = \
+        (micro_df_summ
+         .select('division_name','department_name','section_name','class_name','original_brand',
+                 'customer_macro_flag','customer_micro_flag','total_ori_brand_cust','total_ori_brand_spend',
+                 'oth_'+full_prod_lev,'oth_'+prod_lev+'_customers','oth_'+prod_lev+'_spend','total_oth_'+prod_lev+'_spend')
+         .withColumn('pct_cust_oth_'+full_prod_lev, F.col('oth_'+prod_lev+'_customers')/F.col('total_ori_brand_cust'))
+         .withColumn('pct_spend_oth_'+full_prod_lev, F.col('oth_'+prod_lev+'_spend')/F.col('total_oth_'+prod_lev+'_spend'))
+         .orderBy(F.col('pct_cust_oth_'+full_prod_lev).desc(), F.col('pct_spend_oth_'+full_prod_lev).desc())
+        )
+        switching_result = switching_result.checkpoint()
+        
+        return switching_result
+
+    def _get_swtchng_pntrtn(switching_lv: str,
+                            ):
+        """Get Switching and penetration based on defined switching at class / subclass
+        Support multi subclass
+        """
+        if switching_lv == "subclass":
+            prd_scope_df = sclass_df
+            gr_col = ['division_name','department_name','section_name','class_name',
+                      'brand_name','household_id']
+        else:
+            prd_scope_df = class_df
+            gr_col = ['division_name','department_name','section_name',
+                      'brand_name','household_id']
+        
+        ## ust movement
+        prior_pre_cc_txn_prd_scope = \
+        (txn
+         .where(F.col('household_id').isNotNull())
+         .where(F.col(period_wk_col).isin(['pre', 'ppp']))
+         .join(prd_scope_df, "upc_id", "inner")
+        )
+        
+        prior_pre_cc_txn_prd_scope_sel_brand = prior_pre_cc_txn_prd_scope.join(brand_df, "upc_id", "inner")
+        
+        prior_pre_prd_scope_sel_brand_kpi = \
+        (prior_pre_cc_txn_prd_scope_sel_brand
+         .groupBy('division_name','department_name','section_name','class_name',
+#                   'subclass_name',
+                  'brand_name','household_id')
+         .agg(F.sum('net_spend_amt').alias('brand_spend_pre'))
+        )
+        
+        dur_cc_txn_prd_scope = \
+        (txn
+         .where(F.col('household_id').isNotNull())
+         .where(F.col(period_wk_col).isin(['cmp']))
+         .join(prd_scope_df, "upc_id", "inner")
+        )
+        
+        dur_cc_txn_prd_scope_sel_brand = dur_cc_txn_prd_scope.join(brand_df, "upc_id", "inner")
+        
+        dur_prd_scope_sel_brand_kpi = \
+        (dur_cc_txn_prd_scope_sel_brand
+         .groupBy('division_name','department_name','section_name','class_name',
+#                   'subclass_name',
+                  'brand_name', 'household_id')
+         .agg(F.sum('net_spend_amt').alias('brand_spend_dur'))
+        )
+        
+        pre_dur_band_spend = \
+        (prior_pre_prd_scope_sel_brand_kpi
+         .join(dur_prd_scope_sel_brand_kpi, 
+               ['division_name','department_name','section_name', 'class_name',
+#                 'subclass_name',
+                'brand_name','household_id'], 'outer')
+        )
+        
+        cust_movement_pre_dur_spend = cust_movement_sf.join(pre_dur_band_spend, 'household_id', 'left')
+        new_to_brand_switching_from = _switching(switching_lv, 'new_to_brand', 
+                                                 cust_movement_pre_dur_spend, prior_pre_cc_txn_subcl, 
+#                                                  ['subclass_name', 'brand_name'], 
+                                                 ["class_name", 'brand_name'], 
+                                                 'brand', 'brand_in_category', 'brand_name', 'dur')
+        # Brand penetration within subclass
+        subcl_cust = dur_cc_txn_prd_scope.agg(F.countDistinct('household_id')).collect()[0][0]
+        brand_cust_pen = \
+        (dur_cc_txn_prd_scope
+         .groupBy('brand_name')
+         .agg(F.countDistinct('household_id').alias('brand_cust'))
+         .withColumn('category_cust', F.lit(subcl_cust))
+         .withColumn('brand_cust_pen', F.col('brand_cust')/F.col('category_cust'))
+        )
+        
+        return new_to_brand_switching_from, cust_movement_pre_dur_spend, brand_cust_pen
+    
+    #---- Main
+    print("-"*80)
+    period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
+    print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
+    print("-"*80)    
+    
+    if switching_lv == 'subclass':
+        ## Create subclass-brand spend by cust movement
+        prior_pre_cc_txn_subcl = \
+        (txn
+         .where(F.col('household_id').isNotNull())
+         .where(F.col(period_wk_col).isin(['pre', 'ppp']))
+         .join(sclass_df, "upc_id", "inner")
+        )
+        
+        prior_pre_cc_txn_subcl_sel_brand = prior_pre_cc_txn_subcl.join(brand_df, "upc_id", "inner")
+        
+        prior_pre_subcl_sel_brand_kpi = \
+        (prior_pre_cc_txn_subcl_sel_brand
+         .groupBy('division_name','department_name','section_name','class_name',
+#                   'subclass_name',
+                  'brand_name','household_id')
+         .agg(F.sum('net_spend_amt').alias('brand_spend_pre'))
+        )
+        
+        dur_cc_txn_subcl = \
+        (txn
+         .where(F.col('household_id').isNotNull())
+         .where(F.col(period_wk_col).isin(['cmp']))
+         .join(sclass_df, "upc_id", "inner")
+        )
+        
+        dur_cc_txn_subcl_sel_brand = dur_cc_txn_subcl.join(brand_df, "upc_id", "inner")
+        
+        dur_subcl_sel_brand_kpi = \
+        (dur_cc_txn_subcl_sel_brand
+         .groupBy('division_name','department_name','section_name','class_name',
+#                   'subclass_name',
+                  'brand_name', 'household_id')
+         .agg(F.sum('net_spend_amt').alias('brand_spend_dur'))
+        )
+        
+        pre_dur_band_spend = \
+        (prior_pre_subcl_sel_brand_kpi
+         .join(dur_subcl_sel_brand_kpi, 
+               ['division_name','department_name','section_name', 'class_name',
+#                 'subclass_name',
+                'brand_name','household_id'], 'outer')
+        )
+        
+        cust_movement_pre_dur_spend = cust_movement_sf.join(pre_dur_band_spend, 'household_id', 'left')
+        new_to_brand_switching_from = _switching(switching_lv, 'new_to_brand', 
+                                                 cust_movement_pre_dur_spend, prior_pre_cc_txn_subcl, 
+#                                                  ['subclass_name', 'brand_name'], 
+                                                 ["class_name", 'brand_name'], 
+                                                 'brand', 'brand_in_category', 'brand_name', 'dur')
+        # Brand penetration within subclass
+        subcl_cust = dur_cc_txn_subcl.agg(F.countDistinct('household_id')).collect()[0][0]
+        brand_cust_pen = \
+        (dur_cc_txn_subcl
+         .groupBy('brand_name')
+         .agg(F.countDistinct('household_id').alias('brand_cust'))
+         .withColumn('category_cust', F.lit(subcl_cust))
+         .withColumn('brand_cust_pen', F.col('brand_cust')/F.col('category_cust'))
+        )
+        
+        return new_to_brand_switching_from, cust_movement_pre_dur_spend, brand_cust_pen
+    
+    elif switching_lv == 'class':
+        #---- Create class-brand spend by cust movment
+        prior_pre_cc_txn_class = \
+        (txn
+         .where(F.col('household_id').isNotNull())
+         .where(F.col(period_wk_col).isin(['pre', 'ppp']))
+         .join(sec_id_class_id_feature_product, ['section_id', 'class_id'])
+        )
+        
+        prior_pre_cc_txn_class_sel_brand = prior_pre_cc_txn_class.join(brand_of_feature_product, ['brand_name'])
+        
+        prior_pre_class_sel_brand_kpi = \
+        (prior_pre_cc_txn_class_sel_brand
+         .groupBy('division_name','department_name','section_name',
+                  'class_name','brand_name','household_id')
+         .agg(F.sum('net_spend_amt').alias('brand_spend_pre'))
+        )
+        
+        dur_cc_txn_class = \
+        (txn
+         .where(F.col('household_id').isNotNull())
+#          .where(F.col('date_id').between(cp_start_date, cp_end_date))
+         .where(F.col(period_wk_col).isin(['cmp']))
+         .join(sec_id_class_id_feature_product, ['section_id', 'class_id'])
+        )
+        
+        dur_cc_txn_class_sel_brand = dur_cc_txn_class.join(brand_of_feature_product, ['brand_name'])
+        
+        dur_class_sel_brand_kpi = \
+        (dur_cc_txn_class_sel_brand
+         .groupBy('division_name','department_name','section_name',
+                  'class_name','brand_name','household_id')
+         .agg(F.sum('net_spend_amt').alias('brand_spend_dur'))
+        )
+        
+        pre_dur_band_spend = \
+        (prior_pre_class_sel_brand_kpi
+         .join(dur_class_sel_brand_kpi, ['division_name','department_name','section_name',
+                  'class_name','brand_name','household_id'], 'outer')
+        )
+        
+        cust_movement_pre_dur_spend = cust_movement_sf.join(pre_dur_band_spend, 'household_id', 'left')
+        new_to_brand_switching_from = _switching(switching_lv, 'new_to_brand', cust_movement_pre_dur_spend, prior_pre_cc_txn_class,
+                                                 ['class_name', 'brand_name'], 
+                                                 'brand', 'brand_in_category', 'brand_name', 'dur')
+        # Brand penetration within class
+        cl_cust = dur_cc_txn_class.agg(F.countDistinct('household_id')).collect()[0][0]
+        brand_cust_pen = \
+        (dur_cc_txn_class
+         .groupBy('brand_name')
+         .agg(F.countDistinct('household_id').alias('brand_cust'))
+         .withColumn('category_cust', F.lit(cl_cust))
+         .withColumn('brand_cust_pen', F.col('brand_cust')/F.col('category_cust'))
+        )
+
+        return new_to_brand_switching_from, cust_movement_pre_dur_spend, brand_cust_pen
+    else:
+        
+        print('Unrecognized switching level')
         return None
