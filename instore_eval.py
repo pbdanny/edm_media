@@ -140,15 +140,10 @@ def get_cust_movement(txn: SparkDataFrame,
                       wk_type: str,
                       feat_sf: SparkDataFrame,
                       sku_activated: SparkDataFrame,
-                      brand_activated: SparkDataFrame,
                       class_df: SparkDataFrame,
                       sclass_df: SparkDataFrame,
                       brand_df: SparkDataFrame,
-                      switching_lv: str, cp_start_date: str, 
-                      cp_end_date: str, 
-                      test_store_sf: SparkDataFrame, 
-                      adj_prod_sf: SparkDataFrame, 
-                      feat_list: List
+                      switching_lv: str
                       ):
     """Customer movement based on tagged feature activated & brand activated
     
