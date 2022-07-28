@@ -10,16 +10,14 @@ from pyspark.sql import DataFrame as SparkDataFrame
 
 spark = SparkSession.builder.appName("media_eval").getOrCreate()
 
-def get_cust_activated(
-    txn: SparkDataFrame,  
-    cp_start_date: str, 
-    cp_end_date: str, 
-    wk_type: str,
-    test_store_sf: SparkDataFrame, 
-    adj_prod_sf: SparkDataFrame, 
-    brand_sf: SparkDataFrame,
-    feat_sf: SparkDataFrame,
-    ):
+def get_cust_activated(txn: SparkDataFrame,
+                       cp_start_date: str,
+                       cp_end_date: str, 
+                       wk_type: str,
+                       test_store_sf: SparkDataFrame, 
+                       adj_prod_sf: SparkDataFrame, 
+                       brand_sf: SparkDataFrame,
+                       feat_sf: SparkDataFrame):
     """Get customer exposed & unexposed / shopped, not shop
     
     Parameters
@@ -34,7 +32,8 @@ def get_cust_activated(
     spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
     
     #--- Helper fn
-    def _get_period_wk_col_nm(wk_type:str) -> str:
+    def _get_period_wk_col_nm(wk_type: str
+                              ) -> str:
         """Column name for period week identification
         """
         if wk_type in ["promo"]:
@@ -43,11 +42,10 @@ def get_cust_activated(
             period_wk_col_nm = "period_fis_wk"
         return period_wk_col_nm
             
-    def _create_test_store_sf(
-        test_store_sf: SparkDataFrame,
-        cp_start_date: str, 
-        cp_end_date: str
-        ) -> SparkDataFrame:
+    def _create_test_store_sf(test_store_sf: SparkDataFrame,
+                             cp_start_date: str, 
+                             cp_end_date: str
+                             ) -> SparkDataFrame:
         """From target store definition, fill c_start, c_end 
         based on cp_start_date, cp_end_date
         """
@@ -58,12 +56,11 @@ def get_cust_activated(
             )
         return filled_test_store_sf
     
-    def _get_exposed_cust(
-        txn: SparkDataFrame,
-        test_store_sf: SparkDataFrame,
-        adj_prod_sf: SparkDataFrame,
-        channel: str = "OFFLINE",
-        ) -> SparkDataFrame:
+    def _get_exposed_cust(txn: SparkDataFrame,
+                          test_store_sf: SparkDataFrame,
+                          adj_prod_sf: SparkDataFrame,
+                          channel: str = "OFFLINE"
+                          ) -> SparkDataFrame:
         """Get exposed customer & first exposed date
         """
         out = \
@@ -78,11 +75,10 @@ def get_cust_activated(
             )
         return out
     
-    def _get_shpper(
-        txn: SparkDataFrame,
-        period_wk_col_nm: str,
-        prd_scope_df: SparkDataFrame,
-        ) -> SparkDataFrame:
+    def _get_shppr(txn: SparkDataFrame,
+                   period_wk_col_nm: str,
+                   prd_scope_df: SparkDataFrame
+                   ) -> SparkDataFrame:
         """Get first brand shopped date or feature shopped date, based on input upc_id
         Shopper in campaign period at any store format & any channel
         """
@@ -97,10 +93,9 @@ def get_cust_activated(
             )
         return out
     
-    def _get_activated(
-        exposed_cust: SparkDataFrame,
-        shppr_cust: SparkDataFrame
-        ) -> SparkDataFrame:
+    def _get_activated(exposed_cust: SparkDataFrame,
+                       shppr_cust: SparkDataFrame
+                       ) -> SparkDataFrame:
         """Get activated customer : First exposed date <= First (brand/sku) shopped date
         """
         out = \
@@ -126,14 +121,14 @@ def get_cust_activated(
     # Brand activate
     target_str = _create_test_store_sf(test_store_sf=test_store_sf, cp_start_date=cp_start_date, cp_end_date=cp_end_date)
     cmp_exposed = _get_exposed_cust(txn=txn, test_store_sf=target_str, adj_prod_sf=adj_prod_sf)
-    cmp_brand_shppr = _get_shpper(txn=txn, period_wk_col_nm=period_wk_col, prd_scope_df=brand_sf)
+    cmp_brand_shppr = _get_shppr(txn=txn, period_wk_col_nm=period_wk_col, prd_scope_df=brand_sf)
     cmp_brand_activated = _get_activated(exposed_cust=cmp_exposed, shppr_cust=cmp_brand_shppr)
 
     nmbr_brand_activated = cmp_brand_activated.count()
     print(f'Total exposed and Feature Brand (in Category scope) shopper (Brand Activated) : {nmbr_brand_activated:,d}')
     
     # Sku Activated
-    cmp_sku_shppr = _get_shpper(txn=txn, period_wk_col_nm=period_wk_col, prd_scope_df=feat_sf)
+    cmp_sku_shppr = _get_shppr(txn=txn, period_wk_col_nm=period_wk_col, prd_scope_df=feat_sf)
     cmp_sku_activated = _get_activated(exposed_cust=cmp_exposed, shppr_cust=cmp_sku_shppr)
 
     nmbr_sku_activated = cmp_sku_activated.count()
@@ -148,25 +143,19 @@ def get_cust_movement(txn: SparkDataFrame,
                       brand_activated: SparkDataFrame,
                       class_df: SparkDataFrame,
                       sclass_df: SparkDataFrame,
-                      brand_df: SparkDataFrame,                      
-                      
-                      switching_lv: str, 
-                      cp_start_date: str, 
-                    cp_end_date: str, 
-                    wk_type: str,
-
-                    test_store_sf: SparkDataFrame, 
-                    adj_prod_sf: SparkDataFrame, 
-                    feat_list: List
-                    ):
+                      brand_df: SparkDataFrame,
+                      switching_lv: str, cp_start_date: str, 
+                      cp_end_date: str, 
+                      test_store_sf: SparkDataFrame, 
+                      adj_prod_sf: SparkDataFrame, 
+                      feat_list: List
+                      ):
     """Customer movement based on tagged feature activated & brand activated
     
     """
     spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
     #---- Helper function
-    def _get_period_wk_col_nm(
-        wk_type:str
-        ) -> str:
+    def _get_period_wk_col_nm(wk_type: str) -> str:
         """Column name for period week identification
         """
         if wk_type in ["promo"]:
