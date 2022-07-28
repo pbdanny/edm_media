@@ -1,4 +1,3 @@
-from _typeshed import StrOrBytesPath
 from typing import List
 from copy import deepcopy
 from datetime import datetime, timedelta
