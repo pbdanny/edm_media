@@ -510,3 +510,133 @@ def get_cust_brand_switching_and_penetration(
         )
         
     return new_to_brand_switching, brand_cust_pen, cust_brand_switching_and_pen
+
+def get_cust_sku_switching(
+    txn: SparkDataFrame,
+    switching_lv: str, 
+    sku_activated: SparkDataFrame,
+    brand_df: SparkDataFrame,
+    class_df: SparkDataFrame,
+    sclass_df: SparkDataFrame,
+    cust_movement_sf: SparkDataFrame,
+    wk_type: str,
+    ):
+    """Media evaluation solution, customer sku switching
+    """
+    spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
+    #---- Helper fn
+    def _get_period_wk_col_nm(wk_type: str) -> str:
+        """Column name for period week identification
+        """
+        if wk_type in ["promo"]:
+            period_wk_col_nm = "period_promo_wk" 
+        else:
+            period_wk_col_nm = "period_fis_wk"
+        return period_wk_col_nm
+    
+    prod_desc = spark.table('tdm.v_prod_dim_c').select('upc_id', 'product_en_desc').drop_duplicates()
+    
+    
+    #---- Main
+    # Existing and New SKU buyer (movement at micro level)
+    print("-"*80)
+    print('Customer switching SKU for "OFFLINE" + "ONLINE"')
+    print("Movement consider only Feature SKU activated")
+    print("-"*80)    
+    
+    print("-"*80)
+    period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
+    print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
+    print("-"*80)
+    
+    #---- From Exposed customer, find Existing and New SKU buyer (movement at micro level)
+    
+    if switching_lv == 'subclass':
+        #---- Create subclass-brand spend by cust movement / offline+online
+        txn_sel_subcl_cc = \
+        (txn
+         .filter(F.col('household_id').isNotNull())
+          .filter(F.col('period_fis_wk').isin(['pre', 'ppp', 'cmp']))
+
+#          .filter(F.col('date_id').between(prior_start_date, cp_end_date))
+         .join(sec_id_class_id_subclass_id_feature_product, ['section_id', 'class_id', 'subclass_id'])
+
+         .withColumn('pre_subcl_sales', F.when( F.col('period_fis_wk').isin(['ppp', 'pre']) , F.col('net_spend_amt') ).otherwise(0) )
+         .withColumn('dur_subcl_sales', F.when( F.col('period_fis_wk').isin(['cmp']), F.col('net_spend_amt') ).otherwise(0) )
+         .withColumn('cust_tt_pre_subcl_sales', F.sum(F.col('pre_subcl_sales')).over(Window.partitionBy('household_id') ))
+         .withColumn('cust_tt_dur_subcl_sales', F.sum(F.col('dur_subcl_sales')).over(Window.partitionBy('household_id') ))    
+        )
+        
+        txn_cust_both_period_subcl = txn_sel_subcl_cc.filter( (F.col('cust_tt_pre_subcl_sales')>0) & (F.col('cust_tt_dur_subcl_sales')>0) )
+        
+        txn_cust_both_period_subcl_not_pre_but_dur_sku = \
+        (txn_cust_both_period_subcl
+         .withColumn('pre_sku_sales', 
+                     F.when( (F.col('period_fis_wk').isin(['ppp', 'pre'])) & (F.col('upc_id').isin(feat_list)), F.col('net_spend_amt') ).otherwise(0) )
+         .withColumn('dur_sku_sales', 
+                     F.when( (F.col('period_fis_wk').isin(['cmp'])) & (F.col('upc_id').isin(feat_list)), F.col('net_spend_amt') ).otherwise(0) )
+         .withColumn('cust_tt_pre_sku_sales', F.sum(F.col('pre_sku_sales')).over(Window.partitionBy('household_id') ))
+         .withColumn('cust_tt_dur_sku_sales', F.sum(F.col('dur_sku_sales')).over(Window.partitionBy('household_id') ))
+         .filter( (F.col('cust_tt_pre_sku_sales')<=0) & (F.col('cust_tt_dur_sku_sales')>0) )
+        )
+        
+        n_cust_both_subcl_switch_sku = \
+        (txn_cust_both_period_subcl_not_pre_but_dur_sku
+         .filter(F.col('pre_subcl_sales')>0) # only other products
+         .join(dur_campaign_exposed_cust_and_sku_shopper, 'household_id', 'inner')
+         .groupBy('upc_id').agg(F.countDistinct('household_id').alias('custs'))
+         .join(prod_desc, 'upc_id', 'left')
+         .orderBy('custs', ascending=False)
+        )
+        
+        return n_cust_both_subcl_switch_sku
+        
+    elif switching_lv == 'class':
+        #---- Create subclass-brand spend by cust movement / offline+online
+        txn_sel_cl_cc = \
+        (txn
+         .filter(F.col('household_id').isNotNull())
+         .filter(F.col('period_fis_wk').isin(['pre', 'ppp', 'cmp']))
+
+#          .filter(F.col('date_id').between(prior_start_date, cp_end_date))
+         .join(sec_id_class_id_feature_product, ['section_id', 'class_id'])
+
+         .withColumn('pre_cl_sales', F.when( F.col('period_fis_wk').isin(['ppp', 'pre']), F.col('net_spend_amt') ).otherwise(0) )
+         .withColumn('dur_cl_sales', F.when( F.col('period_fis_wk').isin(['cmp']), F.col('net_spend_amt') ).otherwise(0) )
+         .withColumn('cust_tt_pre_cl_sales', F.sum(F.col('pre_cl_sales')).over(Window.partitionBy('household_id') ))
+         .withColumn('cust_tt_dur_cl_sales', F.sum(F.col('dur_cl_sales')).over(Window.partitionBy('household_id') ))    
+        )
+        
+        txn_cust_both_period_cl = txn_sel_cl_cc.filter( (F.col('cust_tt_pre_cl_sales')>0) & (F.col('cust_tt_dur_cl_sales')>0) )
+        
+        txn_cust_both_period_cl_not_pre_but_dur_sku = \
+        (txn_cust_both_period_cl
+         .withColumn('pre_sku_sales', 
+                     F.when( (F.col('period_fis_wk').isin(['ppp', 'pre'])) & (F.col('upc_id').isin(feat_list)), F.col('net_spend_amt') ).otherwise(0) )
+         .withColumn('dur_sku_sales', 
+                     F.when( (F.col('period_fis_wk').isin(['cmp'])) & (F.col('upc_id').isin(feat_list)), F.col('net_spend_amt') ).otherwise(0) )
+         .withColumn('cust_tt_pre_sku_sales', F.sum(F.col('pre_sku_sales')).over(Window.partitionBy('household_id') ))
+         .withColumn('cust_tt_dur_sku_sales', F.sum(F.col('dur_sku_sales')).over(Window.partitionBy('household_id') ))
+         .filter( (F.col('cust_tt_pre_sku_sales')<=0) & (F.col('cust_tt_dur_sku_sales')>0) )
+        )
+        n_cust_both_cl_switch_sku = \
+        (txn_cust_both_period_cl_not_pre_but_dur_sku
+         .filter(F.col('pre_cl_sales')>0)
+         .join(dur_campaign_exposed_cust_and_sku_shopper, 'household_id', 'inner')
+         .groupBy('upc_id').agg(F.countDistinct('household_id').alias('custs'))
+         .join(prod_desc, 'upc_id', 'left')         
+         .orderBy('custs', ascending=False)
+        )
+        return n_cust_both_cl_switch_sku
+        
+    else:
+        print('Unrecognized switching level')
+        return None
+
+
+
+def main():
+    pass
+
+if __name__ == "__main__":
+    main()
