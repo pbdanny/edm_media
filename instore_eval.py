@@ -666,7 +666,7 @@ def get_profile_truprice(txn: SparkDataFrame,
             (txn
              .groupBy("truprice_seg_desc")
              .agg(F.countDistinct("household_id").alias(f"{lv_nm}_cust"))
-             .withColumn(f"total_{lv_nm}_cust", F.sum("cust").over(Window.partitionBy()))
+             .withColumn(f"total_{lv_nm}_cust", F.sum(f"{lv_nm}_cust").over(Window.partitionBy()))
              .withColumn(f"{lv_nm}_cust_pen", F.col(f"{lv_nm}_cust")/F.col(f"total_{lv_nm}_cust"))
             )
         return tp_pen
