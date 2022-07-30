@@ -409,8 +409,11 @@ def get_cust_brand_switching_and_penetration(
             )
             micro_df_summ = cust_micro_df2.join(cust_micro_kpi_prod_lv, on='class_name', how='inner')
 
-        elif prod_lev == 'class':
-            micro_df_summ = cust_micro_df2.join(cust_micro_kpi_prod_lv, on='section_name', how='inner')
+        #---- To be done : if switching at multi class
+        # elif prod_lev == 'class':
+        #     micro_df_summ = cust_micro_df2.join(cust_micro_kpi_prod_lv, on='section_name', how='inner')
+        else:
+            micro_df_summ = spark.createDataFrame([],[])
 
         print("\t\t\t\t\t\t**Running Summary of micro df")
         switching_result = \
@@ -516,10 +519,8 @@ def get_cust_sku_switching(
         switching_lv: str,
         sku_activated: SparkDataFrame,
         feat_list: List,
-        brand_df: SparkDataFrame,
         class_df: SparkDataFrame,
         sclass_df: SparkDataFrame,
-        cust_movement_sf: SparkDataFrame,
         wk_type: str,
         ):
     """Media evaluation solution, customer sku switching
