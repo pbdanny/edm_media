@@ -596,11 +596,11 @@ def get_cust_sku_switching(
 def get_profile_truprice(txn: SparkDataFrame,
                          store_fmt: str,
                          cp_end_date: str,
-                         wk_type: str,
                          sku_activated: SparkDataFrame,
                          switching_lv: str,
                          class_df: SparkDataFrame,
-                         sclass_df: SparkDataFrame
+                         sclass_df: SparkDataFrame,
+                         wk_type: str,
                          ):
     """Profile activated customer based on TruPrice segment
     Compare with total Lotus shopper at same store format
