@@ -595,7 +595,7 @@ def get_cust_sku_switching(
 
 def get_profile_truprice(txn: SparkDataFrame,
                          store_fmt: str,
-                         cmp_end_date: str,
+                         cp_end_date: str,
                          wk_type: str,
                          sku_activated: SparkDataFrame,
                          switching_lv: str,
@@ -616,7 +616,7 @@ def get_profile_truprice(txn: SparkDataFrame,
             period_wk_col_nm = "period_fis_wk"
         return period_wk_col_nm
 
-    def _get_truprice_seg(cmp_end_date: str):
+    def _get_truprice_seg(cp_end_date: str):
         """Get truprice seg from campaign end date
         With fallback period_id in case truPrice seg not available
         """
@@ -634,7 +634,7 @@ def get_profile_truprice(txn: SparkDataFrame,
             return bck_p_id
 
         # Find period id to map Truprice / if the truprice period not publish yet use latest period
-        bck_p_id = __get_p_id(cmp_end_date, bck_days=180)
+        bck_p_id = __get_p_id(cp_end_date, bck_days=180)
         truprice_all = \
             (spark.table("tdm_seg.srai_truprice_full_history")
              .where(F.col("period_id")>=bck_p_id)
@@ -643,7 +643,7 @@ def get_profile_truprice(txn: SparkDataFrame,
             )
         max_trprc_p_id = truprice_all.agg(F.max("period_id")).drop_duplicates().collect()[0][0]
 
-        crrnt_p_id = __get_p_id(cmp_end_date, bck_days=0)
+        crrnt_p_id = __get_p_id(cp_end_date, bck_days=0)
 
         if int(max_trprc_p_id) < int(crrnt_p_id):
             trprc_p_id = max_trprc_p_id
@@ -679,7 +679,7 @@ def get_profile_truprice(txn: SparkDataFrame,
     period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
     print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
     print("-"*80)
-    truprice_seg, truprice_period_id = _get_truprice_seg(cmp_end_date=cmp_end_date)
+    truprice_seg, truprice_period_id = _get_truprice_seg(cp_end_date=cp_end_date)
     print(f"TruPrice Segment Period Id : {truprice_period_id}")
     print("-"*80)
 
