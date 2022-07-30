@@ -12,14 +12,14 @@ spark = SparkSession.builder.appName("media_eval").getOrCreate()
 
 def get_cust_activated(txn: SparkDataFrame,
                        cp_start_date: str,
-                       cp_end_date: str, 
+                       cp_end_date: str,
                        wk_type: str,
-                       test_store_sf: SparkDataFrame, 
-                       adj_prod_sf: SparkDataFrame, 
+                       test_store_sf: SparkDataFrame,
+                       adj_prod_sf: SparkDataFrame,
                        brand_sf: SparkDataFrame,
                        feat_sf: SparkDataFrame):
     """Get customer exposed & unexposed / shopped, not shop
-    
+
     Parameters
     ----------
     txn:
@@ -30,23 +30,23 @@ def get_cust_activated(txn: SparkDataFrame,
         "fis_week" or "promo_week"
     """
     spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
-    
+
     #--- Helper fn
     def _get_period_wk_col_nm(wk_type: str
                               ) -> str:
         """Column name for period week identification
         """
         if wk_type in ["promo"]:
-            period_wk_col_nm = "period_promo_wk" 
+            period_wk_col_nm = "period_promo_wk"
         else:
             period_wk_col_nm = "period_fis_wk"
         return period_wk_col_nm
-            
+
     def _create_test_store_sf(test_store_sf: SparkDataFrame,
-                             cp_start_date: str, 
+                             cp_start_date: str,
                              cp_end_date: str
                              ) -> SparkDataFrame:
-        """From target store definition, fill c_start, c_end 
+        """From target store definition, fill c_start, c_end
         based on cp_start_date, cp_end_date
         """
         filled_test_store_sf = \
@@ -55,7 +55,7 @@ def get_cust_activated(txn: SparkDataFrame,
             .fillna(str(cp_end_date), subset='c_end')
             )
         return filled_test_store_sf
-    
+
     def _get_exposed_cust(txn: SparkDataFrame,
                           test_store_sf: SparkDataFrame,
                           adj_prod_sf: SparkDataFrame,
@@ -74,7 +74,7 @@ def get_cust_activated(txn: SparkDataFrame,
              .agg(F.min("date_id").alias("first_exposed_date"))
             )
         return out
-    
+
     def _get_shppr(txn: SparkDataFrame,
                    period_wk_col_nm: str,
                    prd_scope_df: SparkDataFrame
@@ -84,7 +84,7 @@ def get_cust_activated(txn: SparkDataFrame,
         """
         out = \
             (txn
-             .where(F.col('household_id').isNotNull())    
+             .where(F.col('household_id').isNotNull())
              .where(F.col(period_wk_col_nm).isin(["cmp"]))
              .join(prd_scope_df, 'upc_id')
              .groupBy('household_id')
@@ -92,7 +92,7 @@ def get_cust_activated(txn: SparkDataFrame,
              .drop_duplicates()
             )
         return out
-    
+
     def _get_activated(exposed_cust: SparkDataFrame,
                        shppr_cust: SparkDataFrame
                        ) -> SparkDataFrame:
@@ -117,7 +117,7 @@ def get_cust_activated(txn: SparkDataFrame,
     period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
     print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
     print("-"*80)
-    
+
     # Brand activate
     target_str = _create_test_store_sf(test_store_sf=test_store_sf, cp_start_date=cp_start_date, cp_end_date=cp_end_date)
     cmp_exposed = _get_exposed_cust(txn=txn, test_store_sf=target_str, adj_prod_sf=adj_prod_sf)
@@ -126,17 +126,17 @@ def get_cust_activated(txn: SparkDataFrame,
 
     nmbr_brand_activated = cmp_brand_activated.count()
     print(f'Total exposed and Feature Brand (in Category scope) shopper (Brand Activated) : {nmbr_brand_activated:,d}')
-    
+
     # Sku Activated
     cmp_sku_shppr = _get_shppr(txn=txn, period_wk_col_nm=period_wk_col, prd_scope_df=feat_sf)
     cmp_sku_activated = _get_activated(exposed_cust=cmp_exposed, shppr_cust=cmp_sku_shppr)
 
     nmbr_sku_activated = cmp_sku_activated.count()
     print(f'Total exposed and Features SKU shopper (Features SKU Activated) : {nmbr_sku_activated:,d}')
-    
+
     return cmp_brand_activated, cmp_sku_activated
 
-def get_cust_movement(txn: SparkDataFrame, 
+def get_cust_movement(txn: SparkDataFrame,
                       wk_type: str,
                       feat_sf: SparkDataFrame,
                       sku_activated: SparkDataFrame,
@@ -146,7 +146,7 @@ def get_cust_movement(txn: SparkDataFrame,
                       switching_lv: str
                       ):
     """Customer movement based on tagged feature activated & brand activated
-    
+
     """
     spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
     #---- Helper function
@@ -154,24 +154,24 @@ def get_cust_movement(txn: SparkDataFrame,
         """Column name for period week identification
         """
         if wk_type in ["promo"]:
-            period_wk_col_nm = "period_promo_wk" 
+            period_wk_col_nm = "period_promo_wk"
         else:
             period_wk_col_nm = "period_fis_wk"
         return period_wk_col_nm
 
     #---- Main
-    # Movement 
+    # Movement
     # Existing and New SKU buyer (movement at micro level)
     print("-"*80)
     print("Customer movement")
     print("Movement consider only Feature SKU activated")
-    print("-"*80)    
-    
+    print("-"*80)
+
     print("-"*80)
     period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
     print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
     print("-"*80)
-    
+
     # Features SKU movement
     prior_pre_sku_shopper = \
     (txn
@@ -181,7 +181,7 @@ def get_cust_movement(txn: SparkDataFrame,
      .select('household_id')
      .drop_duplicates()
     )
-    
+
     existing_exposed_cust_and_sku_shopper = \
     (sku_activated
      .join(prior_pre_sku_shopper, 'household_id', 'inner')
@@ -189,14 +189,14 @@ def get_cust_movement(txn: SparkDataFrame,
      .withColumn('customer_micro_flag', F.lit('existing_sku'))
      .checkpoint()
     )
-    
+
     new_exposed_cust_and_sku_shopper = \
     (sku_activated
      .join(existing_exposed_cust_and_sku_shopper, 'household_id', 'leftanti')
      .withColumn('customer_macro_flag', F.lit('new'))
      .checkpoint()
     )
-        
+
     # Customer movement for Feature SKU
     ## Macro level (New/Existing/Lapse)
     prior_pre_cc_txn = \
@@ -213,14 +213,14 @@ def get_cust_movement(txn: SparkDataFrame,
      .select('household_id')
      .drop_duplicates()
     )
-    
+
     prior_pre_subclass_shopper = \
     (prior_pre_cc_txn
      .join(sclass_df, "upc_id", "inner")
      .select('household_id')
      .drop_duplicates()
     )
-        
+
     ## Micro level
     new_sku_new_store = \
     (new_exposed_cust_and_sku_shopper
@@ -228,7 +228,7 @@ def get_cust_movement(txn: SparkDataFrame,
      .select('household_id', 'customer_macro_flag')
      .withColumn('customer_micro_flag', F.lit('new_to_lotus'))
     )
-    
+
     new_sku_new_class = \
     (new_exposed_cust_and_sku_shopper
      .join(prior_pre_store_shopper, 'household_id', 'inner')
@@ -236,7 +236,7 @@ def get_cust_movement(txn: SparkDataFrame,
      .select('household_id', 'customer_macro_flag')
      .withColumn('customer_micro_flag', F.lit('new_to_class'))
     )
-    
+
     if switching_lv == 'subclass':
         new_sku_new_subclass = \
         (new_exposed_cust_and_sku_shopper
@@ -246,7 +246,7 @@ def get_cust_movement(txn: SparkDataFrame,
          .select('household_id', 'customer_macro_flag')
          .withColumn('customer_micro_flag', F.lit('new_to_subclass'))
         )
-        
+
         prior_pre_brand_in_subclass_shopper = \
         (prior_pre_cc_txn
          .join(sclass_df, "upc_id", "inner")
@@ -254,7 +254,7 @@ def get_cust_movement(txn: SparkDataFrame,
          .select('household_id')
          .drop_duplicates()
         )
-        
+
         #---- Current subclass shopper , new to brand : brand switcher within sublass
         new_sku_new_brand_shopper = \
         (new_exposed_cust_and_sku_shopper
@@ -265,7 +265,7 @@ def get_cust_movement(txn: SparkDataFrame,
          .select('household_id', 'customer_macro_flag')
          .withColumn('customer_micro_flag', F.lit('new_to_brand'))
         )
-        
+
         new_sku_within_brand_shopper = \
         (new_exposed_cust_and_sku_shopper
          .join(prior_pre_store_shopper, 'household_id', 'inner')
@@ -276,7 +276,7 @@ def get_cust_movement(txn: SparkDataFrame,
          .select('household_id', 'customer_macro_flag')
          .withColumn('customer_micro_flag', F.lit('new_to_sku'))
         )
-        
+
         result_movement = \
         (existing_exposed_cust_and_sku_shopper
          .unionByName(new_sku_new_store)
@@ -286,11 +286,11 @@ def get_cust_movement(txn: SparkDataFrame,
          .unionByName(new_sku_within_brand_shopper)
          .checkpoint()
         )
-        
+
         return result_movement, new_exposed_cust_and_sku_shopper
 
     elif switching_lv == 'class':
-        
+
         prior_pre_brand_in_class_shopper = \
         (prior_pre_cc_txn
          .join(sclass_df, "upc_id", "inner")
@@ -307,7 +307,7 @@ def get_cust_movement(txn: SparkDataFrame,
          .select('household_id', 'customer_macro_flag')
          .withColumn('customer_micro_flag', F.lit('new_to_brand'))
         )
-        
+
         new_sku_within_brand_shopper = \
         (new_exposed_cust_and_sku_shopper
          .join(prior_pre_store_shopper, 'household_id', 'inner')
@@ -317,7 +317,7 @@ def get_cust_movement(txn: SparkDataFrame,
          .select('household_id', 'customer_macro_flag')
          .withColumn('customer_micro_flag', F.lit('new_to_sku'))
         )
-        
+
         result_movement = \
         (existing_exposed_cust_and_sku_shopper
          .unionByName(new_sku_new_store)
@@ -326,16 +326,16 @@ def get_cust_movement(txn: SparkDataFrame,
          .unionByName(new_sku_within_brand_shopper)
          .checkpoint()
         )
-        
+
         return result_movement, new_exposed_cust_and_sku_shopper
 
     else:
         print('Not recognized Movement and Switching level param')
         return None
-    
+
 def get_cust_brand_switching_and_penetration(
         txn: SparkDataFrame,
-        switching_lv: str, 
+        switching_lv: str,
         brand_df: SparkDataFrame,
         class_df: SparkDataFrame,
         sclass_df: SparkDataFrame,
@@ -350,20 +350,20 @@ def get_cust_brand_switching_and_penetration(
         """Column name for period week identification
         """
         if wk_type in ["promo"]:
-            period_wk_col_nm = "period_promo_wk" 
+            period_wk_col_nm = "period_promo_wk"
         else:
             period_wk_col_nm = "period_fis_wk"
         return period_wk_col_nm
-    
+
     ## Customer Switching by Sai
-    def _switching(switching_lv:str, micro_flag: str, cust_movement_sf: SparkDataFrame, 
-                   prod_trans: SparkDataFrame, grp: List, 
-                   prod_lev: str, full_prod_lev: str , 
+    def _switching(switching_lv:str, micro_flag: str, cust_movement_sf: SparkDataFrame,
+                   prod_trans: SparkDataFrame, grp: List,
+                   prod_lev: str, full_prod_lev: str ,
                    col_rename: str, period: str
                    ):
         """Customer switching from Sai
         """
-        print(f'\t\t\t\t\t\t Switching of customer movement at : {micro_flag}')        
+        print(f'\t\t\t\t\t\t Switching of customer movement at : {micro_flag}')
         # List of customer movement at analysis micro level
         cust_micro_df = cust_movement_sf.where(F.col('customer_micro_flag') == micro_flag)
         prod_trans_cust_micro = prod_trans.join(cust_micro_df.select('household_id').dropDuplicates()
@@ -375,14 +375,14 @@ def get_cust_brand_switching_and_penetration(
               F.countDistinct('household_id').alias('oth_'+prod_lev+'_customers'))
          .withColumnRenamed(col_rename, 'oth_'+full_prod_lev)
         )
-                
+
         total_oth = \
         (cust_micro_kpi_prod_lv
          .agg(F.sum('oth_'+prod_lev+'_spend').alias('_total_oth_spend'))
         ).collect()[0][0]
-        
+
         cust_micro_kpi_prod_lv = cust_micro_kpi_prod_lv.withColumn('total_oth_'+prod_lev+'_spend', F.lit(float(total_oth)))
-        
+
         print("\t\t\t\t\t\t**Running micro df2")
         # Join micro df with prod trans
         if (prod_lev == 'brand') & (switching_lv == 'subclass'):
@@ -397,7 +397,7 @@ def get_cust_brand_switching_and_penetration(
                   F.countDistinct('household_id').alias('total_ori_brand_cust'))
             )
             micro_df_summ = cust_micro_df2.join(cust_micro_kpi_prod_lv, on='class_name', how='inner')
-            
+
         elif (prod_lev == 'brand') & (switching_lv == 'class'):
             cust_micro_df2 = \
             (cust_micro_df
@@ -406,12 +406,12 @@ def get_cust_brand_switching_and_penetration(
                       'customer_macro_flag','customer_micro_flag')
              .agg(F.sum('brand_spend_'+period).alias('total_ori_brand_spend'),
                   F.countDistinct('household_id').alias('total_ori_brand_cust'))
-            )            
+            )
             micro_df_summ = cust_micro_df2.join(cust_micro_kpi_prod_lv, on='class_name', how='inner')
-            
+
         elif prod_lev == 'class':
             micro_df_summ = cust_micro_df2.join(cust_micro_kpi_prod_lv, on='section_name', how='inner')
-        
+
         print("\t\t\t\t\t\t**Running Summary of micro df")
         switching_result = \
         (micro_df_summ
@@ -423,7 +423,7 @@ def get_cust_brand_switching_and_penetration(
          .orderBy(F.col('pct_cust_oth_'+full_prod_lev).desc(), F.col('pct_spend_oth_'+full_prod_lev).desc())
         )
         switching_result = switching_result.checkpoint()
-        
+
         return switching_result
 
     def _get_swtchng_pntrtn(switching_lv: str):
@@ -438,48 +438,48 @@ def get_cust_brand_switching_and_penetration(
             prd_scope_df = class_df
             gr_col = ['division_name','department_name','section_name',
                       'brand_name','household_id']
-         
+
         prior_pre_cc_txn_prd_scope = \
         (txn
          .where(F.col('household_id').isNotNull())
          .where(F.col(period_wk_col).isin(['pre', 'ppp']))
          .join(prd_scope_df, "upc_id", "inner")
         )
-        
+
         prior_pre_cc_txn_prd_scope_sel_brand = prior_pre_cc_txn_prd_scope.join(brand_df, "upc_id", "inner")
-        
+
         prior_pre_prd_scope_sel_brand_kpi = \
         (prior_pre_cc_txn_prd_scope_sel_brand
          .groupBy(gr_col)
          .agg(F.sum('net_spend_amt').alias('brand_spend_pre'))
         )
-        
+
         dur_cc_txn_prd_scope = \
         (txn
          .where(F.col('household_id').isNotNull())
          .where(F.col(period_wk_col).isin(['cmp']))
          .join(prd_scope_df, "upc_id", "inner")
         )
-        
+
         dur_cc_txn_prd_scope_sel_brand = dur_cc_txn_prd_scope.join(brand_df, "upc_id", "inner")
-        
+
         dur_prd_scope_sel_brand_kpi = \
         (dur_cc_txn_prd_scope_sel_brand
          .groupBy(gr_col)
          .agg(F.sum('net_spend_amt').alias('brand_spend_dur'))
         )
-        
+
         pre_dur_band_spend = \
         (prior_pre_prd_scope_sel_brand_kpi
          .join(dur_prd_scope_sel_brand_kpi, gr_col, 'outer')
         )
-        
+
         cust_movement_pre_dur_spend = cust_movement_sf.join(pre_dur_band_spend, 'household_id', 'left')
-        new_to_brand_switching_from = _switching(switching_lv, 'new_to_brand', 
-                                                 cust_movement_pre_dur_spend, 
-                                                 prior_pre_cc_txn_prd_scope, 
-#                                                ['subclass_name', 'brand_name'], 
-                                                 ["class_name", 'brand_name'], 
+        new_to_brand_switching_from = _switching(switching_lv, 'new_to_brand',
+                                                 cust_movement_pre_dur_spend,
+                                                 prior_pre_cc_txn_prd_scope,
+                                               # ['subclass_name', 'brand_name'],
+                                                 ["class_name", 'brand_name'],
                                                  'brand', 'brand_in_category', 'brand_name', 'dur')
         # Brand penetration within subclass
         dur_prd_scope_cust = dur_cc_txn_prd_scope.agg(F.countDistinct('household_id')).collect()[0][0]
@@ -490,9 +490,9 @@ def get_cust_brand_switching_and_penetration(
          .withColumn('category_cust', F.lit(dur_prd_scope_cust))
          .withColumn('brand_cust_pen', F.col('brand_cust')/F.col('category_cust'))
         )
-        
+
         return new_to_brand_switching_from, cust_movement_pre_dur_spend, brand_cust_pen
-    
+
     #---- Main
     print("-"*80)
     print("Customer brand switching")
@@ -501,26 +501,27 @@ def get_cust_brand_switching_and_penetration(
     period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
     print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
     print("-"*80)
-    
+
     new_to_brand_switching, cust_mv_pre_dur_spend, brand_cust_pen = _get_swtchng_pntrtn(switching_lv=switching_lv)
     cust_brand_switching_and_pen = \
         (new_to_brand_switching.alias("a")
-         .join(brand_cust_pen.alias("b"), 
+         .join(brand_cust_pen.alias("b"),
                F.col("a.oth_brand_in_category")==F.col("b.brand_name"), "left")
         )
-        
+
     return new_to_brand_switching, brand_cust_pen, cust_brand_switching_and_pen
 
 def get_cust_sku_switching(
-    txn: SparkDataFrame,
-    switching_lv: str, 
-    sku_activated: SparkDataFrame,
-    brand_df: SparkDataFrame,
-    class_df: SparkDataFrame,
-    sclass_df: SparkDataFrame,
-    cust_movement_sf: SparkDataFrame,
-    wk_type: str,
-    ):
+        txn: SparkDataFrame,
+        switching_lv: str,
+        sku_activated: SparkDataFrame,
+        feat_list: List,
+        brand_df: SparkDataFrame,
+        class_df: SparkDataFrame,
+        sclass_df: SparkDataFrame,
+        cust_movement_sf: SparkDataFrame,
+        wk_type: str,
+        ):
     """Media evaluation solution, customer sku switching
     """
     spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
@@ -529,110 +530,66 @@ def get_cust_sku_switching(
         """Column name for period week identification
         """
         if wk_type in ["promo"]:
-            period_wk_col_nm = "period_promo_wk" 
+            period_wk_col_nm = "period_promo_wk"
         else:
             period_wk_col_nm = "period_fis_wk"
         return period_wk_col_nm
-    
-    prod_desc = spark.table('tdm.v_prod_dim_c').select('upc_id', 'product_en_desc').drop_duplicates()
-    
-    
+
     #---- Main
-    # Existing and New SKU buyer (movement at micro level)
     print("-"*80)
-    print('Customer switching SKU for "OFFLINE" + "ONLINE"')
-    print("Movement consider only Feature SKU activated")
-    print("-"*80)    
-    
+    print("Customer switching SKU for 'OFFLINE' + 'ONLINE'")
+    print(f"Switching within : {switching_lv.upper()}")
+    print("Customer Movement consider only Feature SKU activated")
     print("-"*80)
+
     period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
     print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
     print("-"*80)
-    
-    #---- From Exposed customer, find Existing and New SKU buyer (movement at micro level)
-    
-    if switching_lv == 'subclass':
-        #---- Create subclass-brand spend by cust movement / offline+online
-        txn_sel_subcl_cc = \
-        (txn
-         .filter(F.col('household_id').isNotNull())
-          .filter(F.col('period_fis_wk').isin(['pre', 'ppp', 'cmp']))
 
-#          .filter(F.col('date_id').between(prior_start_date, cp_end_date))
-         .join(sec_id_class_id_subclass_id_feature_product, ['section_id', 'class_id', 'subclass_id'])
-
-         .withColumn('pre_subcl_sales', F.when( F.col('period_fis_wk').isin(['ppp', 'pre']) , F.col('net_spend_amt') ).otherwise(0) )
-         .withColumn('dur_subcl_sales', F.when( F.col('period_fis_wk').isin(['cmp']), F.col('net_spend_amt') ).otherwise(0) )
-         .withColumn('cust_tt_pre_subcl_sales', F.sum(F.col('pre_subcl_sales')).over(Window.partitionBy('household_id') ))
-         .withColumn('cust_tt_dur_subcl_sales', F.sum(F.col('dur_subcl_sales')).over(Window.partitionBy('household_id') ))    
-        )
-        
-        txn_cust_both_period_subcl = txn_sel_subcl_cc.filter( (F.col('cust_tt_pre_subcl_sales')>0) & (F.col('cust_tt_dur_subcl_sales')>0) )
-        
-        txn_cust_both_period_subcl_not_pre_but_dur_sku = \
-        (txn_cust_both_period_subcl
-         .withColumn('pre_sku_sales', 
-                     F.when( (F.col('period_fis_wk').isin(['ppp', 'pre'])) & (F.col('upc_id').isin(feat_list)), F.col('net_spend_amt') ).otherwise(0) )
-         .withColumn('dur_sku_sales', 
-                     F.when( (F.col('period_fis_wk').isin(['cmp'])) & (F.col('upc_id').isin(feat_list)), F.col('net_spend_amt') ).otherwise(0) )
-         .withColumn('cust_tt_pre_sku_sales', F.sum(F.col('pre_sku_sales')).over(Window.partitionBy('household_id') ))
-         .withColumn('cust_tt_dur_sku_sales', F.sum(F.col('dur_sku_sales')).over(Window.partitionBy('household_id') ))
-         .filter( (F.col('cust_tt_pre_sku_sales')<=0) & (F.col('cust_tt_dur_sku_sales')>0) )
-        )
-        
-        n_cust_both_subcl_switch_sku = \
-        (txn_cust_both_period_subcl_not_pre_but_dur_sku
-         .filter(F.col('pre_subcl_sales')>0) # only other products
-         .join(dur_campaign_exposed_cust_and_sku_shopper, 'household_id', 'inner')
-         .groupBy('upc_id').agg(F.countDistinct('household_id').alias('custs'))
-         .join(prod_desc, 'upc_id', 'left')
-         .orderBy('custs', ascending=False)
-        )
-        
-        return n_cust_both_subcl_switch_sku
-        
-    elif switching_lv == 'class':
-        #---- Create subclass-brand spend by cust movement / offline+online
-        txn_sel_cl_cc = \
-        (txn
-         .filter(F.col('household_id').isNotNull())
-         .filter(F.col('period_fis_wk').isin(['pre', 'ppp', 'cmp']))
-
-#          .filter(F.col('date_id').between(prior_start_date, cp_end_date))
-         .join(sec_id_class_id_feature_product, ['section_id', 'class_id'])
-
-         .withColumn('pre_cl_sales', F.when( F.col('period_fis_wk').isin(['ppp', 'pre']), F.col('net_spend_amt') ).otherwise(0) )
-         .withColumn('dur_cl_sales', F.when( F.col('period_fis_wk').isin(['cmp']), F.col('net_spend_amt') ).otherwise(0) )
-         .withColumn('cust_tt_pre_cl_sales', F.sum(F.col('pre_cl_sales')).over(Window.partitionBy('household_id') ))
-         .withColumn('cust_tt_dur_cl_sales', F.sum(F.col('dur_cl_sales')).over(Window.partitionBy('household_id') ))    
-        )
-        
-        txn_cust_both_period_cl = txn_sel_cl_cc.filter( (F.col('cust_tt_pre_cl_sales')>0) & (F.col('cust_tt_dur_cl_sales')>0) )
-        
-        txn_cust_both_period_cl_not_pre_but_dur_sku = \
-        (txn_cust_both_period_cl
-         .withColumn('pre_sku_sales', 
-                     F.when( (F.col('period_fis_wk').isin(['ppp', 'pre'])) & (F.col('upc_id').isin(feat_list)), F.col('net_spend_amt') ).otherwise(0) )
-         .withColumn('dur_sku_sales', 
-                     F.when( (F.col('period_fis_wk').isin(['cmp'])) & (F.col('upc_id').isin(feat_list)), F.col('net_spend_amt') ).otherwise(0) )
-         .withColumn('cust_tt_pre_sku_sales', F.sum(F.col('pre_sku_sales')).over(Window.partitionBy('household_id') ))
-         .withColumn('cust_tt_dur_sku_sales', F.sum(F.col('dur_sku_sales')).over(Window.partitionBy('household_id') ))
-         .filter( (F.col('cust_tt_pre_sku_sales')<=0) & (F.col('cust_tt_dur_sku_sales')>0) )
-        )
-        n_cust_both_cl_switch_sku = \
-        (txn_cust_both_period_cl_not_pre_but_dur_sku
-         .filter(F.col('pre_cl_sales')>0)
-         .join(dur_campaign_exposed_cust_and_sku_shopper, 'household_id', 'inner')
-         .groupBy('upc_id').agg(F.countDistinct('household_id').alias('custs'))
-         .join(prod_desc, 'upc_id', 'left')         
-         .orderBy('custs', ascending=False)
-        )
-        return n_cust_both_cl_switch_sku
-        
+    if switching_lv == "subclass":
+        cat_df = sclass_df
     else:
-        print('Unrecognized switching level')
-        return None
+        cat_df = class_df
 
+    prod_desc = spark.table('tdm.v_prod_dim_c').select('upc_id', 'product_en_desc').drop_duplicates()
+
+    # (PPP+Pre) vs Dur Category Sales of each household_id
+    ## Windows aggregate style
+    txn_per_dur_cat_sale = \
+        (txn
+            .filter(F.col('household_id').isNotNull())
+            .filter(F.col(period_wk_col).isin(['pre', 'ppp', 'cmp']))
+            .join(cat_df, "upc_id", "inner")
+            .withColumn('pre_cat_sales', F.when( F.col(period_wk_col).isin(['ppp', 'pre']) , F.col('net_spend_amt') ).otherwise(0) )
+            .withColumn('dur_cat_sales', F.when( F.col(period_wk_col).isin(['cmp']), F.col('net_spend_amt') ).otherwise(0) )
+            .withColumn('cust_tt_pre_cat_sales', F.sum(F.col('pre_cat_sales')).over(Window.partitionBy('household_id') ))
+            .withColumn('cust_tt_dur_cat_sales', F.sum(F.col('dur_cat_sales')).over(Window.partitionBy('household_id') ))
+            )
+
+    txn_cat_both = txn_per_dur_cat_sale.filter( (F.col('cust_tt_pre_cat_sales')>0) & (F.col('cust_tt_dur_cat_sales')>0) )
+
+    txn_cat_both_sku_only_dur = \
+    (txn_cat_both
+        .withColumn('pre_sku_sales',
+                    F.when( (F.col(period_wk_col).isin(['ppp', 'pre'])) & (F.col('upc_id').isin(feat_list)), F.col('net_spend_amt') ).otherwise(0) )
+        .withColumn('dur_sku_sales',
+                    F.when( (F.col(period_wk_col).isin(['cmp'])) & (F.col('upc_id').isin(feat_list)), F.col('net_spend_amt') ).otherwise(0) )
+        .withColumn('cust_tt_pre_sku_sales', F.sum(F.col('pre_sku_sales')).over(Window.partitionBy('household_id') ))
+        .withColumn('cust_tt_dur_sku_sales', F.sum(F.col('dur_sku_sales')).over(Window.partitionBy('household_id') ))
+        .filter( (F.col('cust_tt_pre_sku_sales')<=0) & (F.col('cust_tt_dur_sku_sales')>0) )
+    )
+
+    n_cust_switch_sku = \
+    (txn_cat_both_sku_only_dur
+        .filter(F.col('pre_cat_sales')>0) # only other products
+        .join(sku_activated, 'household_id', 'inner')
+        .groupBy('upc_id')
+        .agg(F.countDistinct('household_id').alias('custs'))
+        .join(prod_desc, 'upc_id', 'left')
+        .orderBy('custs', ascending=False)
+    )
+
+    return n_cust_switch_sku
 
 
 def main():
