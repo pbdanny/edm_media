@@ -727,8 +727,7 @@ def get_customer_uplift(txn: SparkDataFrame,
                        brand_sf: SparkDataFrame,
                        feat_sf: SparkDataFrame,
                        ctr_store_list: List,
-                       cust_uplift_lv: str,
-                       switching_lv: str):
+                       cust_uplift_lv: str):
     """Customer Uplift : Exposed vs Unexposed
     Exposed : shop adjacency product during campaing in test store
     Unexpose : shop adjacency product during campaing in control store
@@ -766,7 +765,7 @@ def get_customer_uplift(txn: SparkDataFrame,
         """From list of control store, fill c_start, c_end
         based on cp_start_date, cp_end_date
         """
-        df = pd.DataFrame(ctr_store_list, ["store_id"])
+        df = pd.DataFrame(ctr_store_list, columns=["store_id"])
         sf = spark.createDataFrame(df)
 
         filled_ctrl_store_sf = \
