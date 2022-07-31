@@ -864,7 +864,7 @@ def get_customer_uplift(txn: SparkDataFrame,
     cmp_unexposed = _get_exposed_cust(txn=txn, test_store_sf=ctr_str, adj_prod_sf=adj_prod_sf)
 
     exposed_flag = cmp_exposed.withColumn("exposed_flag", F.lit(1))
-    unexposed_flag = cmp_unexposed.withColumn("exposed_flag", F.lit(1)).withColumnRenamed("first_exposed_date", "first_unexposed_date")
+    unexposed_flag = cmp_unexposed.withColumn("unexposed_flag", F.lit(1)).withColumnRenamed("first_exposed_date", "first_unexposed_date")
 
     exposure_cust_table = exposed_flag.join(unexposed_flag, 'household_id', 'outer').fillna(0)
 
