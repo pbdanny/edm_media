@@ -881,7 +881,7 @@ def get_customer_uplift(txn: SparkDataFrame,
      .withColumn('unexposed_and_buy_flag', F.when( (F.col('first_exposed_date').isNull()) & \
                                                    (F.col('first_unexposed_date').isNotNull()) & \
                                                    (F.col('first_shp_date').isNotNull()) & \
-                                                   (F.col('first_unexposed_date') <= F.col('frist_shp_date')), '1').otherwise(0))
+                                                   (F.col('first_unexposed_date') <= F.col('first_shp_date')), '1').otherwise(0))
     )
     exposed_unexposed_buy_flag.groupBy('exposed_flag', 'unexposed_flag','exposed_and_buy_flag','unexposed_and_buy_flag').count().show()
 
