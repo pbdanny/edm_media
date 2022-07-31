@@ -771,7 +771,7 @@ def get_customer_uplift(txn: SparkDataFrame,
         filled_ctrl_store_sf = \
             (sf
              .withColumn("c_start", F.lit(cp_start_date))
-             .withColumn("c_snd", F.lit(cp_end_date))
+             .withColumn("c_end", F.lit(cp_end_date))
             )
         return filled_ctrl_store_sf
 
