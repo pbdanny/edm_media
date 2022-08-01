@@ -766,7 +766,7 @@ def get_customer_uplift(txn: SparkDataFrame,
         based on cp_start_date, cp_end_date
         """
         df = pd.DataFrame(ctr_store_list, columns=["store_id"])
-        sf = spark.createDataFrame(df)
+        sf = spark.createDataFrame(df)  # type: ignore
 
         filled_ctrl_store_sf = \
             (sf
@@ -973,7 +973,7 @@ def get_customer_uplift(txn: SparkDataFrame,
     # Sort row order , export as SparkFrame
     df = uplift_out.toPandas()
     sort_dict = {"new":0, "existing":1, "lapse":2, "Total":3}
-    df = df.sort_values(by=["customer_group"], key=lambda x: x.map(sort_dict))
+    df = df.sort_values(by=["customer_group"], key=lambda x: x.map(sort_dict))  # type: ignore
     uplift_out = spark.createDataFrame(df)
 
     return uplift_out
