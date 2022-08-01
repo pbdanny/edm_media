@@ -1000,7 +1000,7 @@ def get_cust_activated_prmzn(
         test_store_sf: SparkDataFrame,
         brand_sf: SparkDataFrame,
         feat_sf: SparkDataFrame,
-        wk_type: str = "promo"):
+        wk_type: str = "promozone"):
     """Media evaluation solution, Customer movement and switching v3 - PromoZon
     Activated shopper = feature product shopper at test store
 
