@@ -52,7 +52,7 @@ import string
 import subprocess
 import importlib
 import shutil
-import urllib 
+import urllib
 import pathlib
 
 # COMMAND ----------
@@ -217,28 +217,28 @@ if ((str(gap_start_date).lower() == 'nan') | (str(gap_start_date).strip() == '')
     gap_flag    = False
     chk_pre_wk  = cmp_st_wk
     chk_pre_dt  = cmp_start
-elif( (not ((str(gap_start_date).lower() == 'nan') | (str(gap_start_date).strip() == ''))) & 
-      (not ((str(gap_end_date).lower() == 'nan')   | (str(gap_end_date).strip() == ''))) ):    
+elif( (not ((str(gap_start_date).lower() == 'nan') | (str(gap_start_date).strip() == ''))) &
+      (not ((str(gap_end_date).lower() == 'nan')   | (str(gap_end_date).strip() == ''))) ):
     print('\n Campaign ' + str(cmp_nm) + ' has gap period between : ' + str(gap_start_date) + ' and ' + str(gap_end_date) + '\n')
     ## fis_week
     gap_st_wk   = wk_of_year_ls(gap_start_date)
     gap_en_wk   = wk_of_year_ls(gap_end_date)
-    
+
     ## promo
     gap_st_promo_wk  = wk_of_year_promo_ls(gap_start_date)
     gap_en_promo_wk  = wk_of_year_promo_ls(gap_end_date)
-    
-    gap_flag         = True    
-    
+
+    gap_flag         = True
+
     chk_pre_dt       = gap_start_date
     chk_pre_wk       = gap_st_wk
     chk_pre_promo_wk = gap_st_promo_wk
-    
+
 else:
     print(' Incorrect gap period. Please recheck - Code will skip !! \n')
     print(' Received Gap = ' + str(gap_start_date) + " and " + str(gap_end_date))
     raise Exception("Incorrect Gap period value please recheck !!")
-## end if   
+## end if
 
 pre_en_date = (datetime.strptime(chk_pre_dt, '%Y-%m-%d') + timedelta(days=-1)).strftime('%Y-%m-%d')
 pre_en_wk   = wk_of_year_ls(pre_en_date)
@@ -246,7 +246,7 @@ pre_st_wk   = week_cal(pre_en_wk, -12)                       ## get 12 week away
 pre_st_date = f_date_of_wk(pre_st_wk).strftime('%Y-%m-%d')   ## get first date of start week to get full week data
 ## promo week
 pre_en_promo_wk = wk_of_year_promo_ls(pre_en_date)
-pre_st_promo_wk = promo_week_cal(pre_en_promo_wk, -12)   
+pre_st_promo_wk = promo_week_cal(pre_en_promo_wk, -12)
 
 ppp_en_wk       = week_cal(pre_st_wk, -1)
 ppp_st_wk       = week_cal(ppp_en_wk, -12)
@@ -331,12 +331,12 @@ print(' Input Product Adjacency file = ' + in_ai_file )
 
 ## control need check
 if (eval_type == 'full') & (hv_ctrl_store == 'true'):
-    in_ctl_file = input_path + control_file    
+    in_ctl_file = input_path + control_file
     flg_use_oth = False
     flg_use_rsv = False
     print('\n Control store file for campaign ' + str(cmp_nm) + ' : ' + in_ctl_file + '\n')
-elif (eval_type == 'full') & (hv_ctrl_store != 'true') & (use_reserved_store == 'true'):    
-    in_ctl_file = stdin_path + resrv_store_file    
+elif (eval_type == 'full') & (hv_ctrl_store != 'true') & (use_reserved_store == 'true'):
+    in_ctl_file = stdin_path + resrv_store_file
     flg_use_oth = False
     flg_use_rsv = True
     print('\n Campaign will use standard reserved store . \n ')
@@ -467,7 +467,7 @@ if store_fmt == 'hde':
                                                            ,F.col('format_id')
                                                            ,F.col('date_opened')
                                                            ,F.col('date_closed')
-                                                           ,lower(F.col('region')).alias('store_region') 
+                                                           ,lower(F.col('region')).alias('store_region')
                                                            ,lower(F.col('region')).alias('store_region_orig'))
 
 elif store_fmt == 'gofresh' :
@@ -481,7 +481,7 @@ elif store_fmt == 'gofresh' :
                                                              .otherwise(lower(F.col('region')))
                                                              .alias('store_region')
                                                            ,lower(F.col('region')).alias('store_region_orig'))
-    
+
 else :
     print('Store Format is not correct code will skip evaluation for campaign ' + str(cmp_nm) + ' !!\n')
     raise Exception("Incorrect store format value !!")
@@ -490,24 +490,24 @@ else :
 ## Import target file
 in_trg_df = spark.read.csv(in_trg_file, header="true", inferSchema="true")
 
-## end if    
+## end if
 
 ## Import control file - if full evaluation
 if (eval_type == 'full') & (hv_ctrl_store == 'true'):
     ## use self control
     in_ctl_str_df = spark.read.csv(in_ctl_file, header="true", inferSchema="true")
-    
+
 elif (eval_type == 'full') & (flg_use_rsv) :
     ## use reserved will need to filter category reserved
     all_rsv_df    = spark.read.csv(in_ctl_file, header="true", inferSchema="true")
-    in_ctl_str_df = all_rsv_df.where((all_rsv_df.class_code == resrv_store_class.upper()) & 
+    in_ctl_str_df = all_rsv_df.where((all_rsv_df.class_code == resrv_store_class.upper()) &
                                   (all_rsv_df.rs_flag == 'reserved')
                                  )\
                            .select(all_rsv_df.store_id)
-elif (eval_type == 'full') & (flg_use_oth) :    
+elif (eval_type == 'full') & (flg_use_oth) :
     in_ctl_str_df = store_dim.join  (in_trg_df, [store_dim.store_id == in_trg_df.store_id], 'left_anti')\
                              .select(store_dim.store_id)
-## end if    
+## end if
 
 
 ## get region for target & control store
@@ -530,7 +530,7 @@ if (eval_type == 'full'):
     print('Display Check - control store')
     print('-'*80)
     u_ctl_str_df.limit(10).display()
-    
+
 ## end if
 
 #dbfs:/FileStore/media/campaign_eval/01_hde/00_cmp_inputs/inputs_files/target_store_2022_0136_M02E.csv
@@ -554,14 +554,14 @@ if (eval_type == 'full'):
 #---- Try loding existing data table, unless create new
 try:
     # Test block
-    # raise Exception('To skip try block') 
+    # raise Exception('To skip try block')
     txn_all = spark.table(f'tdm_seg.media_campaign_eval_txn_data_{cmp_id}')
     print(f'Load data table for period : Ppp - Pre - Gap - Cmp, All store All format \n from : tdm_seg.media_campaign_eval_txn_data_{cmp_id}')
 
 except:
     print(f'Create intermediate transaction table for period Prior - Pre - Dur , all store format : tdm_seg.media_campaign_eval_txn_data_{cmp_id}')
-    txn_all = get_trans_itm_wkly(start_week_id=ppp_st_wk, end_week_id=cmp_en_wk, store_format=[1,2,3,4,5], 
-                                  prod_col_select=['upc_id', 'division_name', 'department_name', 'section_id', 'section_name', 
+    txn_all = get_trans_itm_wkly(start_week_id=ppp_st_wk, end_week_id=cmp_en_wk, store_format=[1,2,3,4,5],
+                                  prod_col_select=['upc_id', 'division_name', 'department_name', 'section_id', 'section_name',
                                                    'class_id', 'class_name', 'subclass_id', 'subclass_name', 'brand_name',
                                                    'department_code', 'section_code', 'class_code', 'subclass_code'])
     # Combine feature brand - Danny
@@ -569,17 +569,17 @@ except:
     brand_list.sort()
     if len(brand_list) > 1:
         txn_all = txn_all.withColumn("brand_name", F.when(F.col("brand_name").isin(brand_list), F.lit(brand_list[0])).otherwise(F.col("brand_name")))
-    
+
     #---- Add period column
     if gap_flag:
         print('Data with gap week')
-        txn_all = (txn_all.withColumn('period_fis_wk', 
+        txn_all = (txn_all.withColumn('period_fis_wk',
                                       F.when(F.col('week_id').between(cmp_st_wk, cmp_en_wk), F.lit('cmp'))
                                        .when(F.col('week_id').between(gap_st_wk, gap_en_wk), F.lit('gap'))
                                        .when(F.col('week_id').between(pre_st_wk, pre_en_wk), F.lit('pre'))
                                        .when(F.col('week_id').between(ppp_st_wk, ppp_en_wk), F.lit('ppp'))
                                        .otherwise(F.lit('NA')))
-                          .withColumn('period_promo_wk', 
+                          .withColumn('period_promo_wk',
                                       F.when(F.col('promoweek_id').between(cmp_st_promo_wk, cmp_en_promo_wk), F.lit('cmp'))
                                        .when(F.col('promoweek_id').between(gap_st_promo_wk, gap_en_promo_wk), F.lit('gap'))
                                        .when(F.col('promoweek_id').between(pre_st_promo_wk, pre_en_promo_wk), F.lit('pre'))
@@ -587,17 +587,17 @@ except:
                                        .otherwise(F.lit('NA')))
                   )
     else:
-        txn_all = (txn_all.withColumn('period_fis_wk', 
+        txn_all = (txn_all.withColumn('period_fis_wk',
                                       F.when(F.col('week_id').between(cmp_st_wk, cmp_en_wk), F.lit('cmp'))
                                        .when(F.col('week_id').between(pre_st_wk, pre_en_wk), F.lit('pre'))
                                        .when(F.col('week_id').between(ppp_st_wk, ppp_en_wk), F.lit('ppp'))
                                        .otherwise(F.lit('NA')))
-                          .withColumn('period_promo_wk', 
+                          .withColumn('period_promo_wk',
                                       F.when(F.col('promoweek_id').between(cmp_st_promo_wk, cmp_en_promo_wk), F.lit('cmp'))
                                        .when(F.col('promoweek_id').between(pre_st_promo_wk, pre_en_promo_wk), F.lit('pre'))
                                        .when(F.col('promoweek_id').between(ppp_st_promo_wk, ppp_en_promo_wk), F.lit('ppp'))
                                        .otherwise(F.lit('NA')))
-                  )        
+                  )
 
     txn_all.write.saveAsTable(f'tdm_seg.media_campaign_eval_txn_data_{cmp_id}')
     ## Pat add, delete dataframe before re-read
@@ -623,9 +623,9 @@ test_store_sf = spark.read.csv(os.path.join(input_path, target_file), header=Tru
 
 # COMMAND ----------
 
-# MAGIC %md 
-# MAGIC ##1. Check feature SKU details  
-# MAGIC ##2. Create adjacency product group / adjacency upc_id  
+# MAGIC %md
+# MAGIC ##1. Check feature SKU details
+# MAGIC ##2. Create adjacency product group / adjacency upc_id
 
 # COMMAND ----------
 
@@ -635,7 +635,7 @@ test_store_sf = spark.read.csv(os.path.join(input_path, target_file), header=Tru
 # adj_prod_sf, adj_prod_group_name_sf, featues_product_and_exposure_sf, mfr_promoted_product_str = \
 # get_adjacency_product_id(promoted_upc_id=feat_list , adjacecy_file_path=adjacency_file_path)
 
-# # Save adjacency product 
+# # Save adjacency product
 # adj_prod_df = to_pandas(adj_prod_sf)
 # pandas_to_csv_filestore(adj_prod_df, 'adj_prod_id.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'output'))
 
@@ -645,7 +645,7 @@ test_store_sf = spark.read.csv(os.path.join(input_path, target_file), header=Tru
 
 # # Detail of feature products + exposure
 # featues_product_and_exposure_df = to_pandas(featues_product_and_exposure_sf)
-# pandas_to_csv_filestore(featues_product_and_exposure_df, 'feature_product_and_exposure_details.csv', 
+# pandas_to_csv_filestore(featues_product_and_exposure_df, 'feature_product_and_exposure_details.csv',
 #                         prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
 
 # COMMAND ----------
@@ -656,7 +656,7 @@ test_store_sf = spark.read.csv(os.path.join(input_path, target_file), header=Tru
 #adj_prod_sf, adj_prod_group_name_sf, featues_product_and_exposure_sf, mfr_promoted_product_str = \
 #get_adjacency_product_id(promoted_upc_id=feat_list , adjacecy_file_path=adjacency_file_path)
 
-# Save adjacency product 
+# Save adjacency product
 adj_prod_sf = use_ai_df
 adj_prod_df = to_pandas(use_ai_df)
 pandas_to_csv_filestore(adj_prod_df, 'adj_prod_id.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'output'))
@@ -667,7 +667,7 @@ pandas_to_csv_filestore(adj_prod_df, 'adj_prod_id.csv', prefix=os.path.join(eval
 
 # Detail of feature products + exposure
 featues_product_and_exposure_df = to_pandas(feat_detail)
-pandas_to_csv_filestore(featues_product_and_exposure_df, 'feature_product_and_exposure_details.csv', 
+pandas_to_csv_filestore(featues_product_and_exposure_df, 'feature_product_and_exposure_details.csv',
                         prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
 
 # COMMAND ----------
@@ -722,13 +722,13 @@ cmp_end_date = datetime.strptime(cmp_end, '%Y-%m-%d')
 
 # COMMAND ----------
 
-brand_activated, sku_activated = get_cust_activated(txn_all, 
-                                                    cmp_start, 
+brand_activated, sku_activated = get_cust_activated(txn_all,
+                                                    cmp_start,
                                                     cmp_end,
-                                                    "fis_week", 
-                                                    test_store_sf, 
+                                                    "fis_week",
+                                                    test_store_sf,
                                                     adj_prod_sf,
-                                                    brand_df, 
+                                                    brand_df,
                                                     feat_df)
 
 sku_activated.write.format('parquet').mode('overwrite').saveAsTable(f'tdm_seg.media_camp_eval_{cmp_id}_cust_sku_activated')
@@ -771,7 +771,7 @@ cust_mv = spark.table(f'tdm_seg.media_camp_eval_{cmp_id}_cust_mv')
 cust_brand_switching, cust_brand_penetration, cust_brand_switching_and_pen = \
 get_cust_brand_switching_and_penetration(
     txn=txn_all,
-    switching_lv=cate_lvl, 
+    switching_lv=cate_lvl,
     brand_df=brand_df,
     class_df=class_df,
     sclass_df=sclass_df,
@@ -783,8 +783,8 @@ pandas_to_csv_filestore(cust_brand_switching_and_pen_df, 'customer_brand_switchi
 # COMMAND ----------
 
 #---- Customer SKU switching
-sku_switcher = get_cust_sku_switching(txn=txn_all, 
-                                      switching_lv=cate_lvl, 
+sku_switcher = get_cust_sku_switching(txn=txn_all,
+                                      switching_lv=cate_lvl,
                                       sku_activated=sku_activated,
                                       feat_list=feat_list,
                                       class_df=class_df,
@@ -797,7 +797,7 @@ pandas_to_csv_filestore(cust_sku_switching_df, 'customer_sku_switching.csv', pre
 # COMMAND ----------
 
 # DBTITLE 1,Profile Truprice
-truprice_profile = get_profile_truprice(txn=txn_all, 
+truprice_profile = get_profile_truprice(txn=txn_all,
                                         store_fmt=store_fmt,
                                         cp_end_date=cmp_end,
                                         wk_type="fis_week",
@@ -816,12 +816,12 @@ pandas_to_csv_filestore(truprice_profile_df, 'profile_sku_activated_truprice.csv
 
 # #---- Customer movement , New to sku for customer switching
 # cust_mv, new_sku, activated = cust_movement(switching_lv=cate_lvl,
-#                                             txn=txn_all, 
-#                                             cp_start_date=cmp_st_date, 
-#                                             cp_end_date=cmp_end_date, 
+#                                             txn=txn_all,
+#                                             cp_start_date=cmp_st_date,
+#                                             cp_end_date=cmp_end_date,
 #                                             brand_df=brand_df,
 #                                             test_store_sf=test_store_sf,
-#                                             adj_prod_sf=adj_prod_sf, 
+#                                             adj_prod_sf=adj_prod_sf,
 #                                             feat_list=feat_list
 #                                            )
 
@@ -836,11 +836,11 @@ pandas_to_csv_filestore(truprice_profile_df, 'profile_sku_activated_truprice.csv
 
 # #----- Customer brand switching & brand penetration
 # cust_mv = spark.table(f'tdm_seg.media_camp_eval_{cmp_id}_cust_mv')
-# cust_brand_switching, chk, cust_brand_penetration = cust_switching(switching_lv=cate_lvl, 
+# cust_brand_switching, chk, cust_brand_penetration = cust_switching(switching_lv=cate_lvl,
 #                                                                    cust_movement_sf=cust_mv,
-#                                                                    txn=txn_all, 
-#                                                                    cp_start_date=cmp_st_date, 
-#                                                                    cp_end_date=cmp_end_date,                   
+#                                                                    txn=txn_all,
+#                                                                    cp_start_date=cmp_st_date,
+#                                                                    cp_end_date=cmp_end_date,
 #                                                                    feat_list=feat_list
 #                                                                   )
 
@@ -855,16 +855,16 @@ pandas_to_csv_filestore(truprice_profile_df, 'profile_sku_activated_truprice.csv
 #     cust_brand_sw_pen_df = cust_brand_switching_df.merge(cust_brand_penetration_df, how='left', left_on='oth_brand_in_category', right_on='brand_name')
 # elif cate_lvl == 'class':
 #     cust_brand_sw_pen_df = cust_brand_switching_df.merge(cust_brand_penetration_df, how='left', left_on='oth_brand_in_category', right_on='brand_name')
-    
+
 # pandas_to_csv_filestore(cust_brand_sw_pen_df, 'customer_brand_switching_penetration.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
 
 # #---- Customer SKU switching
-# sku_switcher = cust_sku_switching(switching_lv=cate_lvl, 
-#                                   txn=txn_all, 
-#                                   cp_start_date=cmp_st_date, 
-#                                   cp_end_date=cmp_end_date, 
+# sku_switcher = cust_sku_switching(switching_lv=cate_lvl,
+#                                   txn=txn_all,
+#                                   cp_start_date=cmp_st_date,
+#                                   cp_end_date=cmp_end_date,
 #                                   test_store_sf=test_store_sf,
-#                                   adj_prod_sf=adj_prod_sf, 
+#                                   adj_prod_sf=adj_prod_sf,
 #                                   feat_list=feat_list
 #                                  )
 
@@ -881,33 +881,33 @@ pandas_to_csv_filestore(truprice_profile_df, 'profile_sku_activated_truprice.csv
 # MAGIC ## --------------------------------------------
 # MAGIC ## call function "get_new_to_cate" in util-1
 # MAGIC ## --------------------------------------------
-# MAGIC 
+# MAGIC
 # MAGIC cate_info_df, cate_brand_info = get_new_to_cate(txn_all,cust_mv, 'fis_wk' )
-# MAGIC 
+# MAGIC
 # MAGIC ## Export to file in output path (not result path)
-# MAGIC 
+# MAGIC
 # MAGIC cate_info_pd = cate_info_df.toPandas()
-# MAGIC 
-# MAGIC pandas_to_csv_filestore(cate_info_pd, 'category_info_from_new_to_category_customers.csv', 
+# MAGIC
+# MAGIC pandas_to_csv_filestore(cate_info_pd, 'category_info_from_new_to_category_customers.csv',
 # MAGIC                         prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'output'))
-# MAGIC 
+# MAGIC
 # MAGIC del cate_info_df
 # MAGIC del cate_info_pd
-# MAGIC 
+# MAGIC
 # MAGIC ##------------------
 # MAGIC cate_brand_info_pd = cate_brand_info.toPandas()
-# MAGIC 
-# MAGIC pandas_to_csv_filestore(cate_brand_info_pd, 'brand_info_from_top5cate_new_to_cate_customers.csv', 
+# MAGIC
+# MAGIC pandas_to_csv_filestore(cate_brand_info_pd, 'brand_info_from_top5cate_new_to_cate_customers.csv',
 # MAGIC                         prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'output'))
-# MAGIC 
-# MAGIC 
-# MAGIC 
+# MAGIC
+# MAGIC
+# MAGIC
 # MAGIC del cate_brand_info
 # MAGIC del cate_brand_info_pd
 
 # COMMAND ----------
 
-#%md ## Customer Share - Pre/during of Test Store >> feature & brand 
+#%md ## Customer Share - Pre/during of Test Store >> feature & brand
 #-- add back 21 Jul 2022 from AE request, to see if there any metric to see from standard eval.  DS need consider to show result.
 
 # COMMAND ----------
@@ -942,7 +942,7 @@ pandas_to_csv_filestore(truprice_profile_df, 'profile_sku_activated_truprice.csv
 # MAGIC                                                            ,store_fmt
 # MAGIC                                                            ,trg_str_df
 # MAGIC                                                           )
-# MAGIC    
+# MAGIC
 # MAGIC ## brand at sublcass
 # MAGIC sales_brand_subclass_fiswk = get_sales_mkt_growth_noctrl( txn_all
 # MAGIC                                                            ,brand_df
@@ -953,7 +953,7 @@ pandas_to_csv_filestore(truprice_profile_df, 'profile_sku_activated_truprice.csv
 # MAGIC                                                            ,store_fmt
 # MAGIC                                                            ,trg_str_df
 # MAGIC                                                           )
-# MAGIC 
+# MAGIC
 # MAGIC ## feature at class
 # MAGIC sales_sku_class_fiswk      = get_sales_mkt_growth_noctrl( txn_all
 # MAGIC                                                           ,feat_df
@@ -975,7 +975,7 @@ pandas_to_csv_filestore(truprice_profile_df, 'profile_sku_activated_truprice.csv
 # MAGIC                                                             ,trg_str_df
 # MAGIC                                                            )
 # MAGIC ## Export File sales market share growth
-# MAGIC 
+# MAGIC
 # MAGIC pandas_to_csv_filestore(sales_brand_class_fiswk, 'sales_brand_class_growth_target_fiswk.csv', prefix=os.path.join(dbfs_project_path, 'result'))
 # MAGIC pandas_to_csv_filestore(sales_brand_subclass_fiswk, 'sales_brand_subclass_growth_target_fiswk.csv', prefix=os.path.join(dbfs_project_path, 'result'))
 # MAGIC pandas_to_csv_filestore(sales_sku_class_fiswk, 'sales_sku_class_growth_target_fiswk.csv', prefix=os.path.join(dbfs_project_path, 'result'))
@@ -983,15 +983,15 @@ pandas_to_csv_filestore(truprice_profile_df, 'profile_sku_activated_truprice.csv
 
 # COMMAND ----------
 
-# MAGIC %md 
+# MAGIC %md
 # MAGIC # Break-point for Standard report (Exposure report only)
 
 # COMMAND ----------
 
 if eval_type == 'std':
-    
+
     create_zip_from_dbsf_prefix_indir(cmp_out_path_fl, f'{cmp_nm}_all_eval_result.zip')
-    
+
     dbutils.notebook.exit('Finish Standard Evaluation for campaign ' + str(cmp_nm) + ', Exit status = 0 .')
 
 # COMMAND ----------
@@ -1046,12 +1046,12 @@ pandas_to_csv_filestore(store_matching_df, 'store_matching.csv', prefix= os.path
 
 # COMMAND ----------
 
-uplift_brand = get_customer_uplift(txn=txn_all, 
-                                   cp_start_date=cmp_st_date, 
+uplift_brand = get_customer_uplift(txn=txn_all,
+                                   cp_start_date=cmp_st_date,
                                    cp_end_date=cmp_end_date,
                                    wk_type="fis_week",
                                    test_store_sf=test_store_sf,
-                                   adj_prod_sf=adj_prod_sf, 
+                                   adj_prod_sf=adj_prod_sf,
                                    brand_sf=brand_df,
                                    feat_sf=feat_df,
                                    ctr_store_list=ctr_store_list,
@@ -1062,12 +1062,12 @@ pandas_to_csv_filestore(uplift_brand_df, 'customer_uplift_brand.csv', prefix=os.
 
 # COMMAND ----------
 
-uplift_feature = get_customer_uplift(txn=txn_all, 
-                                   cp_start_date=cmp_st_date, 
+uplift_feature = get_customer_uplift(txn=txn_all,
+                                   cp_start_date=cmp_st_date,
                                    cp_end_date=cmp_end_date,
                                    wk_type="fis_week",
                                    test_store_sf=test_store_sf,
-                                   adj_prod_sf=adj_prod_sf, 
+                                   adj_prod_sf=adj_prod_sf,
                                    brand_sf=brand_df,
                                    feat_sf=feat_df,
                                    ctr_store_list=ctr_store_list,
@@ -1082,24 +1082,23 @@ pandas_to_csv_filestore(uplift_feature_df, 'customer_uplift_features_sku.csv', p
 
 # COMMAND ----------
 
-# MAGIC %md
-# MAGIC uplift_brand_df = pd.read_csv(os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result', 'customer_uplift_brand.csv'))
-# MAGIC uplift_brand = spark.createDataFrame(uplift_brand_df)
-# MAGIC brand_cltv, brand_svv = get_customer_cltv(txn_all, 
-# MAGIC #                                cp_start_date =c_st_date, cp_end_date=c_en_date, 
-# MAGIC                                test_store_sf=test_store_sf, 
-# MAGIC                                adj_prod_id=adj_prod_sf, 
-# MAGIC #                                sel_class=sel_class, sel_brand=sel_brand, sel_sec=sel_sec,
-# MAGIC                                lv_cltv=cate_lvl, 
-# MAGIC                                uplift_brand=uplift_brand, 
-# MAGIC                                media_spend=float(media_fee),
-# MAGIC                                feat_list=feat_list,
-# MAGIC                                svv_table = svv_table,
-# MAGIC                                pcyc_table = pcyc_table,
-# MAGIC                                cate_cd_list = cate_cd_list )
-# MAGIC 
-# MAGIC pandas_to_csv_filestore(brand_cltv, 'cltv.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
-# MAGIC pandas_to_csv_filestore(brand_svv, 'brand_survival_rate.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
+uplift_brand_df = pd.read_csv(os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result', 'customer_uplift_brand.csv'))
+uplift_brand = spark.createDataFrame(uplift_brand_df)
+brand_cltv, brand_svv = get_customer_cltv(txn_all,
+#                                cp_start_date =c_st_date, cp_end_date=c_en_date,
+                               test_store_sf=test_store_sf,
+                               adj_prod_id=adj_prod_sf,
+#                                sel_class=sel_class, sel_brand=sel_brand, sel_sec=sel_sec,
+                               lv_cltv=cate_lvl,
+                               uplift_brand=uplift_brand,
+                               media_spend=float(media_fee),
+                               feat_list=feat_list,
+                               svv_table = svv_table,
+                               pcyc_table = pcyc_table,
+                               cate_cd_list = cate_cd_list )
+
+pandas_to_csv_filestore(brand_cltv, 'cltv.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
+pandas_to_csv_filestore(brand_svv, 'brand_survival_rate.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
 
 # COMMAND ----------
 
@@ -1111,9 +1110,9 @@ pandas_to_csv_filestore(uplift_feature_df, 'customer_uplift_features_sku.csv', p
 # MAGIC %md
 # MAGIC svv_df       = sqlContext.table(svv_table)
 # MAGIC cate_avg_svv = get_avg_cate_svv(svv_df, cate_lvl, cate_cd_list)
-# MAGIC 
+# MAGIC
 # MAGIC cate_avg_svv.display()
-# MAGIC 
+# MAGIC
 # MAGIC ## export to csv to output path
 # MAGIC cate_avg_svv_pd = cate_avg_svv.toPandas()
 # MAGIC outfile         = cmp_out_path_fl + 'result/' + 'cate_avg_svv.csv'
@@ -1160,9 +1159,9 @@ pandas_to_csv_filestore(uplift_feature_df, 'customer_uplift_features_sku.csv', p
 
 # MAGIC %md
 # MAGIC # ## call sale uplift by region -- Pat 25 May 2022
-# MAGIC 
+# MAGIC
 # MAGIC ## SKU Level
-# MAGIC sku_sales_matching_df, sku_uplift_table, sku_uplift_wk_graph, kpi_table, uplift_reg_pd = sales_uplift_reg( txn_all 
+# MAGIC sku_sales_matching_df, sku_uplift_table, sku_uplift_wk_graph, kpi_table, uplift_reg_pd = sales_uplift_reg( txn_all
 # MAGIC                                                                                                          ,sales_uplift_lv='sku'
 # MAGIC                                                                                                          ,brand_df = brand_df
 # MAGIC                                                                                                          ,feat_list = feat_list
@@ -1178,26 +1177,26 @@ pandas_to_csv_filestore(uplift_feature_df, 'customer_uplift_features_sku.csv', p
 
 # MAGIC %md
 # MAGIC ## Convert uplift df from row to columns and add period identifier
-# MAGIC 
+# MAGIC
 # MAGIC sku_wk_g = sku_uplift_wk_graph.reset_index()
 # MAGIC sku_wk_g.rename(columns = {'index' : 'week'}, inplace = True)
 # MAGIC #sku_wk_g.display()
-# MAGIC 
+# MAGIC
 # MAGIC sku_wk_t              = sku_wk_g.T.reset_index()
 # MAGIC hdr                   = sku_wk_t.iloc[0]  ## get header from first row
 # MAGIC sku_wk_uplift         = sku_wk_t[1:]      ## get data start from row 1 (row 0 is header)
 # MAGIC sku_wk_uplift.columns = hdr         ## set header to df
-# MAGIC 
+# MAGIC
 # MAGIC #sku_wk_uplift.display()
-# MAGIC 
+# MAGIC
 # MAGIC #sku_wk['wk_period'] = np.where(sku_wk['week'].astype(int) < cmp_st_wk, 'pre', 'dur')
 # MAGIC sku_wk_uplift['wk_period'] = np.where(sku_wk_uplift.loc[:, ('week')].astype(int) < chk_pre_wk, 'pre', 'dur')   ## change to use chk_pre_week instead of campaign start week
-# MAGIC 
+# MAGIC
 # MAGIC print('\n' + '-'*80)
 # MAGIC print(' Display sku_wk_uplift for Trend chart : column mode ')
 # MAGIC print('-'*80)
 # MAGIC sku_wk_uplift.display()
-# MAGIC 
+# MAGIC
 # MAGIC ## KPI table transpose
 # MAGIC kpi_fiswk_t = kpi_table.T.reset_index()
 # MAGIC kpi_fiswk_t.rename(columns = {'index': 'kpi_value'}, inplace = True)
@@ -1216,7 +1215,7 @@ pandas_to_csv_filestore(uplift_feature_df, 'customer_uplift_features_sku.csv', p
 # # ## call sale uplift by region -- Pat 25 May 2022
 
 # ## SKU Level
-# sku_sales_matching_promo_df, sku_uplift_promo_table, sku_uplift_promowk_graph, kpi_table_promo, uplift_promo_reg_pd = sales_uplift_promo_reg( txn_all 
+# sku_sales_matching_promo_df, sku_uplift_promo_table, sku_uplift_promowk_graph, kpi_table_promo, uplift_promo_reg_pd = sales_uplift_promo_reg( txn_all
 #                                                                                                                                              ,sales_uplift_lv='sku'
 #                                                                                                                                              ,brand_df = brand_df
 #                                                                                                                                              ,feat_list = feat_list
@@ -1268,22 +1267,22 @@ pandas_to_csv_filestore(uplift_feature_df, 'customer_uplift_features_sku.csv', p
 # MAGIC %md
 # MAGIC pandas_to_csv_filestore(sku_uplift_table, 'sales_sku_uplift_table.csv', prefix=os.path.join(dbfs_project_path, 'result'))
 # MAGIC #pandas_to_csv_filestore(sku_uplift_wk_graph.reset_index(), 'sales_sku_uplift_wk_graph.csv', prefix=os.path.join(dbfs_project_path, 'result'))
-# MAGIC 
+# MAGIC
 # MAGIC ## Pat change to column mode Dataframe for weekly trend
 # MAGIC pandas_to_csv_filestore(sku_wk_uplift, 'sales_sku_uplift_wk_graph_col.csv', prefix=os.path.join(dbfs_project_path, 'result'))
 # MAGIC #pandas_to_csv_filestore(sku_promowk_uplift, 'sales_sku_uplift_promo_wk_graph_col.csv', prefix=os.path.join(dbfs_project_path, 'result'))
-# MAGIC 
+# MAGIC
 # MAGIC ## uplift region
 # MAGIC pandas_to_csv_filestore(uplift_reg_pd, 'sales_sku_uplift_by_region_table.csv', prefix=os.path.join(dbfs_project_path, 'result'))
 # MAGIC #pandas_to_csv_filestore(uplift_promo_reg_pd, 'sales_sku_uplift_promo_wk_by_region_table.csv', prefix=os.path.join(dbfs_project_path, 'result'))
-# MAGIC 
+# MAGIC
 # MAGIC ## Pat add KPI table -- 8 May 2022
-# MAGIC 
+# MAGIC
 # MAGIC pandas_to_csv_filestore(kpi_fiswk_t, 'sale_kpi_target_control_feat.csv', prefix=os.path.join(dbfs_project_path, 'result'))
 # MAGIC #pandas_to_csv_filestore(kpi_promo_t, 'sale_kpi_target_control_promo_feat.csv', prefix=os.path.join(dbfs_project_path, 'result'))
-# MAGIC 
+# MAGIC
 # MAGIC ## Pat add sku_sales_matching_df  -- to output path just for checking purpose in all campaign
-# MAGIC 
+# MAGIC
 # MAGIC pandas_to_csv_filestore(sku_sales_matching_df, 'sku_sales_matching_df_info.csv', prefix=os.path.join(dbfs_project_path, 'output'))
 # MAGIC #pandas_to_csv_filestore(sku_sales_matching_promo_df, 'sku_sales_matching_promo_df_info.csv', prefix=os.path.join(dbfs_project_path, 'output'))
 
@@ -1299,10 +1298,10 @@ pandas_to_csv_filestore(uplift_feature_df, 'customer_uplift_features_sku.csv', p
 
 # MAGIC %md
 # MAGIC # ## call sale uplift by region -- Pat 25 May 2022
-# MAGIC 
+# MAGIC
 # MAGIC ## Brand Level
-# MAGIC 
-# MAGIC bnd_sales_matching_df, bnd_uplift_table, bnd_uplift_wk_graph, kpi_table_bnd, uplift_reg_bnd_pd = sales_uplift_reg( txn_all 
+# MAGIC
+# MAGIC bnd_sales_matching_df, bnd_uplift_table, bnd_uplift_wk_graph, kpi_table_bnd, uplift_reg_bnd_pd = sales_uplift_reg( txn_all
 # MAGIC                                                                                                                   ,sales_uplift_lv='brand'
 # MAGIC                                                                                                                   ,brand_df = brand_df
 # MAGIC                                                                                                                   ,feat_list = feat_list
@@ -1313,25 +1312,25 @@ pandas_to_csv_filestore(uplift_feature_df, 'customer_uplift_features_sku.csv', p
 
 # MAGIC %md
 # MAGIC ## Convert uplift df from row to columns and add period identifier
-# MAGIC 
+# MAGIC
 # MAGIC bnd_wk_g = bnd_uplift_wk_graph.reset_index()
 # MAGIC bnd_wk_g.rename(columns = {'index' : 'week'}, inplace = True)
 # MAGIC #sku_wk_g.display()
-# MAGIC 
+# MAGIC
 # MAGIC bnd_wk_t              = bnd_wk_g.T.reset_index()
 # MAGIC hdr                   = bnd_wk_t.iloc[0]  ## get header from first row
 # MAGIC bnd_wk_uplift         = bnd_wk_t[1:]      ## get data start from row 1 (row 0 is header)
 # MAGIC bnd_wk_uplift.columns = hdr         ## set header to df
-# MAGIC 
-# MAGIC 
+# MAGIC
+# MAGIC
 # MAGIC #sku_wk['wk_period'] = np.where(sku_wk['week'].astype(int) < cmp_st_wk, 'pre', 'dur')
 # MAGIC bnd_wk_uplift['wk_period'] = np.where(bnd_wk_uplift.loc[:, ('week')].astype(int) < chk_pre_wk, 'pre', 'dur')
-# MAGIC 
+# MAGIC
 # MAGIC print('\n' + '-'*80)
 # MAGIC print(' Display brand_wk_uplift for Trend chart : column mode ')
 # MAGIC print('-'*80)
 # MAGIC bnd_wk_uplift.display()
-# MAGIC 
+# MAGIC
 # MAGIC ## KPI table transpose
 # MAGIC kpi_fiswk_bnd_t = kpi_table_bnd.T.reset_index()
 # MAGIC kpi_fiswk_bnd_t.rename(columns = {'index': 'kpi_value'}, inplace = True)
@@ -1353,7 +1352,7 @@ pandas_to_csv_filestore(uplift_feature_df, 'customer_uplift_features_sku.csv', p
 # # ## call sale uplift by region -- Pat 25 May 2022
 
 # ## Brand Level
-# bnd_sales_matching_promo_df, bnd_uplift_promo_table, bnd_uplift_promowk_graph, kpi_table_promo_bnd, uplift_promo_reg_bnd_pd = sales_uplift_promo_reg( txn_all 
+# bnd_sales_matching_promo_df, bnd_uplift_promo_table, bnd_uplift_promowk_graph, kpi_table_promo_bnd, uplift_promo_reg_bnd_pd = sales_uplift_promo_reg( txn_all
 #                                                                                                                                                  ,sales_uplift_lv='brand'
 #                                                                                                                                                  ,brand_df = brand_df
 #                                                                                                                                                  ,feat_list = feat_list
@@ -1402,22 +1401,22 @@ pandas_to_csv_filestore(uplift_feature_df, 'customer_uplift_features_sku.csv', p
 # MAGIC %md
 # MAGIC pandas_to_csv_filestore(bnd_uplift_table, 'sales_brand_uplift_table.csv', prefix=os.path.join(dbfs_project_path, 'result'))
 # MAGIC #pandas_to_csv_filestore(sku_uplift_wk_graph.reset_index(), 'sales_sku_uplift_wk_graph.csv', prefix=os.path.join(dbfs_project_path, 'result'))
-# MAGIC 
+# MAGIC
 # MAGIC ## Pat change to column mode Dataframe for weekly trend
 # MAGIC pandas_to_csv_filestore(bnd_wk_uplift, 'sales_brand_uplift_wk_graph_col.csv', prefix=os.path.join(dbfs_project_path, 'result'))
 # MAGIC #pandas_to_csv_filestore(bnd_promowk_uplift, 'sales_brand_uplift_promo_wk_graph_col.csv', prefix=os.path.join(dbfs_project_path, 'result'))
-# MAGIC 
+# MAGIC
 # MAGIC ## uplift region
 # MAGIC pandas_to_csv_filestore(uplift_reg_bnd_pd, 'sales_brand_uplift_by_region_table.csv', prefix=os.path.join(dbfs_project_path, 'result'))
 # MAGIC #pandas_to_csv_filestore(uplift_promo_reg_bnd_pd, 'sales_brand_uplift_promo_wk_by_region_table.csv', prefix=os.path.join(dbfs_project_path, 'result'))
-# MAGIC 
+# MAGIC
 # MAGIC ## Pat add KPI table -- 8 May 2022
-# MAGIC 
+# MAGIC
 # MAGIC pandas_to_csv_filestore(kpi_fiswk_bnd_t, 'sale_kpi_target_control_brand.csv', prefix=os.path.join(dbfs_project_path, 'result'))
 # MAGIC #pandas_to_csv_filestore(kpi_promowk_bnd_t, 'sale_kpi_target_control_promo_brand.csv', prefix=os.path.join(dbfs_project_path, 'result'))
-# MAGIC 
+# MAGIC
 # MAGIC ## Pat add sku_sales_matching_df  -- to output path just for checking purpose in all campaign
-# MAGIC 
+# MAGIC
 # MAGIC pandas_to_csv_filestore(bnd_sales_matching_df, 'brand_sales_matching_df_info.csv', prefix=os.path.join(dbfs_project_path, 'output'))
 # MAGIC #pandas_to_csv_filestore(bnd_sales_matching_promo_df, 'brand_sales_matching_promo_df_info.csv', prefix=os.path.join(dbfs_project_path, 'output'))
 
@@ -1431,7 +1430,7 @@ pandas_to_csv_filestore(uplift_feature_df, 'customer_uplift_features_sku.csv', p
 # MAGIC %md
 # MAGIC ## Code
 # MAGIC ## Change function, and call function 4 times manually, may excluded some line later
-# MAGIC 
+# MAGIC
 # MAGIC ## def get_sales_mkt_growth( txn
 # MAGIC ##                          ,prod_df
 # MAGIC ##                          ,cate_df
@@ -1442,9 +1441,9 @@ pandas_to_csv_filestore(uplift_feature_df, 'customer_uplift_features_sku.csv', p
 # MAGIC ##                          ,store_matching_df
 # MAGIC ##                         ):
 # MAGIC ## convert matching pandas dataframe to spark for this function
-# MAGIC 
+# MAGIC
 # MAGIC store_matching_spk = spark.createDataFrame(store_matching_df)
-# MAGIC 
+# MAGIC
 # MAGIC sales_brand_class_fiswk = get_sales_mkt_growth( txn_all
 # MAGIC                                                   ,brand_df
 # MAGIC                                                   ,class_df
@@ -1454,7 +1453,7 @@ pandas_to_csv_filestore(uplift_feature_df, 'customer_uplift_features_sku.csv', p
 # MAGIC                                                   ,store_fmt
 # MAGIC                                                   ,store_matching_spk
 # MAGIC                                                  )
-# MAGIC 
+# MAGIC
 # MAGIC sales_brand_subclass_fiswk = get_sales_mkt_growth( txn_all
 # MAGIC                                                     ,brand_df
 # MAGIC                                                     ,sclass_df
@@ -1464,7 +1463,7 @@ pandas_to_csv_filestore(uplift_feature_df, 'customer_uplift_features_sku.csv', p
 # MAGIC                                                     ,store_fmt
 # MAGIC                                                     ,store_matching_spk
 # MAGIC                                                  )
-# MAGIC 
+# MAGIC
 # MAGIC sales_sku_class_fiswk = get_sales_mkt_growth( txn_all
 # MAGIC                                                ,feat_df
 # MAGIC                                                ,class_df
@@ -1474,7 +1473,7 @@ pandas_to_csv_filestore(uplift_feature_df, 'customer_uplift_features_sku.csv', p
 # MAGIC                                                ,store_fmt
 # MAGIC                                                ,store_matching_spk
 # MAGIC                                               )
-# MAGIC 
+# MAGIC
 # MAGIC sales_sku_subclass_fiswk = get_sales_mkt_growth( txn_all
 # MAGIC                                                   ,feat_df
 # MAGIC                                                   ,sclass_df
@@ -1484,11 +1483,11 @@ pandas_to_csv_filestore(uplift_feature_df, 'customer_uplift_features_sku.csv', p
 # MAGIC                                                   ,store_fmt
 # MAGIC                                                   ,store_matching_spk
 # MAGIC                                                  )
-# MAGIC 
+# MAGIC
 # MAGIC #sales_brand_class_fiswk.display()
-# MAGIC 
+# MAGIC
 # MAGIC ## Export File
-# MAGIC 
+# MAGIC
 # MAGIC pandas_to_csv_filestore(sales_brand_class_fiswk, 'sales_brand_class_growth_fiswk.csv', prefix=os.path.join(dbfs_project_path, 'result'))
 # MAGIC pandas_to_csv_filestore(sales_brand_subclass_fiswk, 'sales_brand_subclass_growth_fiswk.csv', prefix=os.path.join(dbfs_project_path, 'result'))
 # MAGIC pandas_to_csv_filestore(sales_sku_class_fiswk, 'sales_sku_class_growth_fiswk.csv', prefix=os.path.join(dbfs_project_path, 'result'))
@@ -1582,16 +1581,16 @@ pandas_to_csv_filestore(uplift_feature_df, 'customer_uplift_features_sku.csv', p
 # MAGIC %md
 # MAGIC ## add check if zip file exists will remove and create new
 # MAGIC full_file_zip = cmp_out_path + str(cmp_nm) + '_all_eval_result.zip'
-# MAGIC 
+# MAGIC
 # MAGIC try:
 # MAGIC     dbutils.fs.ls(full_file_zip)
-# MAGIC     print('-' * 80 + '\n' + ' Warning !! Current zip file exists : ' + full_file_zip + '.\n Process will remove and recreate zip file. \n' + '-' * 80)    
-# MAGIC     dbutils.fs.rm(full_file_zip)    
-# MAGIC     print(' Removed file already! Process will re-create new file. \n')    
+# MAGIC     print('-' * 80 + '\n' + ' Warning !! Current zip file exists : ' + full_file_zip + '.\n Process will remove and recreate zip file. \n' + '-' * 80)
+# MAGIC     dbutils.fs.rm(full_file_zip)
+# MAGIC     print(' Removed file already! Process will re-create new file. \n')
 # MAGIC except :
 # MAGIC     print(' Zip file : ' + str(full_file_zip) + ' is creating, please wait \n')
-# MAGIC     
-# MAGIC     
+# MAGIC
+# MAGIC
 # MAGIC create_zip_from_dbsf_prefix_indir(cmp_out_path_fl, f'{cmp_nm}_all_eval_result.zip')
 
 # COMMAND ----------
