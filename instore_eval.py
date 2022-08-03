@@ -411,7 +411,8 @@ def get_cust_brand_switching_and_penetration(
         elif (prod_lev == 'brand') & (switching_lv == 'class'):
             cust_micro_df2 = \
             (cust_micro_df
-             .groupby('division_name','department_name','section_name','class_name',
+             .groupby('division_name','department_name','section_name',
+                      'class_name', # TO BE DONE support for multi-class
                       F.col('brand_name').alias('original_brand'),
                       'customer_macro_flag','customer_micro_flag')
              .agg(F.sum('brand_spend_'+period).alias('total_ori_brand_spend'),
@@ -428,7 +429,9 @@ def get_cust_brand_switching_and_penetration(
         print("\t\t\t\t\t\t**Running Summary of micro df")
         switching_result = \
         (micro_df_summ
-         .select('division_name','department_name','section_name','class_name','original_brand',
+         .select('division_name','department_name','section_name',
+                 'class_name', # TO BE DONE support for multi-class
+                 'original_brand',
                  'customer_macro_flag','customer_micro_flag','total_ori_brand_cust','total_ori_brand_spend',
                  'oth_'+full_prod_lev,'oth_'+prod_lev+'_customers','oth_'+prod_lev+'_spend','total_oth_'+prod_lev+'_spend')
          .withColumn('pct_cust_oth_'+full_prod_lev, F.col('oth_'+prod_lev+'_customers')/F.col('total_ori_brand_cust'))
@@ -450,6 +453,7 @@ def get_cust_brand_switching_and_penetration(
         else:
             prd_scope_df = class_df
             gr_col = ['division_name','department_name','section_name',
+                      "class_name",  # TO BE DONE support for multi subclass
                       'brand_name','household_id']
 
         prior_pre_cc_txn_prd_scope = \
@@ -492,7 +496,7 @@ def get_cust_brand_switching_and_penetration(
                                                  cust_movement_pre_dur_spend,
                                                  prior_pre_cc_txn_prd_scope,
                                                # ['subclass_name', 'brand_name'],
-                                                 ["class_name", 'brand_name'],
+                                                 ["class_name", 'brand_name'], # TO BE DONE : support for multi-subclass
                                                  'brand', 'brand_in_category', 'brand_name', 'dur')
         # Brand penetration within subclass
         dur_prd_scope_cust = dur_cc_txn_prd_scope.agg(F.countDistinct('household_id')).collect()[0][0]

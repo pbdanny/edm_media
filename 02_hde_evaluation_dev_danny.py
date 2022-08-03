@@ -711,14 +711,14 @@ cmp_end_date = datetime.strptime(cmp_end, '%Y-%m-%d')
 
 # COMMAND ----------
 
-sys.path.append(os.path.abspath("/Workspace/Repos/thanakrit.boonquarmdee@lotuss.com/edm_media"))
-from instore_eval import get_cust_activated, get_cust_movement, get_cust_brand_switching_and_penetration, get_cust_sku_switching, get_profile_truprice, get_customer_uplift
+# sys.path.append(os.path.abspath("/Workspace/Repos/thanakrit.boonquarmdee@lotuss.com/edm_media"))
+# from instore_eval import get_cust_activated, get_cust_movement, get_cust_brand_switching_and_penetration, get_cust_sku_switching, get_profile_truprice, get_customer_uplift
 
 # COMMAND ----------
 
-import inspect
-lines = inspect.getsource(get_profile_truprice)
-print(lines)
+# import inspect
+# lines = inspect.getsource(get_profile_truprice)
+# print(lines)
 
 # COMMAND ----------
 
