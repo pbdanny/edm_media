@@ -733,7 +733,7 @@ def get_profile_truprice(txn: SparkDataFrame,
     # Sort order by TruPrice
     df = idx_tp.toPandas()
     sort_dict = {"Most Price Insensitive": 0, "Price Insensitive": 1, "Price Neutral": 2, "Price Driven": 3, "Most Price Driven": 4, "Unidentifed": 5}
-    df = df.sort_values(by=["customer_group"], key=lambda x: x.map(sort_dict))  # type: ignore
+    df = df.sort_values(by=["truprice_seg_desc"], key=lambda x: x.map(sort_dict))  # type: ignore
     idx_tp = spark.createDataFrame(df)
     
     return idx_tp
