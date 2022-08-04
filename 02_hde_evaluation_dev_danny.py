@@ -1082,7 +1082,6 @@ pandas_to_csv_filestore(uplift_feature_df, 'customer_uplift_features_sku.csv', p
 
 # COMMAND ----------
 
-%md
 uplift_brand_df = pd.read_csv(os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result', 'customer_uplift_brand.csv'))
 uplift_brand = spark.createDataFrame(uplift_brand_df)
 brand_cltv, brand_svv = get_customer_cltv(txn_all,
