@@ -1,5 +1,5 @@
 # Databricks notebook source
-dbutils.fs.rm('dbfs:/FileStore/media/campaign_eval/02_gofresh/Mar_2022/2022_0124_M01E_pepsi_wobbler', True)
+# dbutils.fs.rm('dbfs:/FileStore/media/campaign_eval/02_gofresh/Mar_2022/2022_0124_M01E_pepsi_wobbler', True)
 
 # COMMAND ----------
 
