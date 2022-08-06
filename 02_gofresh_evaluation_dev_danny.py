@@ -642,8 +642,8 @@ pandas_to_csv_filestore(test_vs_all_store_count_df, f'test_vs_all_store_count.cs
 
 # COMMAND ----------
 
-# cmp_st_date = datetime.strptime(cmp_start, '%Y-%m-%d')
-# cmp_end_date = datetime.strptime(cmp_end, '%Y-%m-%d')
+cmp_st_date = datetime.strptime(cmp_start, '%Y-%m-%d')
+cmp_end_date = datetime.strptime(cmp_end, '%Y-%m-%d')
 # exposure_all, exposure_region = get_awareness(txn_all, cp_start_date=cmp_st_date, cp_end_date=cmp_end_date,
 #                                               store_fmt=store_fmt, test_store_sf=test_store_sf, adj_prod_sf=adj_prod_sf,
 #                                               media_spend=float(media_fee))
@@ -823,30 +823,38 @@ pandas_to_csv_filestore(df_pv, 'customer_share_test_ctrl_pre_dur.csv', prefix=os
 
 # COMMAND ----------
 
-## Cust Uplift at brand
-
-uplift_brand = get_customer_uplift_promo_wk(txn_all,
-                                            ctr_store_list=ctr_store_list,
-                                            test_store_sf=test_store_sf,
-                                            cust_uplift_lv='brand',
-                                            feat_list =feat_list)
+#---- Uplift at brand level : Danny 1 Aug 2022
+uplift_brand = get_customer_uplift(txn=txn_all,
+                                   cp_start_date=cmp_st_date,
+                                   cp_end_date=cmp_end_date,
+                                   wk_type="promo_week",
+                                   test_store_sf=test_store_sf,
+                                   adj_prod_sf=None,
+                                   brand_sf=brand_df,
+                                   feat_sf=feat_df,
+                                   ctr_store_list=ctr_store_list,
+                                   cust_uplift_lv="brand")
 
 uplift_brand_df = to_pandas(uplift_brand)
 pandas_to_csv_filestore(uplift_brand_df, 'customer_uplift_brand.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
 
 # COMMAND ----------
 
-## Cust Uplift at feature
+#---- Uplift at Sku : Danny 1 Aug 2022
 
-uplift_feature = get_customer_uplift_promo_wk(txn_all,
-                                              ctr_store_list=ctr_store_list,
-                                              test_store_sf=test_store_sf,
-                                              cust_uplift_lv='sku',
-                                              feat_list =feat_list)
+uplift_feature = get_customer_uplift(txn=txn_all,
+                                   cp_start_date=cmp_st_date,
+                                   cp_end_date=cmp_end_date,
+                                   wk_type="promo_week",
+                                   test_store_sf=test_store_sf,
+                                   adj_prod_sf=None,
+                                   brand_sf=brand_df,
+                                   feat_sf=feat_df,
+                                   ctr_store_list=ctr_store_list,
+                                   cust_uplift_lv="sku")
 
 uplift_feature_df = to_pandas(uplift_feature)
 pandas_to_csv_filestore(uplift_feature_df, 'customer_uplift_features_sku.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
-
 # COMMAND ----------
 
 # MAGIC %md ##CLTV
