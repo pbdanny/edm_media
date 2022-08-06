@@ -60,6 +60,12 @@ def get_cust_activated(txn: SparkDataFrame,
             )
         return filled_test_store_sf
 
+    def _create_adj_prod_df(txn: SparkDataFrame) -> SparkDataFrame:
+        """If adj_prod_sf is None, create from all upc_id in txn
+        """
+        out = txn.select("upc_id").drop_duplicates().checkpoint()
+        return out
+
     def _get_exposed_cust(txn: SparkDataFrame,
                           test_store_sf: SparkDataFrame,
                           adj_prod_sf: SparkDataFrame,
@@ -117,6 +123,10 @@ def get_cust_activated(txn: SparkDataFrame,
     print("Customer Media Exposed -> Activated")
     print("Media Exposed = shopped in media aisle within campaign period (base on target input file) at target store , channel OFFLINE ")
     print("Activate = Exposed & Shop (Feature SKU/Feature Brand) in campaign period at any store format and any channel")
+    print("-"*80)
+    if adj_prod_sf is None:
+        print("Media exposed use total store level (all products)")
+        adj_prod_sf = _create_adj_prod_df(txn)
     print("-"*80)
     period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
     print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
@@ -801,6 +811,12 @@ def get_customer_uplift(txn: SparkDataFrame,
             )
         return filled_ctrl_store_sf
 
+    def _create_adj_prod_df(txn: SparkDataFrame) -> SparkDataFrame:
+        """If adj_prod_sf is None, create from all upc_id in txn
+        """
+        out = txn.select("upc_id").drop_duplicates().checkpoint()
+        return out
+
     def _get_exposed_cust(txn: SparkDataFrame,
                           test_store_sf: SparkDataFrame,
                           adj_prod_sf: SparkDataFrame,
@@ -870,6 +886,10 @@ def get_customer_uplift(txn: SparkDataFrame,
     print("Customer Uplift")
     print("Media Exposed = shopped in media aisle within campaign period (base on target input file) at target store , channel OFFLINE ")
     print("Media UnExposed = shopped in media aisle within campaign period (base on target input file) at control store , channel OFFLINE ")
+    print("-"*80)
+    if adj_prod_sf is None:
+        print("Media exposed use total store level (all products)")
+        adj_prod_sf = _create_adj_prod_df(txn)
     print("-"*80)
     print(f"Activate = Exposed & Shop {cust_uplift_lv.upper()} in campaign period at any store format and any channel")
     print("-"*80)
