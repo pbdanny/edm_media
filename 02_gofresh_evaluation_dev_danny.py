@@ -677,59 +677,84 @@ cmp_end_date = datetime.strptime(cmp_end, '%Y-%m-%d')
 # COMMAND ----------
 
 #---- Customer movement , New to sku for customer switching
-cust_mv, new_sku, activated = cust_movement_promo_wk(switching_lv=cate_lvl,
-                                            txn=txn_all,
-                                            cp_start_date=cmp_st_date,
-                                            cp_end_date=cmp_end_date,
-                                            brand_df=brand_df,
-                                            test_store_sf=test_store_sf,
-                                            feat_list=feat_list
-                                           )
+#---- Customer Activated : Danny 1 Aug 2022
+brand_activated, sku_activated = get_cust_activated(txn_all,
+                                                    cmp_start,
+                                                    cmp_end,
+                                                    "promo_week",
+                                                    test_store_sf,
+                                                    None,
+                                                    brand_df,
+                                                    feat_df)
 
-# Save customer movement for input in customer switching
+sku_activated.write.format('parquet').mode('overwrite').saveAsTable(f'tdm_seg.media_camp_eval_{cmp_id}_cust_sku_activated')
+brand_activated.write.format('parquet').mode('overwrite').saveAsTable(f'tdm_seg.media_camp_eval_{cmp_id}_cust_brand_activated')
+
+sku_activated = spark.table(f"tdm_seg.media_camp_eval_{cmp_id}_cust_sku_activated")
+brand_activated = spark.table(f"tdm_seg.media_camp_eval_{cmp_id}_cust_brand_activated")
+
+n_brand_activated = brand_activated.count()
+n_sku_activated= sku_activated.count()
+
+activated_df = pd.DataFrame({'customer_exposed_brand_activated':[n_brand_activated], 'customer_exposed_sku_activated':[n_sku_activated]})
+
+pandas_to_csv_filestore(activated_df, 'customer_exposed_activate.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
+
+#---- Customer switching : Danny 1 Aug 2022
+cust_mv, new_sku = get_cust_movement(txn=txn_all,
+                                     wk_type="promo_week",
+                                     feat_sf=feat_df,
+                                     sku_activated=sku_activated,
+                                     class_df=class_df,
+                                     sclass_df=sclass_df,
+                                     brand_df=brand_df,
+                                     switching_lv=cate_lvl)
+
 cust_mv.write.format('parquet').mode('overwrite').saveAsTable(f'tdm_seg.media_camp_eval_{cmp_id}_cust_mv')
 
-# Save customer movement
+## Save customer movement
 cust_mv_count = cust_mv.groupBy('customer_macro_flag', 'customer_micro_flag').count().orderBy('customer_macro_flag', 'customer_micro_flag')
 cust_mv_count_df = to_pandas(cust_mv_count)
 pandas_to_csv_filestore(cust_mv_count_df, 'customer_movement.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
-pandas_to_csv_filestore(activated, 'customer_exposed_activate.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
 
-#----- Customer brand switching & brand penetration
+#----- Customer brand switching & brand penetration : Danny 1 Aug 2022
 cust_mv = spark.table(f'tdm_seg.media_camp_eval_{cmp_id}_cust_mv')
-cust_brand_switching, chk, cust_brand_penetration = cust_switching_promo_wk(switching_lv=cate_lvl,
-                                                                   cust_movement_sf=cust_mv,
-                                                                   txn=txn_all,
-                                                                   cp_start_date=cmp_st_date,
-                                                                   cp_end_date=cmp_end_date,
-                                                                   feat_list=feat_list
-                                                                  )
+cust_brand_switching, cust_brand_penetration, cust_brand_switching_and_pen = \
+get_cust_brand_switching_and_penetration(
+    txn=txn_all,
+    switching_lv=cate_lvl,
+    brand_df=brand_df,
+    class_df=class_df,
+    sclass_df=sclass_df,
+    cust_movement_sf=cust_mv,
+    wk_type="promo_week")
+cust_brand_switching_and_pen_df = to_pandas(cust_brand_switching_and_pen)
+pandas_to_csv_filestore(cust_brand_switching_and_pen_df, 'customer_brand_switching_penetration.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
 
-cust_brand_switching_df = to_pandas(cust_brand_switching)
-pandas_to_csv_filestore(cust_brand_switching_df, 'customer_brand_switching.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
-
-cust_brand_penetration_df = to_pandas(cust_brand_penetration)
-pandas_to_csv_filestore(cust_brand_penetration_df, 'customer_brand_penetration.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
-
-# create combine brand switching and penetration
-if cate_lvl == 'subclass':
-    cust_brand_sw_pen_df = cust_brand_switching_df.merge(cust_brand_penetration_df, how='left', left_on='oth_brand_in_subclass', right_on='brand_name')
-elif cate_lvl == 'class':
-    cust_brand_sw_pen_df = cust_brand_switching_df.merge(cust_brand_penetration_df, how='left', left_on='oth_brand_in_class', right_on='brand_name')
-
-pandas_to_csv_filestore(cust_brand_sw_pen_df, 'customer_brand_switching_penetration.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
-
-#---- Customer SKU switching
-sku_switcher = cust_sku_switching_promo_wk(switching_lv=cate_lvl,
-                                  txn=txn_all,
-                                  cp_start_date=cmp_st_date,
-                                  cp_end_date=cmp_end_date,
-                                  test_store_sf=test_store_sf,
-                                  feat_list=feat_list
-                                 )
+#---- Customer SKU switching : Danny 1 Aug 2022
+sku_switcher = get_cust_sku_switching(txn=txn_all,
+                                      switching_lv=cate_lvl,
+                                      sku_activated=sku_activated,
+                                      feat_list=feat_list,
+                                      class_df=class_df,
+                                      sclass_df=sclass_df,
+                                      wk_type="promo_week")
 
 cust_sku_switching_df = to_pandas(sku_switcher)
 pandas_to_csv_filestore(cust_sku_switching_df, 'customer_sku_switching.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
+
+# COMMAND ----------
+truprice_profile = get_profile_truprice(txn=txn_all,
+                                        store_fmt=store_fmt,
+                                        cp_end_date=cmp_end,
+                                        wk_type="promo_week",
+                                        sku_activated=sku_activated,
+                                        switching_lv=cate_lvl,
+                                        class_df=class_df,
+                                        sclass_df=sclass_df,
+)
+truprice_profile_df = to_pandas(truprice_profile)
+pandas_to_csv_filestore(truprice_profile_df, 'profile_sku_activated_truprice.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
 
 # COMMAND ----------
 
