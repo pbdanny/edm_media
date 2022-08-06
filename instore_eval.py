@@ -348,7 +348,7 @@ def get_cust_movement(txn: SparkDataFrame,
 
     else:
         print('Not recognized Movement and Switching level param')
-        return None
+        return None, None
 
 def get_cust_brand_switching_and_penetration(
         txn: SparkDataFrame,
