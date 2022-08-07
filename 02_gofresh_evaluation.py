@@ -986,7 +986,7 @@ pandas_to_csv_filestore(truprice_profile_df, 'profile_sku_activated_truprice.csv
 
 if eval_type == 'std':
 
-    create_zip_from_dbsf_prefix_indir(cmp_out_path_fl, f'{cmp_nm}_all_eval_result.zip')
+    # create_zip_from_dbsf_prefix_indir(cmp_out_path_fl, f'{cmp_nm}_all_eval_result.zip')
 
     dbutils.notebook.exit('Finish Standard Evaluation for campaign ' + str(cmp_nm) + ', Exit status = 0 .')
 
