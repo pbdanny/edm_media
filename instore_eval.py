@@ -11,97 +11,6 @@ from pyspark.sql import DataFrame as SparkDataFrame
 import pandas as pd
 
 spark = SparkSession.builder.appName("media_eval").getOrCreate()
-def check_combine_region(store_format_group: str,
-                         test_store_sf: SparkDataFrame,
-                         txn: SparkDataFrame) -> (SparkDataFrame, SparkDataFrame):
-    """Base on store group name,
-    - if HDE / Talad -> count check test vs total store
-    - if GoFresh -> adjust 'store_region' in txn, count check
-    """
-    from typing import List
-    from pyspark.sql import DataFrame as SparkDataFrame
-
-    print('-'*80)
-    print('Count check store region & Combine store region for GoFresh')
-    print(f'Store format defined : {store_format_group}')
-
-    def _get_all_and_test_store(str_fmt_id: List,
-                                str_fmt_gr_nm: str,
-                                test_store_sf: SparkDataFrame ):
-        """Get universe store count, based on format definded
-        If store region Null -> Not show in count
-        """
-        all_store_count_region = \
-        (spark.table('tdm.v_store_dim')
-         .filter(F.col('format_id').isin(str_fmt_id))
-         .select('store_id', 'store_name', F.col('region').alias('store_region')).drop_duplicates()
-         .dropna('all', subset='store_region')
-         .groupBy('store_region')
-         .agg(F.count('store_id').alias(f'total_{str_fmt_gr_nm}'))
-        )
-
-        test_store_count_region = \
-        (spark.table('tdm.v_store_dim')
-         .select('store_id','store_name',F.col('region').alias('store_region')).drop_duplicates()
-         .join(test_store_sf, 'store_id', 'left_semi')
-         .groupBy('store_region')
-         .agg(F.count('store_id').alias(f'test_store_count'))
-        )
-
-        return all_store_count_region, test_store_count_region
-
-    if store_format_group == 'hde':
-        format_id_list = [1,2,3]
-        all_store_count_region, test_store_count_region = _get_all_and_test_store(format_id_list, store_format_group, test_store_sf)
-
-    elif store_format_group == 'talad':
-        format_id_list = [4]
-        all_store_count_region, test_store_count_region = _get_all_and_test_store(format_id_list, store_format_group, test_store_sf)
-
-    elif store_format_group == 'gofresh':
-        format_id_list = [5]
-
-        #---- Adjust Transaction
-        print('GoFresh : Combine store_region West + Central in variable "txn_all"')
-        print("GoFresh : Auto-remove 'Null' region")
-
-        adjusted_store_region =  \
-        (spark.table('tdm.v_store_dim')
-         .withColumn('store_region', F.when(F.col('region').isin(['West','Central']), F.lit('West+Central')).otherwise(F.col('region')))
-         .drop("region")
-         .drop_duplicates()
-        )
-
-        txn = txn.where(F.col("store_region").isNotNull()).drop('store_region').join(adjusted_store_region, 'store_id', 'left')
-
-        #---- Count Region
-        all_store_count_region = \
-        (adjusted_store_region
-         .filter(F.col('format_id').isin(format_id_list))
-         .select('store_id', 'store_name', 'store_region')
-         .drop_duplicates()
-         .dropna('all', subset='store_region')
-         .groupBy('store_region')
-         .agg(F.count('store_id').alias(f'total_{store_format_group}'))
-        )
-
-        test_store_count_region = \
-        (adjusted_store_region
-         .filter(F.col('format_id').isin(format_id_list))
-         .select('store_id', 'store_name', 'store_region')
-         .drop_duplicates()
-         .dropna('all', subset='store_region')
-         .join(test_store_sf, 'store_id', 'left_semi')
-         .groupBy('store_region')
-         .agg(F.count('store_id').alias(f'test_store_count'))
-        )
-
-    else:
-        print(f'Unknow format group name : {format_group_name}')
-
-    test_vs_all_store_count = all_store_count_region.join(test_store_count_region, 'store_region', 'left').orderBy('store_region')
-
-    return test_vs_all_store_count, txn
 
 def get_cust_activated(txn: SparkDataFrame,
                        cp_start_date: str,
@@ -537,9 +446,7 @@ def get_cust_brand_switching_and_penetration(
                  'oth_'+full_prod_lev,'oth_'+prod_lev+'_customers','oth_'+prod_lev+'_spend','total_oth_'+prod_lev+'_spend')
          .withColumn('pct_cust_oth_'+full_prod_lev, F.col('oth_'+prod_lev+'_customers')/F.col('total_ori_brand_cust'))
          .withColumn('pct_spend_oth_'+full_prod_lev, F.col('oth_'+prod_lev+'_spend')/F.col('total_oth_'+prod_lev+'_spend'))
-         .orderBy(F.col('pct_cust_oth_'+full_prod_lev).desc(),
-                #   F.col('pct_spend_oth_'+full_prod_lev).desc()
-                  )
+         .orderBy(F.col('pct_cust_oth_'+full_prod_lev).desc(), F.col('pct_spend_oth_'+full_prod_lev).desc())
         )
         switching_result = switching_result.checkpoint()
 
