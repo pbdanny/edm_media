@@ -14,7 +14,7 @@ spark = SparkSession.builder.appName("media_eval").getOrCreate()
 
 def check_combine_region(store_format_group: str,
                          test_store_sf: SparkDataFrame,
-                         txn: SparkDataFrame) -> (SparkDataFrame, SparkDataFrame):
+                         txn: SparkDataFrame):
     """Base on store group name,
     - if HDE / Talad -> count check test vs total store
     - if GoFresh -> adjust 'store_region' in txn, count check
@@ -98,7 +98,8 @@ def check_combine_region(store_format_group: str,
         )
 
     else:
-        print(f'Unknow format group name : {format_group_name}')
+        print(f'Unknown store format group name : {store_format_group}')
+        return None, txn
 
     test_vs_all_store_count = all_store_count_region.join(test_store_count_region, 'store_region', 'left').orderBy('store_region')
 
