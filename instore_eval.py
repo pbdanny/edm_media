@@ -446,7 +446,9 @@ def get_cust_brand_switching_and_penetration(
                  'oth_'+full_prod_lev,'oth_'+prod_lev+'_customers','oth_'+prod_lev+'_spend','total_oth_'+prod_lev+'_spend')
          .withColumn('pct_cust_oth_'+full_prod_lev, F.col('oth_'+prod_lev+'_customers')/F.col('total_ori_brand_cust'))
          .withColumn('pct_spend_oth_'+full_prod_lev, F.col('oth_'+prod_lev+'_spend')/F.col('total_oth_'+prod_lev+'_spend'))
-         .orderBy(F.col('pct_cust_oth_'+full_prod_lev).desc(), F.col('pct_spend_oth_'+full_prod_lev).desc())
+         .orderBy(F.col('pct_cust_oth_'+full_prod_lev).desc(),
+                #   F.col('pct_spend_oth_'+full_prod_lev).desc()
+                  )
         )
         switching_result = switching_result.checkpoint()
 
