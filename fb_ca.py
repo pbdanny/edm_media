@@ -243,3 +243,34 @@ def map_group_golden_to_csv(sf, gr_col_nm, dbfs_python_prefix, file_nm_suffix):
         df_to_export = sf_to_export.toPandas()
         print(f"Convert {gr} to csv at location {dbfs_python_prefix} with file name {csv_file_nm}")
         pandas_to_csv_filestore(df_to_export, csv_file_name=csv_file_nm, prefix=dbfs_python_prefix)
+
+target_spec = [
+{'gr_alloc_nm':'10_Nescafe_GoFresh','limit':128000},
+{'gr_alloc_nm':'11_NescafeGold_GoFresh','limit':36000},
+{'gr_alloc_nm':'12_PurelifeMinere_GoFresh','limit':63000},
+{'gr_alloc_nm':'13_Milo_GoFresh','limit':45000},
+{'gr_alloc_nm':'14_MultiBrand_GoFresh','limit':45000},
+{'gr_alloc_nm':'2_Nescafe_HDE','limit':264000},
+{'gr_alloc_nm':'3_NescafeGold_HDE','limit':45000},
+{'gr_alloc_nm':'4_PurelifeMinere_HDE','limit':120000},
+{'gr_alloc_nm':'5_Milo_HDE','limit':45000},
+{'gr_alloc_nm':'6_Nestvita_HDE','limit':45000},
+{'gr_alloc_nm':'7_MultiBrand_HDE','limit':45000},
+{'gr_alloc_nm':'8_CompetitorNescafe_HDE','limit':50000},
+{'gr_alloc_nm':'9_CompetitorMilo_HDE','limit':50000},
+]
+
+def limit_gr_rank(sf, spec):
+    """
+    """
+    spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
+    limited_sf = spark.createDataFrame([], sf.schema)
+
+    for s in spec:
+        print(f'{s["gr_alloc_nm"]} limit {s["limit"]}')
+        gr_sf = sf.where(F.col("gr_alloc_nm")==s["gr_alloc_nm"]).orderBy(F.col("sales_rank_in_gr")).limit(s["limit"])
+        gr_sf = gr_sf.checkpoint()
+        limited_sf = limited_sf.unionByName(gr_sf)
+        limited_sf = limited_sf.checkpoint()
+
+    return limited_sf
