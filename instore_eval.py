@@ -403,7 +403,7 @@ def get_cust_movement(txn: SparkDataFrame,
 
         prior_pre_brand_in_class_shopper = \
         (prior_pre_cc_txn
-         .join(sclass_df, "upc_id", "inner")
+         .join(class_df, "upc_id", "inner")
          .join(brand_df, "upc_id")
          .select('household_id')
         ).drop_duplicates()
