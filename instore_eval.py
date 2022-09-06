@@ -1434,15 +1434,15 @@ def get_cust_cltv(txn: SparkDataFrame,
                                 .withColumn('w_auc',svv_cate.auc * (svv_cate.sales/cate_sales))\
                                 .withColumn('w_spd',svv_cate.spd * (svv_cate.sales/cate_sales))
             
-            svv_cate_wg_avg = svv_cate.agg( lit(cate_nm_txt).alias('category_name')
-                                        ,lit(1).alias('CSR_0_wks')
-                                        ,sum(svv_cate.w_q1).alias('CSR_13_wks_wavg')
-                                        ,sum(svv_cate.w_q2).alias('CSR_26_wks_wavg')
-                                        ,sum(svv_cate.w_q3).alias('CSR_39_wks_wavg')
-                                        ,sum(svv_cate.w_q4).alias('CSR_52_wks_wavg')
-                                        ,sum(svv_cate.w_otr).alias('one_time_ratio')
-                                        ,sum(svv_cate.w_auc).alias('AUC')
-                                        ,sum(svv_cate.w_spd).alias('spc_per_day')
+            svv_cate_wg_avg = svv_cate.agg( F.lit(cate_nm_txt).alias('category_name')
+                                        ,F.lit(1).alias('CSR_0_wks')
+                                        ,F.sum(svv_cate.w_q1).alias('CSR_13_wks_wavg')
+                                        ,F.sum(svv_cate.w_q2).alias('CSR_26_wks_wavg')
+                                        ,F.sum(svv_cate.w_q3).alias('CSR_39_wks_wavg')
+                                        ,F.sum(svv_cate.w_q4).alias('CSR_52_wks_wavg')
+                                        ,F.sum(svv_cate.w_otr).alias('one_time_ratio')
+                                        ,F.sum(svv_cate.w_auc).alias('AUC')
+                                        ,F.sum(svv_cate.w_spd).alias('spc_per_day')
                                         )
             
             return svv_cate_wg_avg
