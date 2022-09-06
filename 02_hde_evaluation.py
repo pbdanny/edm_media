@@ -52,7 +52,7 @@ import string
 import subprocess
 import importlib
 import shutil
-import urllib 
+import urllib
 import pathlib
 
 # COMMAND ----------
@@ -213,28 +213,28 @@ if ((str(gap_start_date).lower() == 'nan') | (str(gap_start_date).strip() == '')
     gap_flag    = False
     chk_pre_wk  = cmp_st_wk
     chk_pre_dt  = cmp_start
-elif( (not ((str(gap_start_date).lower() == 'nan') | (str(gap_start_date).strip() == ''))) & 
-      (not ((str(gap_end_date).lower() == 'nan')   | (str(gap_end_date).strip() == ''))) ):    
+elif( (not ((str(gap_start_date).lower() == 'nan') | (str(gap_start_date).strip() == ''))) &
+      (not ((str(gap_end_date).lower() == 'nan')   | (str(gap_end_date).strip() == ''))) ):
     print('\n Campaign ' + str(cmp_nm) + ' has gap period between : ' + str(gap_start_date) + ' and ' + str(gap_end_date) + '\n')
     ## fis_week
     gap_st_wk   = wk_of_year_ls(gap_start_date)
     gap_en_wk   = wk_of_year_ls(gap_end_date)
-    
+
     ## promo
     gap_st_promo_wk  = wk_of_year_promo_ls(gap_start_date)
     gap_en_promo_wk  = wk_of_year_promo_ls(gap_end_date)
-    
-    gap_flag         = True    
-    
+
+    gap_flag         = True
+
     chk_pre_dt       = gap_start_date
     chk_pre_wk       = gap_st_wk
     chk_pre_promo_wk = gap_st_promo_wk
-    
+
 else:
     print(' Incorrect gap period. Please recheck - Code will skip !! \n')
     print(' Received Gap = ' + str(gap_start_date) + " and " + str(gap_end_date))
     raise Exception("Incorrect Gap period value please recheck !!")
-## end if   
+## end if
 
 pre_en_date = (datetime.strptime(chk_pre_dt, '%Y-%m-%d') + timedelta(days=-1)).strftime('%Y-%m-%d')
 pre_en_wk   = wk_of_year_ls(pre_en_date)
@@ -242,7 +242,7 @@ pre_st_wk   = week_cal(pre_en_wk, -12)                       ## get 12 week away
 pre_st_date = f_date_of_wk(pre_st_wk).strftime('%Y-%m-%d')   ## get first date of start week to get full week data
 ## promo week
 pre_en_promo_wk = wk_of_year_promo_ls(pre_en_date)
-pre_st_promo_wk = promo_week_cal(pre_en_promo_wk, -12)   
+pre_st_promo_wk = promo_week_cal(pre_en_promo_wk, -12)
 
 ppp_en_wk       = week_cal(pre_st_wk, -1)
 ppp_st_wk       = week_cal(ppp_en_wk, -12)
@@ -327,12 +327,12 @@ print(' Input Product Adjacency file = ' + in_ai_file )
 
 ## control need check
 if (eval_type == 'full') & (hv_ctrl_store == 'true'):
-    in_ctl_file = input_path + control_file    
+    in_ctl_file = input_path + control_file
     flg_use_oth = False
     flg_use_rsv = False
     print('\n Control store file for campaign ' + str(cmp_nm) + ' : ' + in_ctl_file + '\n')
-elif (eval_type == 'full') & (hv_ctrl_store != 'true') & (use_reserved_store == 'true'):    
-    in_ctl_file = stdin_path + resrv_store_file    
+elif (eval_type == 'full') & (hv_ctrl_store != 'true') & (use_reserved_store == 'true'):
+    in_ctl_file = stdin_path + resrv_store_file
     flg_use_oth = False
     flg_use_rsv = True
     print('\n Campaign will use standard reserved store . \n ')
@@ -427,7 +427,7 @@ if store_fmt == 'hde':
                                                            ,F.col('format_id')
                                                            ,F.col('date_opened')
                                                            ,F.col('date_closed')
-                                                           ,lower(F.col('region')).alias('store_region') 
+                                                           ,lower(F.col('region')).alias('store_region')
                                                            ,lower(F.col('region')).alias('store_region_orig'))
 
 elif store_fmt == 'gofresh' :
@@ -441,7 +441,7 @@ elif store_fmt == 'gofresh' :
                                                              .otherwise(lower(F.col('region')))
                                                              .alias('store_region')
                                                            ,lower(F.col('region')).alias('store_region_orig'))
-    
+
 else :
     print('Store Format is not correct code will skip evaluation for campaign ' + str(cmp_nm) + ' !!\n')
     raise Exception("Incorrect store format value !!")
@@ -450,24 +450,24 @@ else :
 ## Import target file
 in_trg_df = spark.read.csv(in_trg_file, header="true", inferSchema="true")
 
-## end if    
+## end if
 
 ## Import control file - if full evaluation
 if (eval_type == 'full') & (hv_ctrl_store == 'true'):
     ## use self control
     in_ctl_str_df = spark.read.csv(in_ctl_file, header="true", inferSchema="true")
-    
+
 elif (eval_type == 'full') & (flg_use_rsv) :
     ## use reserved will need to filter category reserved
     all_rsv_df    = spark.read.csv(in_ctl_file, header="true", inferSchema="true")
-    in_ctl_str_df = all_rsv_df.where((all_rsv_df.class_code == resrv_store_class.upper()) & 
+    in_ctl_str_df = all_rsv_df.where((all_rsv_df.class_code == resrv_store_class.upper()) &
                                   (all_rsv_df.rs_flag == 'reserved')
                                  )\
                            .select(all_rsv_df.store_id)
-elif (eval_type == 'full') & (flg_use_oth) :    
+elif (eval_type == 'full') & (flg_use_oth) :
     in_ctl_str_df = store_dim.join  (in_trg_df, [store_dim.store_id == in_trg_df.store_id], 'left_anti')\
                              .select(store_dim.store_id)
-## end if    
+## end if
 
 
 ## get region for target & control store
@@ -497,7 +497,7 @@ if (eval_type == 'full'):
     print('Display Check - control store')
     print('-'*80)
     u_ctl_str_df.limit(10).display()
-    
+
 ## end if
 
 #dbfs:/FileStore/media/campaign_eval/01_hde/00_cmp_inputs/inputs_files/target_store_2022_0136_M02E.csv
@@ -527,14 +527,14 @@ pandas_to_csv_filestore(trg_mech_set_pd, 'mechanics_setup_details.csv', prefix=o
 #---- Try loding existing data table, unless create new
 try:
     # Test block
-    # raise Exception('To skip try block') 
+    # raise Exception('To skip try block')
     txn_all = spark.table(f'tdm_seg.media_campaign_eval_txn_data_{cmp_id}')
     print(f'Load data table for period : Ppp - Pre - Gap - Cmp, All store All format \n from : tdm_seg.media_campaign_eval_txn_data_{cmp_id}')
 
 except:
     print(f'Create intermediate transaction table for period Prior - Pre - Dur , all store format : tdm_seg.media_campaign_eval_txn_data_{cmp_id}')
-    txn_all = get_trans_itm_wkly(start_week_id=ppp_st_wk, end_week_id=cmp_en_wk, store_format=[1,2,3,4,5], 
-                                  prod_col_select=['upc_id', 'division_name', 'department_name', 'section_id', 'section_name', 
+    txn_all = get_trans_itm_wkly(start_week_id=ppp_st_wk, end_week_id=cmp_en_wk, store_format=[1,2,3,4,5],
+                                  prod_col_select=['upc_id', 'division_name', 'department_name', 'section_id', 'section_name',
                                                    'class_id', 'class_name', 'subclass_id', 'subclass_name', 'brand_name',
                                                    'department_code', 'section_code', 'class_code', 'subclass_code'])
     # Combine feature brand - Danny
@@ -542,17 +542,17 @@ except:
     brand_list.sort()
     if len(brand_list) > 1:
         txn_all = txn_all.withColumn("brand_name", F.when(F.col("brand_name").isin(brand_list), F.lit(brand_list[0])).otherwise(F.col("brand_name")))
-    
+
     #---- Add period column
     if gap_flag:
         print('Data with gap week')
-        txn_all = (txn_all.withColumn('period_fis_wk', 
+        txn_all = (txn_all.withColumn('period_fis_wk',
                                       F.when(F.col('week_id').between(cmp_st_wk, cmp_en_wk), F.lit('cmp'))
                                        .when(F.col('week_id').between(gap_st_wk, gap_en_wk), F.lit('gap'))
                                        .when(F.col('week_id').between(pre_st_wk, pre_en_wk), F.lit('pre'))
                                        .when(F.col('week_id').between(ppp_st_wk, ppp_en_wk), F.lit('ppp'))
                                        .otherwise(F.lit('NA')))
-                          .withColumn('period_promo_wk', 
+                          .withColumn('period_promo_wk',
                                       F.when(F.col('promoweek_id').between(cmp_st_promo_wk, cmp_en_promo_wk), F.lit('cmp'))
                                        .when(F.col('promoweek_id').between(gap_st_promo_wk, gap_en_promo_wk), F.lit('gap'))
                                        .when(F.col('promoweek_id').between(pre_st_promo_wk, pre_en_promo_wk), F.lit('pre'))
@@ -560,17 +560,17 @@ except:
                                        .otherwise(F.lit('NA')))
                   )
     else:
-        txn_all = (txn_all.withColumn('period_fis_wk', 
+        txn_all = (txn_all.withColumn('period_fis_wk',
                                       F.when(F.col('week_id').between(cmp_st_wk, cmp_en_wk), F.lit('cmp'))
                                        .when(F.col('week_id').between(pre_st_wk, pre_en_wk), F.lit('pre'))
                                        .when(F.col('week_id').between(ppp_st_wk, ppp_en_wk), F.lit('ppp'))
                                        .otherwise(F.lit('NA')))
-                          .withColumn('period_promo_wk', 
+                          .withColumn('period_promo_wk',
                                       F.when(F.col('promoweek_id').between(cmp_st_promo_wk, cmp_en_promo_wk), F.lit('cmp'))
                                        .when(F.col('promoweek_id').between(pre_st_promo_wk, pre_en_promo_wk), F.lit('pre'))
                                        .when(F.col('promoweek_id').between(ppp_st_promo_wk, ppp_en_promo_wk), F.lit('ppp'))
                                        .otherwise(F.lit('NA')))
-                  )        
+                  )
 
     txn_all.write.saveAsTable(f'tdm_seg.media_campaign_eval_txn_data_{cmp_id}')
     ## Pat add, delete dataframe before re-read
@@ -596,9 +596,9 @@ pandas_to_csv_filestore(test_vs_all_store_count_df, f'test_vs_all_store_count.cs
 
 # COMMAND ----------
 
-# MAGIC %md 
-# MAGIC ##1. Check feature SKU details  
-# MAGIC ##2. Create adjacency product group / adjacency upc_id  
+# MAGIC %md
+# MAGIC ##1. Check feature SKU details
+# MAGIC ##2. Create adjacency product group / adjacency upc_id
 
 # COMMAND ----------
 
@@ -608,7 +608,7 @@ pandas_to_csv_filestore(test_vs_all_store_count_df, f'test_vs_all_store_count.cs
 # adj_prod_sf, adj_prod_group_name_sf, featues_product_and_exposure_sf, mfr_promoted_product_str = \
 # get_adjacency_product_id(promoted_upc_id=feat_list , adjacecy_file_path=adjacency_file_path)
 
-# # Save adjacency product 
+# # Save adjacency product
 # adj_prod_df = to_pandas(adj_prod_sf)
 # pandas_to_csv_filestore(adj_prod_df, 'adj_prod_id.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'output'))
 
@@ -618,7 +618,7 @@ pandas_to_csv_filestore(test_vs_all_store_count_df, f'test_vs_all_store_count.cs
 
 # # Detail of feature products + exposure
 # featues_product_and_exposure_df = to_pandas(featues_product_and_exposure_sf)
-# pandas_to_csv_filestore(featues_product_and_exposure_df, 'feature_product_and_exposure_details.csv', 
+# pandas_to_csv_filestore(featues_product_and_exposure_df, 'feature_product_and_exposure_details.csv',
 #                         prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
 
 # COMMAND ----------
@@ -629,7 +629,7 @@ pandas_to_csv_filestore(test_vs_all_store_count_df, f'test_vs_all_store_count.cs
 #adj_prod_sf, adj_prod_group_name_sf, featues_product_and_exposure_sf, mfr_promoted_product_str = \
 #get_adjacency_product_id(promoted_upc_id=feat_list , adjacecy_file_path=adjacency_file_path)
 
-# Save adjacency product 
+# Save adjacency product
 adj_prod_sf = use_ai_df
 adj_prod_df = to_pandas(use_ai_df)
 pandas_to_csv_filestore(adj_prod_df, 'adj_prod_id.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'output'))
@@ -640,7 +640,7 @@ pandas_to_csv_filestore(adj_prod_df, 'adj_prod_id.csv', prefix=os.path.join(eval
 
 # Detail of feature products + exposure
 featues_product_and_exposure_df = to_pandas(feat_detail)
-pandas_to_csv_filestore(featues_product_and_exposure_df, 'feature_product_and_exposure_details.csv', 
+pandas_to_csv_filestore(featues_product_and_exposure_df, 'feature_product_and_exposure_details.csv',
                         prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
 
 # COMMAND ----------
@@ -669,13 +669,13 @@ pandas_to_csv_filestore(featues_product_and_exposure_df, 'feature_product_and_ex
 
 cmp_st_date = datetime.strptime(cmp_start, '%Y-%m-%d')
 cmp_end_date = datetime.strptime(cmp_end, '%Y-%m-%d')
-exposure_all, exposure_region = get_awareness(txn_all, cp_start_date=cmp_st_date, cp_end_date=cmp_end_date,
-                                              store_fmt=store_fmt, test_store_sf=test_store_sf, adj_prod_sf=use_ai_df,
-                                              media_spend=float(media_fee))
-exposure_all_df = to_pandas(exposure_all)
-pandas_to_csv_filestore(exposure_all_df, 'exposure_all.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
-exposure_region_df = to_pandas(exposure_region)
-pandas_to_csv_filestore(exposure_region_df, 'exposure_region.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
+# exposure_all, exposure_region = get_awareness(txn_all, cp_start_date=cmp_st_date, cp_end_date=cmp_end_date,
+#                                               store_fmt=store_fmt, test_store_sf=test_store_sf, adj_prod_sf=use_ai_df,
+#                                               media_spend=float(media_fee))
+# exposure_all_df = to_pandas(exposure_all)
+# pandas_to_csv_filestore(exposure_all_df, 'exposure_all.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
+# exposure_region_df = to_pandas(exposure_region)
+# pandas_to_csv_filestore(exposure_region_df, 'exposure_region.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
 
 # COMMAND ----------
 
@@ -685,13 +685,13 @@ pandas_to_csv_filestore(exposure_region_df, 'exposure_region.csv', prefix=os.pat
 # COMMAND ----------
 
 #---- Customer Activated : Danny 1 Aug 2022
-brand_activated, sku_activated = get_cust_activated(txn_all, 
-                                                    cmp_start, 
+brand_activated, sku_activated = get_cust_activated(txn_all,
+                                                    cmp_start,
                                                     cmp_end,
-                                                    "fis_week", 
-                                                    test_store_sf, 
+                                                    "fis_week",
+                                                    test_store_sf,
                                                     adj_prod_sf,
-                                                    brand_df, 
+                                                    brand_df,
                                                     feat_df)
 
 sku_activated.write.format('parquet').mode('overwrite').saveAsTable(f'tdm_seg.media_camp_eval_{cmp_id}_cust_sku_activated')
@@ -729,7 +729,7 @@ cust_mv = spark.table(f'tdm_seg.media_camp_eval_{cmp_id}_cust_mv')
 cust_brand_switching, cust_brand_penetration, cust_brand_switching_and_pen = \
 get_cust_brand_switching_and_penetration(
     txn=txn_all,
-    switching_lv=cate_lvl, 
+    switching_lv=cate_lvl,
     brand_df=brand_df,
     class_df=class_df,
     sclass_df=sclass_df,
@@ -739,8 +739,8 @@ cust_brand_switching_and_pen_df = to_pandas(cust_brand_switching_and_pen)
 pandas_to_csv_filestore(cust_brand_switching_and_pen_df, 'customer_brand_switching_penetration.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
 
 #---- Customer SKU switching : Danny 1 Aug 2022
-sku_switcher = get_cust_sku_switching(txn=txn_all, 
-                                      switching_lv=cate_lvl, 
+sku_switcher = get_cust_sku_switching(txn=txn_all,
+                                      switching_lv=cate_lvl,
                                       sku_activated=sku_activated,
                                       feat_list=feat_list,
                                       class_df=class_df,
@@ -766,7 +766,7 @@ cate_info_df, cate_brand_info = get_new_to_cate(txn_all,cust_mv, 'fis_wk' )
 
 cate_info_pd = cate_info_df.toPandas()
 
-pandas_to_csv_filestore(cate_info_pd, 'category_info_from_new_to_category_customers.csv', 
+pandas_to_csv_filestore(cate_info_pd, 'category_info_from_new_to_category_customers.csv',
                         prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'output'))
 
 del cate_info_df
@@ -775,7 +775,7 @@ del cate_info_pd
 ##------------------
 cate_brand_info_pd = cate_brand_info.toPandas()
 
-pandas_to_csv_filestore(cate_brand_info_pd, 'brand_info_from_top5cate_new_to_cate_customers.csv', 
+pandas_to_csv_filestore(cate_brand_info_pd, 'brand_info_from_top5cate_new_to_cate_customers.csv',
                         prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'output'))
 
 
@@ -793,7 +793,7 @@ del cate_brand_info_pd
 
 # COMMAND ----------
 
-## Initial table 
+## Initial table
 
 sku_atv_cst   = spark.table(f'tdm_seg.media_camp_eval_{cmp_id}_cust_sku_activated')
 brand_atv_cst = spark.table(f'tdm_seg.media_camp_eval_{cmp_id}_cust_brand_activated')
@@ -832,7 +832,7 @@ cst_pfr_seg   = spark.table('tdm_seg.srai_prefstore_full_history')
 
 # COMMAND ----------
 
-#%md ## Customer Share - Pre/during of Test Store >> feature & brand 
+#%md ## Customer Share - Pre/during of Test Store >> feature & brand
 #-- add back 21 Jul 2022 from AE request, to see if there any metric to see from standard eval.  DS need consider to show result.
 
 # COMMAND ----------
@@ -854,7 +854,7 @@ cst_pfr_seg   = spark.table('tdm_seg.srai_prefstore_full_history')
 
 # COMMAND ----------
 
-# truprice_profile = get_profile_truprice(txn=txn_all, 
+# truprice_profile = get_profile_truprice(txn=txn_all,
 #                                         store_fmt=store_fmt,
 #                                         cp_end_date=cmp_end,
 #                                         wk_type="fis_week",
@@ -885,7 +885,7 @@ cst_pfr_seg   = spark.table('tdm_seg.srai_prefstore_full_history')
 #                                                            ,store_fmt
 #                                                            ,trg_str_df
 #                                                           )
-   
+
 ## brand at sublcass
 # sales_brand_subclass_fiswk = get_sales_mkt_growth_noctrl( txn_all
 #                                                            ,brand_df
@@ -939,7 +939,7 @@ cst_pfr_seg   = spark.table('tdm_seg.srai_prefstore_full_history')
 #                        ,period_col
 #                        ):
 
-## SKU Sales trend in spark df format 
+## SKU Sales trend in spark df format
 # sku_trend_trg   = get_sales_trend_trg(txn_all, trg_str_df, feat_df, 'SKU', 'fis_wk', 'period_fis_wk')
 
 ## Brand sales trend
@@ -986,18 +986,18 @@ cst_pfr_seg   = spark.table('tdm_seg.srai_prefstore_full_history')
 #     - Feature Brand in subclass
 #     - Brand dataframe (all SKU of brand in category - switching level wither class/subclass)
 #     - Category dataframe (all SKU in category at defined switching level)
-#     - Return 
+#     - Return
 #       >> combined_kpi : spark dataframe with all combine KPI
 #       >> kpi_df : combined_kpi in pandas
 #       >> df_pv : Pivot format of kpi_df
-#     """ 
+#     """
 ## use based on p'Danny function & Pat Adjust  -- Pat 17 Jun 2022
 
 ## Pat Add for GO Fresh Evaluation 24 AUg 2022
-### 
-## Enable - kpi no control for campaign evaluation type 
+###
+## Enable - kpi no control for campaign evaluation type
 ##if eval_type == 'std':
-        
+
 # kpi_spdf, kpi_pd, cust_share_pd = cust_kpi_noctrl_fiswk(txn_all ,store_fmt , trg_str_df, feat_list, brand_df, cate_df)
 
 # kpi_pd.display()
@@ -1012,27 +1012,27 @@ cst_pfr_seg   = spark.table('tdm_seg.srai_prefstore_full_history')
 
 # COMMAND ----------
 
-# MAGIC %md 
+# MAGIC %md
 # MAGIC # Break-point for Standard report (Exposure report only)
 
 # COMMAND ----------
 
 if eval_type == 'std':
-  
+
      ## add check if zip file exists will remove and create new
     full_file_zip = cmp_out_path + str(cmp_nm) + '_all_eval_result.zip'
-    
+
     try:
         dbutils.fs.ls(full_file_zip)
-        print('-' * 80 + '\n' + ' Warning !! Current zip file exists : ' + full_file_zip + '.\n Process will remove and recreate zip file. \n' + '-' * 80)    
-        dbutils.fs.rm(full_file_zip)    
-        print(' Removed file already! Process will re-create new file. \n')    
+        print('-' * 80 + '\n' + ' Warning !! Current zip file exists : ' + full_file_zip + '.\n Process will remove and recreate zip file. \n' + '-' * 80)
+        dbutils.fs.rm(full_file_zip)
+        print(' Removed file already! Process will re-create new file. \n')
     except :
         print(' Zip file : ' + str(full_file_zip) + ' is creating, please wait \n')
-        
-        
+
+
     create_zip_from_dbsf_prefix_indir(cmp_out_path_fl, f'{cmp_nm}_all_eval_result.zip')
-    
+
     dbutils.notebook.exit('Finish Standard Evaluation for campaign ' + str(cmp_nm) + ', Exit status = 0 .')
 
 
@@ -1095,12 +1095,12 @@ pandas_to_csv_filestore(store_matching_df, 'store_matching.csv', prefix= os.path
 # COMMAND ----------
 
 #---- Uplift at brand level : Danny 1 Aug 2022
-uplift_brand = get_customer_uplift(txn=txn_all, 
-                                   cp_start_date=cmp_st_date, 
+uplift_brand = get_customer_uplift(txn=txn_all,
+                                   cp_start_date=cmp_st_date,
                                    cp_end_date=cmp_end_date,
                                    wk_type="fis_week",
                                    test_store_sf=test_store_sf,
-                                   adj_prod_sf=adj_prod_sf, 
+                                   adj_prod_sf=adj_prod_sf,
                                    brand_sf=brand_df,
                                    feat_sf=feat_df,
                                    ctr_store_list=ctr_store_list,
@@ -1113,12 +1113,12 @@ pandas_to_csv_filestore(uplift_brand_df, 'customer_uplift_brand.csv', prefix=os.
 
 #---- Uplift at Sku : Danny 1 Aug 2022
 
-# uplift_feature = get_customer_uplift(txn=txn_all, 
-#                                    cp_start_date=cmp_st_date, 
+# uplift_feature = get_customer_uplift(txn=txn_all,
+#                                    cp_start_date=cmp_st_date,
 #                                    cp_end_date=cmp_end_date,
 #                                    wk_type="fis_week",
 #                                    test_store_sf=test_store_sf,
-#                                    adj_prod_sf=adj_prod_sf, 
+#                                    adj_prod_sf=adj_prod_sf,
 #                                    brand_sf=brand_df,
 #                                    feat_sf=feat_df,
 #                                    ctr_store_list=ctr_store_list,
@@ -1209,7 +1209,7 @@ cate_avg_svv_pd.to_csv(outfile, index = False)
 # ## call sale uplift by region -- Pat 25 May 2022
 
 ## SKU Level
-# sku_sales_matching_df, sku_uplift_table, sku_uplift_wk_graph, kpi_table, uplift_reg_pd = sales_uplift_reg( txn_all 
+# sku_sales_matching_df, sku_uplift_table, sku_uplift_wk_graph, kpi_table, uplift_reg_pd = sales_uplift_reg( txn_all
 #                                                                                                          ,sales_uplift_lv='sku'
 #                                                                                                          ,brand_df = brand_df
 #                                                                                                          ,feat_list = feat_list
@@ -1264,7 +1264,7 @@ cate_avg_svv_pd.to_csv(outfile, index = False)
 # # ## call sale uplift by region -- Pat 25 May 2022
 
 # ## SKU Level
-# sku_sales_matching_promo_df, sku_uplift_promo_table, sku_uplift_promowk_graph, kpi_table_promo, uplift_promo_reg_pd = sales_uplift_promo_reg( txn_all 
+# sku_sales_matching_promo_df, sku_uplift_promo_table, sku_uplift_promowk_graph, kpi_table_promo, uplift_promo_reg_pd = sales_uplift_promo_reg( txn_all
 #                                                                                                                                              ,sales_uplift_lv='sku'
 #                                                                                                                                              ,brand_df = brand_df
 #                                                                                                                                              ,feat_list = feat_list
@@ -1349,7 +1349,7 @@ cate_avg_svv_pd.to_csv(outfile, index = False)
 
 ## Brand Level
 
-# bnd_sales_matching_df, bnd_uplift_table, bnd_uplift_wk_graph, kpi_table_bnd, uplift_reg_bnd_pd = sales_uplift_reg( txn_all 
+# bnd_sales_matching_df, bnd_uplift_table, bnd_uplift_wk_graph, kpi_table_bnd, uplift_reg_bnd_pd = sales_uplift_reg( txn_all
 #                                                                                                                   ,sales_uplift_lv='brand'
 #                                                                                                                   ,brand_df = brand_df
 #                                                                                                                   ,feat_list = feat_list
@@ -1402,7 +1402,7 @@ cate_avg_svv_pd.to_csv(outfile, index = False)
 # # ## call sale uplift by region -- Pat 25 May 2022
 
 # ## Brand Level
-# bnd_sales_matching_promo_df, bnd_uplift_promo_table, bnd_uplift_promowk_graph, kpi_table_promo_bnd, uplift_promo_reg_bnd_pd = sales_uplift_promo_reg( txn_all 
+# bnd_sales_matching_promo_df, bnd_uplift_promo_table, bnd_uplift_promowk_graph, kpi_table_promo_bnd, uplift_promo_reg_bnd_pd = sales_uplift_promo_reg( txn_all
 #                                                                                                                                                  ,sales_uplift_lv='brand'
 #                                                                                                                                                  ,brand_df = brand_df
 #                                                                                                                                                  ,feat_list = feat_list
@@ -1637,13 +1637,13 @@ cate_avg_svv_pd.to_csv(outfile, index = False)
 
 # try:
 #     dbutils.fs.ls(full_file_zip)
-#     print('-' * 80 + '\n' + ' Warning !! Current zip file exists : ' + full_file_zip + '.\n Process will remove and recreate zip file. \n' + '-' * 80)    
-#     dbutils.fs.rm(full_file_zip)    
-#     print(' Removed file already! Process will re-create new file. \n')    
+#     print('-' * 80 + '\n' + ' Warning !! Current zip file exists : ' + full_file_zip + '.\n Process will remove and recreate zip file. \n' + '-' * 80)
+#     dbutils.fs.rm(full_file_zip)
+#     print(' Removed file already! Process will re-create new file. \n')
 # except :
 #     print(' Zip file : ' + str(full_file_zip) + ' is creating, please wait \n')
-    
-    
+
+
 # create_zip_from_dbsf_prefix_indir(cmp_out_path_fl, f'{cmp_nm}_all_eval_result.zip')
 
 
