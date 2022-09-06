@@ -1083,10 +1083,10 @@ pandas_to_csv_filestore(store_matching_df, 'store_matching.csv', prefix= os.path
 
 # COMMAND ----------
 
-combined_kpi, kpi_df, df_pv = cust_kpi(txn_all, store_fmt=store_fmt, test_store_sf=trg_str_df, ctr_store_list=ctr_store_list,feat_list=feat_list)
+# combined_kpi, kpi_df, df_pv = cust_kpi(txn_all, store_fmt=store_fmt, test_store_sf=trg_str_df, ctr_store_list=ctr_store_list,feat_list=feat_list)
 
-pandas_to_csv_filestore(kpi_df, 'kpi_test_ctrl_pre_dur.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
-pandas_to_csv_filestore(df_pv, 'customer_share_test_ctrl_pre_dur.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
+# pandas_to_csv_filestore(kpi_df, 'kpi_test_ctrl_pre_dur.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
+# pandas_to_csv_filestore(df_pv, 'customer_share_test_ctrl_pre_dur.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
 
 # COMMAND ----------
 
