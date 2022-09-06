@@ -1293,7 +1293,7 @@ def get_cust_cltv(txn: SparkDataFrame,
     def _get_brand_sec_id(feat_sf: SparkDataFrame):
         """Get brand_name, section_class_id, section_class_subclass_id
         """
-        prd_feature = spark.table('tdm.v_prod_dim_c').where(F.col('division_id').isin([1,2,3,4,9,10,13])).join(feat_sf, "upc_id", "inner")
+        prd_feature = spark.table('tdm.v_prod_dim_c').where(F.col('division_id').isin([1,2,3,4,9,10,13])).join(feat_sf.select("upc_id").drop_duplicates(), "upc_id", "inner")
         sec_id_class_id_subclass_id_feature_product = prd_feature.select('section_id', 'class_id', 'subclass_id').drop_duplicates()
         sec_id_class_id_feature_product = prd_feature.select('section_id', 'class_id').drop_duplicates()
         brand_of_feature_product = prd_feature.select('brand_name').drop_duplicates()
