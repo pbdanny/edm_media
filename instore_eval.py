@@ -1533,7 +1533,7 @@ def get_cust_cltv(txn: SparkDataFrame,
             use_average_flag  = 0
             
             print(' Display brand_csr use \n')
-            
+            brand_csr = brand_csr_initial
             brand_csr.display()
 
         return brand_csr, use_cate_svv_flag, use_average_flag
