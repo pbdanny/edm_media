@@ -1,3 +1,5 @@
+from calendar import c
+from nis import cat
 from typing import List
 from copy import deepcopy
 from datetime import datetime, timedelta
@@ -1248,6 +1250,481 @@ def get_cust_activated_prmzn(
     print(f'Total exposed and Features SKU shopper (Features SKU Activated) : {nmbr_sku_activated:,d}')
 
     return cmp_brand_activated, cmp_sku_activated
+
+def get_cust_cltv(txn: SparkDataFrame,
+                  cmp_id: str,
+                  wk_type: str,
+                  feat_sf: SparkDataFrame,
+                  brand_sf: SparkDataFrame,
+                  lv_svv_pcyc: str,
+                  uplift_brand: float,
+                  media_spend: float,
+                  svv_table: str,
+                  pcyc_table: str,
+                  cate_cd_list: str
+                  ):
+    """(Uplift) Customer Life Time Value - EPOS @ Brand Level
+    I) Calculate SpC metrics
+        Use Brand activated customer, split customer into 2 groups
+        A) 1-time brand buyer customer -> SpC of Feature Brand 
+        B) Muli-time brand buyer customer -> SpC of Feature Brand
+    
+    II) Use customer uplift to calculate CLTV-MyLo
+        Use Customer Uplift @ Brand Level to calculate CLTV -> Extrapolate to EPOS
+    
+    III) Extrapolate CLTV-MyLo -> CLTV EPOS
+    
+    """
+    import numpy as np
+    
+    #--- Helper fn
+    def _get_period_wk_col_nm(wk_type: str
+                              ) -> str:
+        """Column name for period week identification
+        """
+        if wk_type in ["promo_week"]:
+            period_wk_col_nm = "period_promo_wk"
+        elif wk_type in ["promozone"]:
+            period_wk_col_nm = "period_promo_mv_wk"
+        else:
+            period_wk_col_nm = "period_fis_wk"
+        return period_wk_col_nm
+    
+    def _get_brand_sec_id(feat_sf: SparkDataFrame):
+        """Get brand_name, section_class_id, section_class_subclass_id
+        """
+        prd_feature = spark.table('tdm.v_prod_dim_c').where(F.col('division_id').isin([1,2,3,4,9,10,13])).join(feat_sf, "upc_id", "inner")
+        sec_id_class_id_subclass_id_feature_product = prd_feature.select('section_id', 'class_id', 'subclass_id').drop_duplicates()
+        sec_id_class_id_feature_product = prd_feature.select('section_id', 'class_id').drop_duplicates()
+        brand_of_feature_product = prd_feature.select('brand_name').drop_duplicates()
+        
+        return sec_id_class_id_subclass_id_feature_product, sec_id_class_id_feature_product, brand_of_feature_product
+
+    def _to_pandas(sf: SparkDataFrame) -> pd.DataFrame:
+        """Solve DecimalType conversion to PandasDataFrame as string
+        with pre-covert DecimalType to DoubleType then toPandas()
+        automatically convert to float64
+        
+        Parameter
+        ---------
+        sf: pyspark.sql.DataFrame
+            spark DataFrame to save
+            
+        Return
+        ------
+        :pandas.DataFrame
+        """
+        from pyspark.sql import types as T
+        from pyspark.sql import functions as F
+        
+        col_name_type = sf.dtypes
+        select_cast_exp = [F.col(c[0]).cast(T.DoubleType()) if c[1].startswith('decimal') else F.col(c[0]) for c in col_name_type]
+        conv_sf = sf.select(*select_cast_exp)
+        conv_df = conv_sf.toPandas()
+        
+        return conv_df  # type: ignore
+    
+    def _list2string(inlist, delim = ' '):
+        """ This function use to convert from list variable to concatenate string
+        having 2 input parameters
+        inlist : list , that need to conver to string
+        delim  : text , is a charactor use to be delimeter between each value in list
+        """
+        outtxt = ''
+        n = 0
+        
+        for itm in inlist:
+            
+            if n == 0:
+                outtxt = outtxt + str(itm)
+                n      = n + 1
+            else:
+                outtxt = outtxt + str(delim) + str(itm)
+                n      = n + 1
+            ## end if
+        ## end for
+        
+        return outtxt
+    
+    def _get_svv_df(svv_table: str,
+                    lv_svv_pcyc: str,
+                    feat_sf: SparkDataFrame,
+                    cate_code_list: List
+                    ):
+        """Get survival rate and check if the feature sku is multi-brand / multi-subclass / multi-class
+        Then use weighted average for survival rate
+        """
+        #---- Helper fn
+        def __get_avg_cate_svv(svv_df, cate_lvl, cate_code_list):
+            """Get category survival rate in case of NPD product
+            Param
+            -----
+            svv_df : Spark dataframe of survival rate table
+            cate_lvl : string : catevory level 
+            cate_code_list : list of category code that define brand category
+            return cate_avg_survival_rate as sparkDataframe
+            
+            ### add 3 more variable to use in case NPD and no survival rate at brand
+            ## Pat 30 Jun 2022
+            one_time_ratio
+            spc_per_day
+            AUC
+            spc
+            """
+            if cate_lvl == 'subclass':
+                svv  = svv_df.withColumn('subclass_code', F.concat(svv_df.division_id, F.lit('_'), svv_df.department_id, F.lit('_'), svv_df.section_id, F.lit('_'), svv_df.class_id, F.lit('_'), svv_df.subclass_id))
+                ##cond = """subclass_code in ({}) """.format(cate_code_list)
+                
+                svv_cate = svv.where(svv.subclass_code.isin(cate_code_list))\
+                            .select( svv.section_id.alias('sec_id')
+                                    ,svv.class_id
+                                    ,svv.subclass_code.alias('cate_code')
+                                    ,svv.subclass_name.alias('cate_name')
+                                    ,svv.brand_name
+                                    ,svv.CSR_13_wks.alias('q1')
+                                    ,svv.CSR_26_wks.alias('q2')
+                                    ,svv.CSR_39_wks.alias('q3')
+                                    ,svv.CSR_52_wks.alias('q4')
+                                    ,svv.spending.alias('sales')
+                                    ,svv.one_time_ratio.alias('otr')
+                                    ,svv.AUC.alias('auc')
+                                    ,svv.spc_per_day.alias('spd')
+                                    )
+            
+            elif cate_lvl == 'class':
+                svv  = svv_df.withColumn('class_code', F.concat(svv_df.division_id, F.lit('_'), svv_df.department_id, F.lit('_'), svv_df.section_id, F.lit('_'), svv_df.class_id))
+                #cond = """class_code in ({}) """.format(cate_code_list)
+                svv_cate = svv.where(svv.class_code.isin(cate_code_list))\
+                            .select( svv.section_id.alias('sec_id')
+                                    ,svv.class_id
+                                    ,svv.class_code.alias('cate_code')
+                                    ,svv.class_name.alias('cate_name')
+                                    ,svv.brand_name
+                                    ,svv.CSR_13_wks.alias('q1')
+                                    ,svv.CSR_26_wks.alias('q2')
+                                    ,svv.CSR_39_wks.alias('q3')
+                                    ,svv.CSR_52_wks.alias('q4')
+                                    ,svv.spending.alias('sales')
+                                    ,svv.one_time_ratio.alias('otr')
+                                    ,svv.AUC.alias('auc')
+                                    ,svv.spc_per_day.alias('spd')
+                                    )
+            else:
+                
+                return None
+            
+            ## get weighted average svv by sale to category -- All sale values
+            cate_sales  = svv_cate.agg(F.sum(svv_cate.sales).alias('cate_sales')).collect()[0].cate_sales
+                
+            ## Pat add to get list of category name in case of multiple category define -- Pat 25 Jul 22
+            
+            cate_nm_lst = svv_cate.select(svv_cate.cate_name)\
+                                .dropDuplicates()\
+                                .toPandas()['cate_name'].to_list()
+            
+            cate_nm_txt = _list2string(cate_nm_lst, delim = ' , ')
+
+            ## multiply for weighted    
+            svv_cate   = svv_cate.withColumn('pct_share_w', svv_cate.sales/cate_sales)\
+                                .withColumn('w_q1', svv_cate.q1 * (svv_cate.sales/cate_sales))\
+                                .withColumn('w_q2', svv_cate.q2 * (svv_cate.sales/cate_sales))\
+                                .withColumn('w_q3', svv_cate.q3 * (svv_cate.sales/cate_sales))\
+                                .withColumn('w_q4', svv_cate.q4 * (svv_cate.sales/cate_sales))\
+                                .withColumn('w_otr',svv_cate.otr * (svv_cate.sales/cate_sales))\
+                                .withColumn('w_auc',svv_cate.auc * (svv_cate.sales/cate_sales))\
+                                .withColumn('w_spd',svv_cate.spd * (svv_cate.sales/cate_sales))
+            
+            svv_cate_wg_avg = svv_cate.agg( lit(cate_nm_txt).alias('category_name')
+                                        ,lit(1).alias('CSR_0_wks')
+                                        ,sum(svv_cate.w_q1).alias('CSR_13_wks_wavg')
+                                        ,sum(svv_cate.w_q2).alias('CSR_26_wks_wavg')
+                                        ,sum(svv_cate.w_q3).alias('CSR_39_wks_wavg')
+                                        ,sum(svv_cate.w_q4).alias('CSR_52_wks_wavg')
+                                        ,sum(svv_cate.w_otr).alias('one_time_ratio')
+                                        ,sum(svv_cate.w_auc).alias('AUC')
+                                        ,sum(svv_cate.w_spd).alias('spc_per_day')
+                                        )
+            
+            return svv_cate_wg_avg
+        
+        def __get_avg_multi_brand_svv(brand_csr_sf):
+            """Get all KPIs weighted average of muli-brand survival rate
+            """
+            brand_sales = brand_csr_sf.agg(sum(brand_csr_sf.spending).alias('brand_sales')).collect()[0].brand_sales  ## sum sales value of all brand
+            
+            brand_csr_w     = brand_csr_sf.withColumn('pct_share_w', brand_csr_sf.spending/brand_sales)\
+                                        .withColumn('w_q1', brand_csr_sf.CSR_13_wks * (brand_csr_sf.spending/brand_sales))\
+                                        .withColumn('w_q2', brand_csr_sf.CSR_26_wks * (brand_csr_sf.spending/brand_sales))\
+                                        .withColumn('w_q3', brand_csr_sf.CSR_39_wks * (brand_csr_sf.spending/brand_sales))\
+                                        .withColumn('w_q4', brand_csr_sf.CSR_52_wks * (brand_csr_sf.spending/brand_sales))\
+                                        .withColumn('w_otr',brand_csr_sf.one_time_ratio * (brand_csr_sf.spending/brand_sales))\
+                                        .withColumn('w_auc',brand_csr_sf.AUC            * (brand_csr_sf.spending/brand_sales))\
+                                        .withColumn('w_spd',brand_csr_sf.spc_per_day    * (brand_csr_sf.spending/brand_sales))
+                        
+            brand_csr_w_sf  = brand_csr_w.agg (F.lit(cate_nm_txt).alias('category_name')
+                                            ,F.lit(brand_nm_txt).alias('brand_name')
+                                            ,F.lit(1).alias('CSR_0_wks')
+                                            ,F.sum(brand_csr_w.w_q1).alias('CSR_13_wks_wavg')
+                                            ,F.sum(brand_csr_w.w_q2).alias('CSR_26_wks_wavg')
+                                            ,F.sum(brand_csr_w.w_q3).alias('CSR_39_wks_wavg')
+                                            ,F.sum(brand_csr_w.w_q4).alias('CSR_52_wks_wavg')
+                                            ,F.sum(brand_csr_w.w_otr).alias('one_time_ratio')
+                                            ,F.sum(brand_csr_w.w_auc).alias('AUC')
+                                            ,F.sum(brand_csr_w.w_spd).alias('spc_per_day')
+                                            ,F.avg(brand_csr_w.spending).alias('average_spending')
+                                            ,F.lit(brand_sales).alias('all_brand_spending')
+                                        )
+            return brand_csr_w_sf
+                    
+        #---- Main
+        svv_tbl = spark.table(svv_table)
+        
+        sec_id_class_id_subclass_id_feature_product, sec_id_class_id_feature_product, brand_of_feature_product = _get_brand_sec_id(feat_sf=feat_sf)
+
+        if lv_svv_pcyc.lower() == 'class':
+            brand_csr_initial = svv_tbl.join(sec_id_class_id_feature_product, ['section_id', 'class_id']).join(brand_of_feature_product, ['brand_name'])
+
+        elif lv_svv_pcyc.lower() == 'subclass':
+            brand_csr_initial = svv_tbl.join(sec_id_class_id_subclass_id_feature_product, ['section_id', 'class_id', 'subclass_id']).join(brand_of_feature_product, ['brand_name'])
+ 
+        brand_csr_initial_df = _to_pandas(brand_csr_initial)
+        cate_nm_initial_lst = brand_csr_initial_df['class_name'].to_list()
+        brand_nm_initial_lst = brand_csr_initial_df['class_name'].to_list()
+        
+        if len(brand_csr_initial_df) == 0: # use category average instead (call function 'get_avg_cate_svv')
+            brand_csr = __get_avg_cate_svv(svv_tbl, lv_svv_pcyc, cate_cd_list)
+            # brand_csr_df = brand_csr.toPandas()
+            
+            print('#'*80)
+            brand_nm_txt = _list2string(brand_nm_initial_lst)
+            print(' Warning !! Brand "', brand_nm_txt ,'" has no survival rate, Will use category average survival rate instead.')
+            print('#'*80)
+            
+            print(' Display brand_csr use \n')
+            brand_csr.display()
+            
+            use_cate_svv_flag = 1
+            use_average_flag  = 0
+            
+        elif len(brand_csr_initial_df) > 1 :  # case has multiple brand in SKU, will need to do average 
+            brand_csr = __get_avg_multi_brand_svv(brand_csr_sf=brand_csr_initial_df)
+            # brand_csr_df = brand_csr.toPandas()
+            
+            brand_nm_txt = _list2string(cate_nm_initial_lst, ' and ')
+            cate_nm_txt  = _list2string(brand_nm_initial_lst, ' and ')
+            
+            brand_nm_txt = str(brand_nm_txt)
+            cate_nm_txt  = str(cate_nm_txt)
+            
+            print('#'*80)
+            print(' Warning !! Feature SKUs are in multiple brand name/multiple category, will need to do average between all data.')
+            print(' Brand Name = ' + str(brand_nm_txt) )
+            print(' Category code = ' + str(cate_nm_txt) )
+            print('#'*80)
+            
+            print(' Display brand_csr use (before average) \n')
+            brand_csr.display()
+            
+            use_cate_svv_flag = 0
+            use_average_flag  = 1
+            
+        else:
+            use_cate_svv_flag = 0
+            use_average_flag  = 0
+            
+            print(' Display brand_csr use \n')
+            
+            brand_csr.display()
+
+        return brand_csr, use_cate_svv_flag, use_average_flag
+
+    def _get_shppr_kpi(txn: SparkDataFrame,
+                       period_wk_col_nm: str,
+                       prd_scope_df: SparkDataFrame,
+                       exposed_cust: SparkDataFrame,
+                       ) -> SparkDataFrame:
+        """Get first brand shopped date or feature shopped date, based on input upc_id
+        Shopper in campaign period at any store format & any channel
+        """
+        out = \
+            (txn
+             .where(F.col('household_id').isNotNull())
+             .where(F.col(period_wk_col_nm).isin(["cmp"]))
+             .join(prd_scope_df, "upc_id", "inner")
+             .join(exposed_cust, "household_id", "inner")
+             .groupBy('household_id')
+             .agg(F.sum('net_spend_amt').alias('spending'),
+                  F.countDistinct('transaction_uid').alias('visits'))
+             )
+        return out
+
+    #---- Main
+    print("-"*80)
+    print("(Uplift) Customer Life Time Value (CLTV) - EPOS @ Brand level")
+    print("Media Exposed = shopped in media aisle within campaign period (base on target input file) at target store , channel OFFLINE ")
+    print("Brand Activated = Exposed & Shop Feature Brand in campaign period at any store format and any channel")
+    print("-"*80)
+    period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
+    print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
+    print("-"*80)
+    
+    #---- I) Calculate brand SpC of brand activated customer
+    exposed_cust = spark.table(f"tdm_seg.media_camp_eval_{cmp_id}_cust_brand_activated")
+    brand_kpi = _get_shppr_kpi(txn=txn, period_wk_col_nm=period_wk_col, prd_scope_df=brand_sf, exposed_cust=exposed_cust)
+    spc_multi = brand_kpi.where(F.col('visits') > 1).agg(F.avg('spending').alias('spc_multi')).select('spc_multi').collect()[0][0]
+    spc_onetime = brand_kpi.where(F.col('visits') == 1).agg(F.avg('spending').alias('spc_onetime')).select('spc_onetime').collect()[0][0]
+    print(f"Spend per customers (multi): {spc_multi}")
+    print(f"Spend per customers (one time): {spc_onetime}")
+    
+    #---- Load Survival rate based on lv_svv_pcyc (Switching Level)
+    sec_id_class_id_subclass_id_feature_product, sec_id_class_id_feature_product, brand_of_feature_product = _get_brand_sec_id(feat_sf=feat_sf) 
+    lv_svv_pcyc = lv_svv_pcyc.lower()
+    
+    brand_csr, use_cate_svv_flag, use_average_flag = _get_svv_df(svv_table=svv_table, lv_svv_pcyc=lv_svv_pcyc, feat_sf=feat_sf, cate_code_list=cate_cd_list)
+    brand_csr_df = _to_pandas(brand_csr)
+    
+    #---- Load Purchase cycle, based on lv_svv_pcyc (Switching Level)
+    if lv_svv_pcyc.lower() == 'class':
+        pc_table = _to_pandas(spark.table(pcyc_table)\
+                              .join(sec_id_class_id_feature_product, ['section_id', 'class_id']))
+
+    elif lv_svv_pcyc.lower() == 'subclass':
+        pc_table = _to_pandas(spark.table(pcyc_table)\
+                             .join(sec_id_class_id_subclass_id_feature_product, ['section_id', 'class_id', 'subclass_id']))
+    
+    #---- Customer Survival Rate graph
+    brand_csr_graph = brand_csr_df[[c for c in brand_csr.columns if 'CSR' in c]].T
+    brand_csr_graph.columns = ['survival_rate']
+    brand_csr_graph.display()
+    
+    # ---- CLTV
+    # Total uplift
+    total_uplift = uplift_brand.where(F.col("customer_group")=="Total").select("pstv_cstmr_uplift").collect()[0][0]
+    
+    # Pre-calculated onetime
+    one_time_ratio = brand_csr_df.one_time_ratio[0]
+    one_time_ratio = float(one_time_ratio)
+    
+    auc = brand_csr_df.AUC[0]
+    cc_pen = pc_table.cc_penetration[0]
+    spc_per_day = brand_csr_df.spc_per_day[0]
+    
+    #---- calculate CLTV 
+    dur_cp_value = total_uplift* float(one_time_ratio) *float(spc_onetime) + total_uplift*(1-one_time_ratio)*float(spc_multi)
+    post_cp_value = total_uplift* float(auc) * float(spc_per_day)
+    cltv = dur_cp_value+post_cp_value
+    epos_cltv = cltv/cc_pen
+    print("EPOS CLTV: ", np.round(epos_cltv,2))
+    
+    #----- Break-even
+    breakeven_df = brand_csr_graph.copy()
+    # change first point to be one time ratio
+    breakeven_df.loc['CSR_0_wks'] = one_time_ratio
+
+    # calculate post_sales at each point of time in quarter value
+    breakeven_df['post_sales'] = breakeven_df.survival_rate.astype(float) * total_uplift * float(spc_per_day) * 13*7  ## each quarter has 13 weeks and each week has 7 days
+    
+    breakeven_df.display()
+    
+    # calculate area under curve using 1/2 * (x+y) * a
+    area = []
+    for i in range(breakeven_df.shape[0]-1):
+        area.append(0.5*(breakeven_df.iloc[i,1]+breakeven_df.iloc[i+1,1]))
+
+    #create new data frame with value of sales after specific weeks
+    breakeven_df2 = pd.DataFrame(area,index=[13,26,39,52],columns=['sales'])
+
+    print("Display breakeven df area for starter : \n ")
+    
+    breakeven_df2.display()
+    
+    #set first day to be 0
+    breakeven_df2.loc[0,'sales'] = 0
+    breakeven_df2 = breakeven_df2.sort_index()
+
+    #adding during campaign to every point in time
+    breakeven_df2['sales+during'] = breakeven_df2+(dur_cp_value)
+
+    #create accumulative columns
+    breakeven_df2['acc_sales'] = breakeven_df2['sales+during'].cumsum()
+
+    ## pat add
+    print("Display breakeven table after add cumulative sales : \n ")
+    breakeven_df2.display()
+    
+    #create epos value
+    breakeven_df2['epos_acc_sales'] = breakeven_df2['acc_sales']/cc_pen.astype('float')
+    breakeven_df2 = breakeven_df2.reset_index()
+    breakeven_df2.round(2)
+    
+    #if use time more than 1 year, result show 1 year
+    if media_spend > breakeven_df2.loc[4,'epos_acc_sales']:
+        day_break = 'over one year'
+    #else find point where it is breakeven
+    else:
+        index_break = breakeven_df2[breakeven_df2.epos_acc_sales>media_spend].index[0]
+        
+        # if it's in first period -> breakeven during campaing
+        if index_break == 0:
+            day_break = 0
+            # else find lower bound and upper bound to calculate day left before break as a straight line  
+        else:
+            low_bound = breakeven_df2.loc[index_break-1,'epos_acc_sales']
+            up_bound = breakeven_df2.loc[index_break,'epos_acc_sales']
+            low_bound_day =  breakeven_df2.loc[index_break-1,'index']*13*7
+            day_break = low_bound_day+((media_spend - low_bound) *13*7 / (up_bound-low_bound))
+
+    if type(day_break) == int:
+        breakeven_time_month = day_break//30
+        breakeven_time_day = day_break%30
+        print(f"Breakeven time: {int(breakeven_time_month)} months {int(breakeven_time_day)} days")
+    else:
+        print(f"Breakeven time: More than a year")
+        breakeven_time_month = 'More than a year'
+        breakeven_time_day = 'More than a year'
+        
+    # ---- Calculate Customer Acquisition Cost (CAC) : 8 Jun 2022
+    cac = 0 if total_uplift == 0 else media_spend/total_uplift #total_uplift_adj
+    
+    #create data frame for save
+    df_cltv = pd.DataFrame({'measures':['Total Uplift Customers',
+                                        'Total Uplift Customer (adj. negative)',
+                                        'One time ratio',
+                                        'Brand SpC onetime-buyer',
+                                        'Brand SpC multi-buyer',
+                                        'AUC',
+                                        'Spend per Customer per Day',
+                                        'CLTV', 
+                                        'CC Penetration',
+                                        'Media Fee',
+                                        'Customer Acquisition Cost (CAC)',
+                                        'EPOS CLTV', 
+                                        'Breakeven Month', 
+                                        'Breakeven Day',
+                                        'use_category_svv_flag',
+                                        'use_average_cate_brand_flag'
+                                       ],
+                            'value':[total_uplift, 
+                                     total_uplift,
+                                     one_time_ratio,
+                                     spc_onetime,
+                                     spc_multi,
+                                     auc,
+                                     spc_per_day,
+                                     cltv,
+                                     cc_pen,
+                                     media_spend,
+                                     cac,
+                                     epos_cltv,
+                                     breakeven_time_month,
+                                     breakeven_time_day,
+                                     use_cate_svv_flag,
+                                     use_average_flag 
+                                   ]
+                           })
+    df_cltv.round(2)
+
+    return df_cltv, brand_csr_graph
 
 def _get_cust_brnd_swtchng_pntrtn(
         txn: SparkDataFrame,
