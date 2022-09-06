@@ -1734,8 +1734,8 @@ def _get_cust_brnd_swtchng_pntrtn(
         wk_type: str,
         ):
     """Dev version
-    Customer brand switcing and penetration
-    Support feature brand in mulit subclass
+    Customer brand switching and penetration
+    Support feature brand in multi subclass
     """
     spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
     #---- Helper fn
