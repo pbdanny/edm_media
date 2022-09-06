@@ -19,6 +19,8 @@ sc
 
 ## import pyspark sql
 
+from filecmp import cmp
+from turtle import up
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
 from pyspark.sql.window import *
@@ -78,7 +80,7 @@ sys.path
 
 # COMMAND ----------
 
-from instore_eval import get_cust_activated, get_cust_movement, get_cust_brand_switching_and_penetration, get_cust_sku_switching, get_profile_truprice, get_customer_uplift
+from instore_eval import get_cust_activated, get_cust_movement, get_cust_brand_switching_and_penetration, get_cust_sku_switching, get_profile_truprice, get_customer_uplift, get_cust_cltv
 
 # COMMAND ----------
 
@@ -1062,19 +1064,19 @@ pandas_to_csv_filestore(uplift_brand_df, 'customer_uplift_brand.csv', prefix=os.
 
 # COMMAND ----------
 
-uplift_feature = get_customer_uplift(txn=txn_all,
-                                   cp_start_date=cmp_st_date,
-                                   cp_end_date=cmp_end_date,
-                                   wk_type="fis_week",
-                                   test_store_sf=test_store_sf,
-                                   adj_prod_sf=adj_prod_sf,
-                                   brand_sf=brand_df,
-                                   feat_sf=feat_df,
-                                   ctr_store_list=ctr_store_list,
-                                   cust_uplift_lv="sku")
+# uplift_feature = get_customer_uplift(txn=txn_all,
+#                                    cp_start_date=cmp_st_date,
+#                                    cp_end_date=cmp_end_date,
+#                                    wk_type="fis_week",
+#                                    test_store_sf=test_store_sf,
+#                                    adj_prod_sf=adj_prod_sf,
+#                                    brand_sf=brand_df,
+#                                    feat_sf=feat_df,
+#                                    ctr_store_list=ctr_store_list,
+#                                    cust_uplift_lv="sku")
 
-uplift_feature_df = to_pandas(uplift_feature)
-pandas_to_csv_filestore(uplift_feature_df, 'customer_uplift_features_sku.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
+# uplift_feature_df = to_pandas(uplift_feature)
+# pandas_to_csv_filestore(uplift_feature_df, 'customer_uplift_features_sku.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
 
 # COMMAND ----------
 
@@ -1084,18 +1086,17 @@ pandas_to_csv_filestore(uplift_feature_df, 'customer_uplift_features_sku.csv', p
 
 uplift_brand_df = pd.read_csv(os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result', 'customer_uplift_brand.csv'))
 uplift_brand = spark.createDataFrame(uplift_brand_df)
-brand_cltv, brand_svv = get_customer_cltv(txn_all,
-#                                cp_start_date =c_st_date, cp_end_date=c_en_date,
-                               test_store_sf=test_store_sf,
-                               adj_prod_id=adj_prod_sf,
-#                                sel_class=sel_class, sel_brand=sel_brand, sel_sec=sel_sec,
-                               lv_cltv=cate_lvl,
-                               uplift_brand=uplift_brand,
-                               media_spend=float(media_fee),
-                               feat_list=feat_list,
-                               svv_table = svv_table,
-                               pcyc_table = pcyc_table,
-                               cate_cd_list = cate_cd_list )
+brand_cltv, brand_svv = get_cust_cltv(txn_all,
+                                      cmp_id=cmp_id,
+                                      wk_type="fis_week",
+                                      feat_sf=feat_df,
+                                      brand_sf=brand_df,
+                                      lv_svv_pcyc=cate_lvl,
+                                      uplift_brand=uplift_brand,
+                                      media_spend=float(media_fee),
+                                      svv_table=svv_table,
+                                      pcyc_table=pcyc_table,
+                                      cate_cd_list=cate_cd_list)
 
 pandas_to_csv_filestore(brand_cltv, 'cltv.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
 pandas_to_csv_filestore(brand_svv, 'brand_survival_rate.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
