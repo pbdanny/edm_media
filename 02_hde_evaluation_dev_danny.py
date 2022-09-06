@@ -19,8 +19,6 @@ sc
 
 ## import pyspark sql
 
-from filecmp import cmp
-from turtle import up
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
 from pyspark.sql.window import *
