@@ -483,8 +483,49 @@ cmp_exposed_buy = cmp_exposed.join(cmp_shppr, "household_id", "left").withColumn
 
 (cmp_exposed_buy
  .write
- .format("delta")
- .ov
+ .format("parquet")
+ .mode("overwrite")
+ .save("dbfs:/FileStore/thanakrit/temp/checkpoint/dev_cmp_exposed_buy.parquet")
+)
+
+# COMMAND ----------
+
+cmp_exposed_buy = \
+(spark.read.parquet("dbfs:/FileStore/thanakrit/temp/checkpoint/dev_cmp_exposed_buy.parquet")
+ .withColumn("sec_diff", F.col("shp_datetime").cast("long") - F.col("exposed_datetime").cast("long"))
+ .withColumn("n_mech_exp", F.size(F.collect_set("mech_name").over(Window.partitionBy("household_id"))))
+ .withColumn("n_shp", F.size(F.collect_set("shp_datetime").over(Window.partitionBy("household_id"))))
+)
+
+# COMMAND ----------
+
+cmp_exposed_buy.where(F.col("n_mech_exp")>1).where(F.col("n_shp")>1).where(F.col("exp_x_shp")>20).display()
+
+# COMMAND ----------
+
+cmp_exposed_buy.where(F.col("household_id")==102111060012190025).display()
+
+# COMMAND ----------
+
+"""
+(A)
+Shop datetime - Exposed datetime = diff_time
+
+if 
+shop after exposed = positive
+shop before exposed = negative , remove
+
+(B)
+Sort by diff time (ascending , null last)
+
+(C)
+Pick first row
+
+"""
+
+# COMMAND ----------
+
+cmp_exposed_buy.where(F.col("exp_x_shp")==23).where(F.col("household_id")==102111060001864548).orderBy(F.col("sec_diff").asc_nulls_last()).display()
 
 # COMMAND ----------
 
