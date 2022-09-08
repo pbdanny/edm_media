@@ -1412,7 +1412,7 @@ def get_cust_cltv(txn: SparkDataFrame,
                 return None
 
             ## get weighted average svv by sale to category -- All sale values
-            cate_sales  = svv_cate.agg(F.sum(svv_cate.sales).alias('cate_sales')).collect()[0].cate_sales
+            cate_sales  = svv_cate.agg(F.sum(svv_cate.sales).alias('cate_sales')).collect()[0][0]
 
             ## Pat add to get list of category name in case of multiple category define -- Pat 25 Jul 22
 
@@ -1448,7 +1448,7 @@ def get_cust_cltv(txn: SparkDataFrame,
         def __get_avg_multi_brand_svv(brand_csr_sf):
             """Get all KPIs weighted average of muli-brand survival rate
             """
-            brand_sales = brand_csr_sf.agg(F.sum(brand_csr_sf.spending).alias('brand_sales')).collect()[0].brand_sales  ## sum sales value of all brand
+            brand_sales = brand_csr_sf.agg(F.sum(brand_csr_sf.spending).alias('brand_sales')).collect()[0][0]  ## sum sales value of all brand
 
             brand_csr_w     = brand_csr_sf.withColumn('pct_share_w', brand_csr_sf.spending/brand_sales)\
                                         .withColumn('w_q1', brand_csr_sf.CSR_13_wks * (brand_csr_sf.spending/brand_sales))\
