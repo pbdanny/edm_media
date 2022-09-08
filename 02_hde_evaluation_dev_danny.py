@@ -99,64 +99,7 @@ test_store_sf.groupBy("mech_name").count().display()
 
 # COMMAND ----------
 
-#---- Try loding existing data table, unless create new
-try:
-    # Test block
-    # raise Exception('To skip try block') 
-    txn_all = spark.table(f'tdm_seg.media_campaign_eval_txn_data_{cmp_id}')
-    print(f'Load data table for period : Ppp - Pre - Gap - Cmp, All store All format \n from : tdm_seg.media_campaign_eval_txn_data_{cmp_id}')
-    
-except:
-    print(f'Create intermediate transaction table for period Prior - Pre - Dur , all store format : tdm_seg.media_campaign_eval_txn_data_{cmp_id}')
-    txn_all = get_trans_itm_wkly(start_week_id=ppp_st_wk, end_week_id=cmp_en_wk, store_format=[1,2,3,4,5], 
-                                 item_col_select=['transaction_uid', 'tran_datetime', 'store_id', 'date_id', 'week_id', 'upc_id', 'net_spend_amt', 'pkg_weight_unit', 'customer_id', 'promoweek_id'],
-                                  prod_col_select=['upc_id', 'division_name', 'department_name', 'section_id', 'section_name', 
-                                                   'class_id', 'class_name', 'subclass_id', 'subclass_name', 'brand_name',
-                                                   'department_code', 'section_code', 'class_code', 'subclass_code'])
-    # Combine feature brand - Danny
-    brand_list = brand_df.select("brand_nm").drop_duplicates().toPandas()["brand_nm"].tolist()
-    brand_list.sort()
-    if len(brand_list) > 1:
-        txn_all = txn_all.withColumn("brand_name", F.when(F.col("brand_name").isin(brand_list), F.lit(brand_list[0])).otherwise(F.col("brand_name")))
-    
-    #---- Add period column
-    if gap_flag:
-        print('Data with gap week')
-        txn_all = (txn_all.withColumn('period_fis_wk', 
-                                      F.when(F.col('week_id').between(cmp_st_wk, cmp_en_wk), F.lit('cmp'))
-                                       .when(F.col('week_id').between(gap_st_wk, gap_en_wk), F.lit('gap'))
-                                       .when(F.col('week_id').between(pre_st_wk, pre_en_wk), F.lit('pre'))
-                                       .when(F.col('week_id').between(ppp_st_wk, ppp_en_wk), F.lit('ppp'))
-                                       .otherwise(F.lit('NA')))
-                          .withColumn('period_promo_wk', 
-                                      F.when(F.col('promoweek_id').between(cmp_st_promo_wk, cmp_en_promo_wk), F.lit('cmp'))
-                                       .when(F.col('promoweek_id').between(gap_st_promo_wk, gap_en_promo_wk), F.lit('gap'))
-                                       .when(F.col('promoweek_id').between(pre_st_promo_wk, pre_en_promo_wk), F.lit('pre'))
-                                       .when(F.col('promoweek_id').between(ppp_st_promo_wk, ppp_en_promo_wk), F.lit('ppp'))
-                                       .otherwise(F.lit('NA')))
-                  )
-    else:
-        txn_all = (txn_all.withColumn('period_fis_wk', 
-                                      F.when(F.col('week_id').between(cmp_st_wk, cmp_en_wk), F.lit('cmp'))
-                                       .when(F.col('week_id').between(pre_st_wk, pre_en_wk), F.lit('pre'))
-                                       .when(F.col('week_id').between(ppp_st_wk, ppp_en_wk), F.lit('ppp'))
-                                       .otherwise(F.lit('NA')))
-                          .withColumn('period_promo_wk', 
-                                      F.when(F.col('promoweek_id').between(cmp_st_promo_wk, cmp_en_promo_wk), F.lit('cmp'))
-                                       .when(F.col('promoweek_id').between(pre_st_promo_wk, pre_en_promo_wk), F.lit('pre'))
-                                       .when(F.col('promoweek_id').between(ppp_st_promo_wk, ppp_en_promo_wk), F.lit('ppp'))
-                                       .otherwise(F.lit('NA')))
-                  )
-        
-    txn_all.write.saveAsTable(f'tdm_seg.media_campaign_eval_txn_data_{cmp_id}')
-    ## Pat add, delete dataframe before re-read
-    del txn_all
-    ## Re-read from table
-    txn_all = spark.table(f'tdm_seg.media_campaign_eval_txn_data_{cmp_id}')
-
-# COMMAND ----------
-
-spark.table("tdm_seg.media_campaign_eval_txn_data_2022_0012_M01M").where(F.col("transaction_uid")==116629096042).display()
+txn_all = spark.table(f'tdm_seg.media_campaign_eval_txn_data_{cmp_id}')
 
 # COMMAND ----------
 
@@ -501,8 +444,8 @@ def _get_exposed_cust(txn: SparkDataFrame,
          .join(test_store_sf, "store_id", "inner") # Mapping cmp_start, cmp_end, mech_count, mech_name by store
          .join(adj_prod_sf, "upc_id", "inner")
          .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
-         .groupBy("household_id", "mech_name")
-         .agg(F.min("date_id").alias("first_exposed_date"))
+         .select("household_id", "mech_name", F.col("tran_datetime").alias("exposed_datetime"))
+         .drop_duplicates()
         )
     return out
 
@@ -518,8 +461,7 @@ def _get_shppr(txn: SparkDataFrame,
          .where(F.col('household_id').isNotNull())
          .where(F.col(period_wk_col_nm).isin(["cmp"]))
          .join(prd_scope_df, 'upc_id')
-         .groupBy('household_id')
-         .agg(F.min('date_id').alias('first_shp_date'))
+         .select('household_id', F.col("tran_datetime").alias("shp_datetime"))
          .drop_duplicates()
         )
     return out
@@ -532,26 +474,15 @@ txn = txn_all
 
 target_str = _create_test_store_sf(test_store_sf=test_store_sf, cp_start_date=cp_start_date, cp_end_date=cp_end_date)
 cmp_exposed = _get_exposed_cust(txn=txn, test_store_sf=target_str, adj_prod_sf=adj_prod_sf)
+cmp_shppr = _get_shppr(txn=txn, period_wk_col_nm="period_fis_wk", prd_scope_df=brand_df)
 
 ctr_str = _create_ctrl_store_sf(ctr_store_list=ctr_store_list, cp_start_date=cp_start_date, cp_end_date=cp_end_date)
 cmp_unexposed = _get_exposed_cust(txn=txn, test_store_sf=ctr_str, adj_prod_sf=adj_prod_sf)
 
-exposed_flag = cmp_exposed.withColumn("exposed_flag", F.lit(1))
-unexposed_flag = cmp_unexposed.withColumn("unexposed_flag", F.lit(1)).withColumnRenamed("first_exposed_date", "first_unexposed_date")
-
-exposure_cust_table = exposed_flag.join(unexposed_flag.drop("mech_name"), 'household_id', 'outer').fillna(0)
 
 # COMMAND ----------
 
-exposed_flag.display()
-
-# COMMAND ----------
-
-unexposed_flag.display()
-
-# COMMAND ----------
-
-exposure_cust_table.display()
+cmp_exposed.join(cmp_shppr, "household_id", "left").display()
 
 # COMMAND ----------
 
