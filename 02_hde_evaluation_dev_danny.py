@@ -471,18 +471,24 @@ def _get_shppr(txn: SparkDataFrame,
 cp_start_date=cmp_st_date
 cp_end_date=cmp_end_date
 txn = txn_all
+adj_prod_sf = use_ai_df
 
 target_str = _create_test_store_sf(test_store_sf=test_store_sf, cp_start_date=cp_start_date, cp_end_date=cp_end_date)
 cmp_exposed = _get_exposed_cust(txn=txn, test_store_sf=target_str, adj_prod_sf=adj_prod_sf)
 cmp_shppr = _get_shppr(txn=txn, period_wk_col_nm="period_fis_wk", prd_scope_df=brand_df)
 
-ctr_str = _create_ctrl_store_sf(ctr_store_list=ctr_store_list, cp_start_date=cp_start_date, cp_end_date=cp_end_date)
-cmp_unexposed = _get_exposed_cust(txn=txn, test_store_sf=ctr_str, adj_prod_sf=adj_prod_sf)
+# COMMAND ----------
 
+cmp_exposed_buy = cmp_exposed.join(cmp_shppr, "household_id", "left").withColumn("exp_x_shp", F.count("*").over(Window.partitionBy("household_id")))
+
+(cmp_exposed_buy
+ .write
+ .format("delta")
+ .ov
 
 # COMMAND ----------
 
-cmp_exposed.join(cmp_shppr, "household_id", "left").display()
+cmp_exposed_buy.groupBy("household_id").agg(F.count("*").alias("n")).groupBy("n").count().display()
 
 # COMMAND ----------
 
