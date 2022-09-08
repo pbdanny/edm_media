@@ -1505,7 +1505,7 @@ def get_cust_cltv(txn: SparkDataFrame,
             use_average_flag  = 0
 
         elif len(brand_csr_initial_df) > 1 :  # case has multiple brand in SKU, will need to do average
-            brand_csr = __get_avg_multi_brand_svv(brand_csr_sf=brand_csr_initial_df)
+            brand_csr = __get_avg_multi_brand_svv(brand_csr_sf=brand_csr_initial)
             # brand_csr_df = brand_csr.toPandas()
 
             brand_nm_txt = _list2string(cate_nm_initial_lst, ' and ')
