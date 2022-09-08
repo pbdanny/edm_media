@@ -1448,7 +1448,7 @@ def get_cust_cltv(txn: SparkDataFrame,
         def __get_avg_multi_brand_svv(brand_csr_sf):
             """Get all KPIs weighted average of muli-brand survival rate
             """
-            brand_sales = brand_csr_sf.agg(sum(brand_csr_sf.spending).alias('brand_sales')).collect()[0].brand_sales  ## sum sales value of all brand
+            brand_sales = brand_csr_sf.agg(F.sum(brand_csr_sf.spending).alias('brand_sales')).collect()[0].brand_sales  ## sum sales value of all brand
 
             brand_csr_w     = brand_csr_sf.withColumn('pct_share_w', brand_csr_sf.spending/brand_sales)\
                                         .withColumn('w_q1', brand_csr_sf.CSR_13_wks * (brand_csr_sf.spending/brand_sales))\
@@ -1459,7 +1459,7 @@ def get_cust_cltv(txn: SparkDataFrame,
                                         .withColumn('w_auc',brand_csr_sf.AUC            * (brand_csr_sf.spending/brand_sales))\
                                         .withColumn('w_spd',brand_csr_sf.spc_per_day    * (brand_csr_sf.spending/brand_sales))
 
-            brand_csr_w_sf  = brand_csr_w.agg (F.lit(cate_nm_txt).alias('category_name')
+            brand_csr_w_sf  = brand_csr_w.agg(F.lit(cate_nm_txt).alias('category_name')
                                             ,F.lit(brand_nm_txt).alias('brand_name')
                                             ,F.lit(1).alias('CSR_0_wks')
                                             ,F.sum(brand_csr_w.w_q1).alias('CSR_13_wks_wavg')
