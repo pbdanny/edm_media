@@ -444,7 +444,7 @@ def _get_exposed_cust(txn: SparkDataFrame,
          .join(test_store_sf, "store_id", "inner") # Mapping cmp_start, cmp_end, mech_count, mech_name by store
          .join(adj_prod_sf, "upc_id", "inner")
          .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
-         .select("household_id", "mech_name", F.col("tran_datetime").alias("exposed_datetime"))
+         .select("household_id", "mech_name", F.col("transaction_uid").alias("exposed_txn_id"), F.col("tran_datetime").alias("exposed_datetime"))
          .drop_duplicates()
         )
     return out
@@ -461,7 +461,7 @@ def _get_shppr(txn: SparkDataFrame,
          .where(F.col('household_id').isNotNull())
          .where(F.col(period_wk_col_nm).isin(["cmp"]))
          .join(prd_scope_df, 'upc_id')
-         .select('household_id', F.col("tran_datetime").alias("shp_datetime"))
+         .select('household_id', F.col("transaction_uid").alias("shp_txn_id"), F.col("tran_datetime").alias("shp_datetime"))
          .drop_duplicates()
         )
     return out
@@ -479,7 +479,32 @@ cmp_shppr = _get_shppr(txn=txn, period_wk_col_nm="period_fis_wk", prd_scope_df=b
 
 # COMMAND ----------
 
-cmp_exposed_buy = cmp_exposed.join(cmp_shppr, "household_id", "left").withColumn("exp_x_shp", F.count("*").over(Window.partitionBy("household_id")))
+cmp_shppr.where(F.col("household_id")==102111060002423872).where(F.col("shp_txn_id")==123661720002).display()
+
+# COMMAND ----------
+
+cmp_exposed.where(F.col("household_id")==102111060002423872).where(F.col("exposed_txn_id")==123141440032).display()
+
+# COMMAND ----------
+
+(cmp_exposed
+ .join(cmp_shppr, "household_id", "left")
+ .where(F.col("household_id")==102111060002423872)
+ .where(F.col("shp_txn_id")==123661720002)
+ .where(F.col("exposed_txn_id")==123141440032)
+).display()
+
+# COMMAND ----------
+
+cmp_exposed_buy = \
+(cmp_exposed
+ .join(cmp_shppr, "household_id", "left")
+ .withColumn("exp_x_shp", F.count("*").over(Window.partitionBy("household_id")))
+ .withColumn("sec_diff", F.col("shp_datetime").cast("long") - F.col("exposed_datetime").cast("long"))
+ .withColumn("n_mech_exp", F.size(F.collect_set("mech_name").over(Window.partitionBy("household_id"))))
+ .withColumn("n_exp", F.size(F.collect_set("exposed_txn_id").over(Window.partitionBy("household_id"))))
+ .withColumn("n_shp", F.size(F.collect_set("shp_txn_id").over(Window.partitionBy("household_id"))))
+)
 
 (cmp_exposed_buy
  .write
@@ -490,20 +515,51 @@ cmp_exposed_buy = cmp_exposed.join(cmp_shppr, "household_id", "left").withColumn
 
 # COMMAND ----------
 
-cmp_exposed_buy = \
-(spark.read.parquet("dbfs:/FileStore/thanakrit/temp/checkpoint/dev_cmp_exposed_buy.parquet")
- .withColumn("sec_diff", F.col("shp_datetime").cast("long") - F.col("exposed_datetime").cast("long"))
- .withColumn("n_mech_exp", F.size(F.collect_set("mech_name").over(Window.partitionBy("household_id"))))
- .withColumn("n_shp", F.size(F.collect_set("shp_datetime").over(Window.partitionBy("household_id"))))
-)
+cmp_exposed_buy = spark.read.parquet("dbfs:/FileStore/thanakrit/temp/checkpoint/dev_cmp_exposed_buy.parquet")
+
+(cmp_exposed_buy
+ .where(F.col("household_id")==102111060002423872)
+ .where(F.col("shp_txn_id")==123661720002)
+ .where(F.col("exposed_txn_id")==123141440032)
+).display()
 
 # COMMAND ----------
 
-cmp_exposed_buy.where(F.col("n_mech_exp")>1).where(F.col("n_shp")>1).where(F.col("exp_x_shp")>20).display()
+cmp_exposed_buy = spark.read.parquet("dbfs:/FileStore/thanakrit/temp/checkpoint/dev_cmp_exposed_buy.parquet")
+cmp_exposed_buy.where(F.col("n_mech_exp")>=2).where(F.col("n_exp")>5).where(F.col("n_shp")>5).display()
 
 # COMMAND ----------
 
-cmp_exposed_buy.where(F.col("household_id")==102111060012190025).display()
+(cmp_exposed_buy
+ .where(F.col("household_id")==102111060012190025)
+ .where(F.col("sec_diff")>=0)
+ .withColumn("proximity_rank", 
+             F.row_number().over(Window.partitionBy("household_id", "shp_txn_id")
+                           .orderBy(F.col("sec_diff").asc_nulls_last())))
+#  .where(F.col("proximity_rank")==1)
+).display()
+
+#  .orderBy(F.col("sec_diff").asc_nulls_last()).display()
+
+# COMMAND ----------
+
+(cmp_exposed_buy
+ .where(F.col("household_id")==102111060002423872)
+ .where(F.col("sec_diff")>=0)
+ .withColumn("proximity_rank", 
+             F.row_number().over(Window.partitionBy("household_id", "shp_txn_id")
+                           .orderBy(F.col("sec_diff").asc_nulls_last())))
+#  .where(F.col("proximity_rank")==1)
+).display()
+
+#  .orderBy(F.col("sec_diff").asc_nulls_last()).display()
+
+# COMMAND ----------
+
+(cmp_exposed_buy
+ .where(F.col("household_id")==102111060002423872)
+ .where(F.col("exposed_txn_id")==123515411042)
+).display()
 
 # COMMAND ----------
 
