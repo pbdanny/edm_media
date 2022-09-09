@@ -11,7 +11,7 @@
 
 # COMMAND ----------
 
-from instore_eval import get_cust_activated, get_cust_movement, get_cust_brand_switching_and_penetration, get_cust_sku_switching, get_profile_truprice, get_customer_uplift, get_cust_cltv
+from instore_eval import get_cust_activated, get_cust_movement, get_cust_brand_switching_and_penetration, get_cust_sku_switching, get_profile_truprice, get_customer_uplift, get_cust_cltv, get_customer_uplift_by_mech
 
 # COMMAND ----------
 
@@ -117,11 +117,18 @@ ctr_store_list = list(set([s for s in store_matching_df.ctr_store_var]))
 
 # COMMAND ----------
 
-# MAGIC %md ## Old logic result
+cp_start_date=cmp_st_date
+cp_end_date=cmp_end_date
+txn = txn_all
+adj_prod_sf = use_ai_df
 
 # COMMAND ----------
 
-uplift_brand = get_customer_uplift(txn=txn_all, 
+# MAGIC %md ## Old logic part
+
+# COMMAND ----------
+
+get_customer_uplift_by_mech(txn=txn_all, 
                                    cp_start_date=cmp_st_date, 
                                    cp_end_date=cmp_end_date,
                                    wk_type="fis_week",
@@ -131,8 +138,6 @@ uplift_brand = get_customer_uplift(txn=txn_all,
                                    feat_sf=feat_df,
                                    ctr_store_list=ctr_store_list,
                                    cust_uplift_lv="brand")
-
-uplift_brand_df = to_pandas(uplift_brand)
 
 # COMMAND ----------
 
@@ -210,11 +215,6 @@ def _get_shppr(txn: SparkDataFrame,
 
 # COMMAND ----------
 
-cp_start_date=cmp_st_date
-cp_end_date=cmp_end_date
-txn = txn_all
-adj_prod_sf = use_ai_df
-
 target_str = _create_test_store_sf(test_store_sf=test_store_sf, cp_start_date=cp_start_date, cp_end_date=cp_end_date)
 cmp_exposed = _get_exposed_cust(txn=txn, test_store_sf=target_str, adj_prod_sf=adj_prod_sf)
 cmp_shppr = _get_shppr(txn=txn, period_wk_col_nm="period_fis_wk", prd_scope_df=brand_df)
@@ -235,11 +235,12 @@ cmp_exposed_buy = \
  .write
  .format("parquet")
  .mode("overwrite")
- .save("dbfs:/FileStore/thanakrit/temp/checkpoint/dev_cmp_exposed_buy.parquet")
+ .save("dbfs:/FileStore/thanakrit/temp/dev_cmp_exposed_buy.parquet")
 )
 
 # COMMAND ----------
 
+cmp_exposed_buy = spark.read.parquet("dbfs:/FileStore/thanakrit/temp/dev_cmp_exposed_buy.parquet")
 cmp_exposed_buy.agg(F.count_distinct("household_id")).show()
 
 # COMMAND ----------
@@ -267,6 +268,7 @@ flag_exposed_by_mech.groupBy("mech_name").agg(F.count_distinct("household_id")).
 # COMMAND ----------
 
 ctr_str = _create_ctrl_store_sf(ctr_store_list=ctr_store_list, cp_start_date=cp_start_date, cp_end_date=cp_end_date)
+
 cmp_unexposed = \
 (_get_exposed_cust(txn=txn_all, test_store_sf=ctr_str, adj_prod_sf=adj_prod_sf)
  .withColumnRenamed("exposed_datetime", "unexposed_datetime")
@@ -289,12 +291,12 @@ cmp_unexposed_buy = \
  .write
  .format("parquet")
  .mode("overwrite")
- .save("dbfs:/FileStore/thanakrit/temp/checkpoint/dev_cmp_unexposed_buy.parquet")
+ .save("dbfs:/FileStore/thanakrit/temp/dev_cmp_unexposed_buy.parquet")
 )
 
 # COMMAND ----------
 
-cmp_unexposed_buy = spark.read.parquet("dbfs:/FileStore/thanakrit/temp/checkpoint/dev_cmp_unexposed_buy.parquet")
+cmp_unexposed_buy = spark.read.parquet("dbfs:/FileStore/thanakrit/temp/dev_cmp_unexposed_buy.parquet")
 cmp_unexposed_buy.display()
 
 # COMMAND ----------
@@ -319,10 +321,6 @@ flag_unexposed_by_mech.display()
 
 # COMMAND ----------
 
-flag_unexposed_by_mech.display()
-
-# COMMAND ----------
-
 flag_unexposed_by_mech.count()
 
 # COMMAND ----------
@@ -331,112 +329,77 @@ flag_unexposed_by_mech.join(flag_exposed_by_mech.select("household_id").drop_dup
 
 # COMMAND ----------
 
-# MAGIC %md ##Exposed - Shop
+# MAGIC %md ##Compare old logic vs New logic : Unexposed
 
 # COMMAND ----------
 
-cmp_shppr.where(F.col("household_id")==102111060002423872).where(F.col("shp_txn_id")==123661720002).display()
+old_logic = spark.read.parquet("dbfs:/FileStore/thanakrit/temp/exposed_unexposed_buy_flag.parquet")
 
 # COMMAND ----------
 
-cmp_exposed.where(F.col("household_id")==102111060002423872).where(F.col("exposed_txn_id")==123141440032).display()
+old_logic.display()
 
 # COMMAND ----------
 
-(cmp_exposed
- .join(cmp_shppr, "household_id", "left")
- .where(F.col("household_id")==102111060002423872)
- .where(F.col("shp_txn_id")==123661720002)
- .where(F.col("exposed_txn_id")==123141440032)
+old_logic.where(F.col("unexposed_and_buy_flag")==1).count()
+
+# COMMAND ----------
+
+old_logic_hh = old_logic.where(F.col("unexposed_and_buy_flag")==1)
+
+# COMMAND ----------
+
+old_logic_hh.count()
+
+# COMMAND ----------
+
+flag_unexposed_by_mech.join(old_logic_hh, "household_id", "inner").count()
+
+# COMMAND ----------
+
+old_logic_hh.join(flag_unexposed_by_mech, "household_id", "leftanti").count()
+
+# COMMAND ----------
+
+cmp_unexposed_buy.join(old_logic_hh.join(flag_unexposed_by_mech, "household_id", "leftanti").select("household_id"), "household_id","inner").display()
+
+# COMMAND ----------
+
+flag_unexposed_by_mech.join(old_logic_hh, "household_id", "leftanti").count()
+
+# COMMAND ----------
+
+cmp_unexposed_buy.join(flag_unexposed_by_mech, "household_id").display()
+
+# COMMAND ----------
+
+(old_logic.join(flag_unexposed_by_mech.join(old_logic_hh, "household_id", "leftanti").select("household_id"), "household_id")
+ .where(F.col("household_id")==102111060000012744)
 ).display()
 
 # COMMAND ----------
 
-cmp_exposed_buy = \
-(cmp_exposed
- .join(cmp_shppr, "household_id", "left")
- .withColumn("exp_x_shp", F.count("*").over(Window.partitionBy("household_id")))
- .withColumn("sec_diff", F.col("shp_datetime").cast("long") - F.col("exposed_datetime").cast("long"))
- .withColumn("n_mech_exp", F.size(F.collect_set("mech_name").over(Window.partitionBy("household_id"))))
- .withColumn("n_exp", F.size(F.collect_set("exposed_txn_id").over(Window.partitionBy("household_id"))))
- .withColumn("n_shp", F.size(F.collect_set("shp_txn_id").over(Window.partitionBy("household_id"))))
-)
-
-(cmp_exposed_buy
- .write
- .format("parquet")
- .mode("overwrite")
- .save("dbfs:/FileStore/thanakrit/temp/checkpoint/dev_cmp_exposed_buy.parquet")
-)
-
-# COMMAND ----------
-
-cmp_exposed_buy = spark.read.parquet("dbfs:/FileStore/thanakrit/temp/checkpoint/dev_cmp_exposed_buy.parquet")
-
-(cmp_exposed_buy
- .where(F.col("household_id")==102111060002423872)
- .where(F.col("shp_txn_id")==123661720002)
- .where(F.col("exposed_txn_id")==123141440032)
-).display()
-
-# COMMAND ----------
-
-cmp_exposed_buy = spark.read.parquet("dbfs:/FileStore/thanakrit/temp/checkpoint/dev_cmp_exposed_buy.parquet")
-cmp_exposed_buy.where(F.col("n_mech_exp")>=2).where(F.col("n_exp")>5).where(F.col("n_shp")>5).display()
-
-# COMMAND ----------
-
-(cmp_exposed_buy
- .where(F.col("household_id")==102111060012190025)
- .where(F.col("sec_diff")>=0)
+flag_unexposed_by_mech = \
+(cmp_unexposed_buy
+#  .where(F.col("sec_diff").isNotNull())
+#  .where(F.col("sec_diff")>=0)
  .withColumn("proximity_rank", 
              F.row_number().over(Window.partitionBy("household_id", "shp_txn_id")
                            .orderBy(F.col("sec_diff").asc_nulls_last())))
- .where(F.col("proximity_rank")==1)
-).display()
-
-# COMMAND ----------
-
-(cmp_exposed_buy
- .where(F.col("household_id")==102111060002423872)
- .where(F.col("sec_diff")>=0)
- .withColumn("proximity_rank", 
-             F.row_number().over(Window.partitionBy("household_id", "shp_txn_id")
-                           .orderBy(F.col("sec_diff").asc_nulls_last())))
- .where(F.col("proximity_rank")==1)
-).display()
-
-# COMMAND ----------
-
-(cmp_exposed_buy
- .where(F.col("household_id")==102111060002423872)
- .where(F.col("sec_diff")<0)
-#  .withColumn("proximity_rank", 
-#              F.row_number().over(Window.partitionBy("household_id", "shp_txn_id")
-#                            .orderBy(F.col("sec_diff").asc_nulls_last())))
 #  .where(F.col("proximity_rank")==1)
-).display()
-
-# COMMAND ----------
-
-flag_exposed_by_mech = \
-(cmp_exposed_buy
- .where(F.col("sec_diff")>=0)
- .withColumn("proximity_rank", 
-             F.row_number().over(Window.partitionBy("household_id", "shp_txn_id")
-                           .orderBy(F.col("sec_diff").asc_nulls_last())))
- .where(F.col("proximity_rank")==1)
- .select("household_id", "mech_name")
- .drop_duplicates()
+#  .select("household_id", "mech_name")
+#  .drop_duplicates()
 )
 
-# COMMAND ----------
-
-flag_exposed_by_mech.groupBy("mech_name").count().display()
+flag_unexposed_by_mech.where(F.col("household_id")==102111060000012744).display()
 
 # COMMAND ----------
 
-unex
+cmp_shppr.where(F.col("household_id")==102111060000012744).display()
+
+# COMMAND ----------
+
+# MAGIC %md -----
 
 # COMMAND ----------
 
@@ -455,23 +418,3 @@ Sort by diff time (ascending , null last)
 Pick first row
 
 """
-
-# COMMAND ----------
-
-cmp_exposed_buy.where(F.col("exp_x_shp")==23).where(F.col("household_id")==102111060001864548).orderBy(F.col("sec_diff").asc_nulls_last()).display()
-
-# COMMAND ----------
-
-cmp_exposed_buy.groupBy("household_id").agg(F.count("*").alias("n")).groupBy("n").count().display()
-
-# COMMAND ----------
-
-(exposed_unexposed_buy_flag
- .withColumn("double_exp", F.count("mech_name").over(Window.partitionBy("household_id")))
- .where(F.col("double_exp")>1)
- .orderBy("household_id", "first_exposed_date", "first_shp_date")
-).display()
-
-# COMMAND ----------
-
-
