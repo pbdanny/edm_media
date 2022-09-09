@@ -112,6 +112,15 @@ use_ai_group_list, use_ai_sec_list = _get_prod_df(feat_list, cate_lvl, std_ai_df
 
 # COMMAND ----------
 
+store_matching_df = pd.read_csv("/dbfs/FileStore/media/campaign_eval/01_hde/Jun_2022/2022_0012_M01M_Nescafe_Shelf_Divider/output/store_matching.csv")
+ctr_store_list = list(set([s for s in store_matching_df.ctr_store_var]))
+
+# COMMAND ----------
+
+# MAGIC %md ## Old logic result
+
+# COMMAND ----------
+
 uplift_brand = get_customer_uplift(txn=txn_all, 
                                    cp_start_date=cmp_st_date, 
                                    cp_end_date=cmp_end_date,
@@ -127,8 +136,7 @@ uplift_brand_df = to_pandas(uplift_brand)
 
 # COMMAND ----------
 
-store_matching_df = pd.read_csv("/dbfs/FileStore/media/campaign_eval/01_hde/Jun_2022/2022_0012_M01M_Nescafe_Shelf_Divider/output/store_matching.csv")
-ctr_store_list = list(set([s for s in store_matching_df.ctr_store_var]))
+# MAGIC %md ##New Logic part
 
 # COMMAND ----------
 
@@ -316,6 +324,10 @@ flag_unexposed_by_mech.display()
 # COMMAND ----------
 
 flag_unexposed_by_mech.count()
+
+# COMMAND ----------
+
+flag_unexposed_by_mech.join(flag_exposed_by_mech.select("household_id").drop_duplicates(), "household_id", "leftanti").count()
 
 # COMMAND ----------
 
