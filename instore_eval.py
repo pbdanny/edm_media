@@ -1027,7 +1027,7 @@ def get_customer_uplift(txn: SparkDataFrame,
                        feat_sf: SparkDataFrame,
                        ctr_store_list: List,
                        cust_uplift_lv: str):
-    """DEV version
+    """
     Customer Uplift : Exposed vs Unexposed
     Exposed : shop adjacency product during campaing in test store
     Unexpose : shop adjacency product during campaing in control store
@@ -1469,8 +1469,13 @@ def get_customer_uplift_by_mech(txn: SparkDataFrame,
                                                    (F.col('first_shp_date').isNotNull()) & \
                                                    (F.col('first_unexposed_date') <= F.col('first_shp_date')), '1').otherwise(0))
     )
-    exposed_unexposed_buy_flag.groupBy('exposed_flag', 'unexposed_flag','exposed_and_buy_flag','unexposed_and_buy_flag').count().show()
+    
+    exposed_unexposed_buy_flag.groupBy('exposed_flag', 'unexposed_flag','exposed_and_buy_flag','unexposed_and_buy_flag').count().display()
+    exposed_unexposed_buy_flag.write.format("parquet").mode("overwrite").save("dbfs:/FileStore/thanakrit/temp/checkpoint/exposed_unexposed_buy_flag.parquet")
+    
+    return None
 
+    """
     ##---- Movement : prior - pre
     prior_pre = _get_mvmnt_prior_pre(txn=txn, period_wk_col=period_wk_col, prd_scope_df=prd_scope_df)
 
@@ -1561,8 +1566,9 @@ def get_customer_uplift_by_mech(txn: SparkDataFrame,
     sort_dict = {"new":0, "existing":1, "lapse":2, "Total":3}
     df = df.sort_values(by=["customer_group"], key=lambda x: x.map(sort_dict))  # type: ignore
     uplift_out = spark.createDataFrame(df)
-
+    
     return uplift_out
+    """
 
 def get_cust_activated_prmzn(
         txn: SparkDataFrame,
