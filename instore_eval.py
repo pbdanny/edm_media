@@ -417,15 +417,17 @@ def get_cust_activated_by_mech(txn: SparkDataFrame,
     cmp_brand_shppr = _get_shppr(txn=txn, period_wk_col_nm=period_wk_col, prd_scope_df=brand_sf)
     cmp_brand_activated = _get_activated(exposed_cust=cmp_exposed, shppr_cust=cmp_brand_shppr)
 
-    nmbr_brand_activated = cmp_brand_activated.count()
-    print(f'Total exposed and Feature Brand (in Category scope) shopper (Brand Activated) : {nmbr_brand_activated:,d}')
+    brand_activated_sf = cmp_brand_activated.groupBy("mech_name").agg(F.countDistinct("household_id").alias("custs"))
+    print(f'Total exposed and Feature Brand (in Category scope) shopper (Brand Activated)')
+    brand_activated_sf.display()
 
     # Sku Activated
     cmp_sku_shppr = _get_shppr(txn=txn, period_wk_col_nm=period_wk_col, prd_scope_df=feat_sf)
     cmp_sku_activated = _get_activated(exposed_cust=cmp_exposed, shppr_cust=cmp_sku_shppr)
 
-    nmbr_sku_activated = cmp_sku_activated.count()
-    print(f'Total exposed and Features SKU shopper (Features SKU Activated) : {nmbr_sku_activated:,d}')
+    sku_activated_sf = cmp_sku_activated.groupBy("mech_name").agg(F.countDistinct("household_id").alias("custs"))
+    print(f'Total exposed and Features SKU shopper (Features SKU Activated)')
+    sku_activated_sf.display()
 
     return cmp_brand_activated, cmp_sku_activated
 
