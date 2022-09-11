@@ -144,6 +144,14 @@ display(brand_activated.agg(F.count_distinct("household_id")))
 
 # COMMAND ----------
 
+brand_activated.select("mech_name").drop_duplicates().toPandas()["mech_name"].to_numpy().tolist()
+
+# COMMAND ----------
+
+get_cust_activated_by_mech
+
+# COMMAND ----------
+
 # MAGIC %md ##New Logic part
 
 # COMMAND ----------
