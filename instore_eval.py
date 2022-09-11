@@ -266,7 +266,7 @@ def get_cust_activated_by_mech(txn: SparkDataFrame,
                                adj_prod_sf: SparkDataFrame,
                                brand_sf: SparkDataFrame,
                                feat_sf: SparkDataFrame):
-    """DEV - Version
+    """
     Get customer exposed & unexposed / shopped, not shop
     by mechanics
 
@@ -341,10 +341,12 @@ def get_cust_activated_by_mech(txn: SparkDataFrame,
              .join(test_store_sf, "store_id", "inner")  # Mapping cmp_start, cmp_end, mech_count, mech_name by store
              .join(adj_prod_sf, "upc_id", "inner")
              .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
-             #
-             .groupBy("household_id")
-             .agg(F.min("date_id").alias("first_exposed_date"))
-            )
+             .select("household_id", "mech_name",
+                     F.col("transaction_uid").alias("exposed_txn_id"),
+                     F.col("tran_datetime").alias("exposed_datetime"))
+             .withColumn("first_exposed_date", F.min(F.to_date("exposed_datetime")).over(Window.partitionBy("household_id")) )
+             .drop_duplicates()
+             )
         return out
 
     def _get_shppr(txn: SparkDataFrame,
@@ -359,9 +361,11 @@ def get_cust_activated_by_mech(txn: SparkDataFrame,
              .where(F.col('household_id').isNotNull())
              .where(F.col(period_wk_col_nm).isin(["cmp"]))
              .join(prd_scope_df, 'upc_id')
-             .groupBy('household_id')
-             .agg(F.min('date_id').alias('first_shp_date'))
-             .drop_duplicates()
+             .select('household_id',
+                     F.col("transaction_uid").alias("shp_txn_id"),
+                     F.col("tran_datetime").alias("shp_datetime"))
+             .withColumn("first_shp_date", F.min(F.to_date("shp_datetime")).over(Window.partitionBy("household_id")) )
+         .drop_duplicates()
             )
         return out
 
@@ -371,13 +375,26 @@ def get_cust_activated_by_mech(txn: SparkDataFrame,
         """Get activated customer : First exposed date <= First (brand/sku) shopped date
         """
         out = \
-            (exposed_cust.join(shppr_cust, "household_id", "left")
+            (exposed_cust
+             .join(shppr_cust, "household_id", "left")
+             .withColumn("sec_diff", F.col("shp_datetime").cast("long") - F.col("exposed_datetime").cast("long"))
+             .withColumn("day_diff", F.datediff("shp_datetime", "exposed_datetime"))
+
              .where(F.col('first_exposed_date').isNotNull())
              .where(F.col('first_shp_date').isNotNull())
              .where(F.col('first_exposed_date') <= F.col('first_shp_date'))
-             .select("household_id")
+             # new logic for multi mech
+             .where(F.col("day_diff").isNotNull())
+             .where(F.col("day_diff")>=0)
+             .withColumn("proximity_rank",
+                         F.row_number().over(Window
+                                             .partitionBy("household_id", "shp_txn_id")
+                                             .orderBy(F.col("day_diff").asc_nulls_last())))
+             .where(F.col("proximity_rank")==1)
+             .select("household_id", "mech_name")
              .drop_duplicates()
              )
+
         return out
 
     #---- Main
@@ -1301,7 +1318,7 @@ def get_customer_uplift_by_mech(txn: SparkDataFrame,
                        feat_sf: SparkDataFrame,
                        ctr_store_list: List,
                        cust_uplift_lv: str):
-    """DEV version
+    """
     Customer Uplift : Exposed vs Unexposed
     Exposed : shop adjacency product during campaing in test store
     Unexpose : shop adjacency product during campaing in control store
