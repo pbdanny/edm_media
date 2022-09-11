@@ -1525,7 +1525,7 @@ def get_customer_uplift_by_mech(txn: SparkDataFrame,
 
         exposed_buy_flag = (cmp_exposed
                             .join(exposed_buy, "household_id", "left")
-                            .fillna(F.lit(0), subset="exposed_and_buy_flag")
+                            .fillna(0, subset=["exposed_and_buy_flag"])
                             )
 
         unexposed_buy = cmp_unexposed_activated.select("household_id").drop_duplicates().withColumn("unexposed_and_buy_flag", F.lit(1))
@@ -1533,7 +1533,7 @@ def get_customer_uplift_by_mech(txn: SparkDataFrame,
             (cmp_unexposed.select("household_id").drop_duplicates()
              .withColumn("unexposed_flag", F.lit(1))
              .join(unexposed_buy, "household_id", "left")
-             .fillna(F.lit(0), subset="exposed_and_buy_flag")
+             .fillna(0, subset=["exposed_and_buy_flag"])
              )
 
         exposed_unexposed_buy_flag = exposed_buy_flag.join(unexposed_buy_flag, "household_id", "outer").fillna(0)
@@ -1964,7 +1964,7 @@ def get_cust_cltv(txn: SparkDataFrame,
         def __get_avg_multi_brand_svv(brand_csr_sf):
             """Get all KPIs weighted average of muli-brand survival rate
             """
-            brand_sales = brand_csr_sf.agg(sum(brand_csr_sf.spending).alias('brand_sales')).collect()[0].brand_sales  ## sum sales value of all brand
+            brand_sales = brand_csr_sf.agg(F.sum(brand_csr_sf.spending).alias('brand_sales')).collect()[0].brand_sales  ## sum sales value of all brand
 
             brand_csr_w     = brand_csr_sf.withColumn('pct_share_w', brand_csr_sf.spending/brand_sales)\
                                         .withColumn('w_q1', brand_csr_sf.CSR_13_wks * (brand_csr_sf.spending/brand_sales))\
