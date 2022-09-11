@@ -1518,8 +1518,8 @@ def get_customer_uplift_by_mech(txn: SparkDataFrame,
 
     # Loop each mech_name
     for mech_nm in mech_nm_list:
-
-        print(f"{mech_nm}")
+        print("-"*40)
+        print(f"Uplift for media mechanic : {mech_nm}")
         cmp_exposed = cmp_exposed_by_mech.where(F.col("mech_name")==mech_nm).select("household_id").drop_duplicates().withColumn("exposed_flag", F.lit(1))
         exposed_buy = cmp_brand_activated_by_mech.where(F.col("mech_name")==mech_nm).select("household_id").drop_duplicates().withColumn("exposed_and_buy_flag", F.lit(1))
 
@@ -1533,7 +1533,7 @@ def get_customer_uplift_by_mech(txn: SparkDataFrame,
             (cmp_unexposed.select("household_id").drop_duplicates()
              .withColumn("unexposed_flag", F.lit(1))
              .join(unexposed_buy, "household_id", "left")
-             .fillna(0, subset=["exposed_and_buy_flag"])
+             .fillna(0, subset=["unexposed_and_buy_flag"])
              )
 
         exposed_unexposed_buy_flag = exposed_buy_flag.join(unexposed_buy_flag, "household_id", "outer").fillna(0)
