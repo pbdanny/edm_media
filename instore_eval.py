@@ -216,7 +216,7 @@ def get_cust_activated(txn: SparkDataFrame,
         """Get activated customer : First exposed date <= First (brand/sku) shopped date
         """
         out = \
-            (exposed_cust.join(shppr_cust, "household_id", "inner")
+            (exposed_cust.join(shppr_cust, "household_id", "left")
              .where(F.col('first_exposed_date').isNotNull())
              .where(F.col('first_shp_date').isNotNull())
              .where(F.col('first_exposed_date') <= F.col('first_shp_date'))
@@ -285,11 +285,11 @@ def get_cust_activated_by_mech(txn: SparkDataFrame,
     adj_prod_sf:
         aisle definition for media exposure
     brand_sf:
-        brand in class/subclass (defined by switching level), upd_id & hierarchy details 
+        brand in class/subclass (defined by switching level), upd_id & hierarchy details
     feat_sf:
         feature sku (defined by switching level), upd_id & hierarchy details
     """
-    
+
     spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
 
     #--- Helper fn
@@ -325,7 +325,7 @@ def get_cust_activated_by_mech(txn: SparkDataFrame,
         """
         out = txn.select("upc_id").drop_duplicates().checkpoint()
         return out
-    
+
     @print_dev
     def _get_exposed_cust(txn: SparkDataFrame,
                           test_store_sf: SparkDataFrame,
@@ -341,7 +341,7 @@ def get_cust_activated_by_mech(txn: SparkDataFrame,
              .join(test_store_sf, "store_id", "inner")  # Mapping cmp_start, cmp_end, mech_count, mech_name by store
              .join(adj_prod_sf, "upc_id", "inner")
              .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
-             # 
+             #
              .groupBy("household_id")
              .agg(F.min("date_id").alias("first_exposed_date"))
             )
@@ -371,7 +371,7 @@ def get_cust_activated_by_mech(txn: SparkDataFrame,
         """Get activated customer : First exposed date <= First (brand/sku) shopped date
         """
         out = \
-            (exposed_cust.join(shppr_cust, "household_id", "inner")
+            (exposed_cust.join(shppr_cust, "household_id", "left")
              .where(F.col('first_exposed_date').isNotNull())
              .where(F.col('first_shp_date').isNotNull())
              .where(F.col('first_exposed_date') <= F.col('first_shp_date'))
@@ -1469,10 +1469,10 @@ def get_customer_uplift_by_mech(txn: SparkDataFrame,
                                                    (F.col('first_shp_date').isNotNull()) & \
                                                    (F.col('first_unexposed_date') <= F.col('first_shp_date')), '1').otherwise(0))
     )
-    
+
     exposed_unexposed_buy_flag.groupBy('exposed_flag', 'unexposed_flag','exposed_and_buy_flag','unexposed_and_buy_flag').count().display()
     exposed_unexposed_buy_flag.write.format("parquet").mode("overwrite").save("dbfs:/FileStore/thanakrit/temp/checkpoint/exposed_unexposed_buy_flag.parquet")
-    
+
     return None
 
     """
@@ -1566,7 +1566,7 @@ def get_customer_uplift_by_mech(txn: SparkDataFrame,
     sort_dict = {"new":0, "existing":1, "lapse":2, "Total":3}
     df = df.sort_values(by=["customer_group"], key=lambda x: x.map(sort_dict))  # type: ignore
     uplift_out = spark.createDataFrame(df)
-    
+
     return uplift_out
     """
 
