@@ -144,11 +144,16 @@ display(brand_activated.agg(F.count_distinct("household_id")))
 
 # COMMAND ----------
 
-brand_activated.select("mech_name").drop_duplicates().toPandas()["mech_name"].to_numpy().tolist()
-
-# COMMAND ----------
-
-get_cust_activated_by_mech
+uplift_brand = get_customer_uplift_by_mech(txn=txn_all, 
+                                   cp_start_date=cmp_st_date, 
+                                   cp_end_date=cmp_end_date,
+                                   wk_type="fis_week",
+                                   test_store_sf=test_store_sf,
+                                   adj_prod_sf=adj_prod_sf, 
+                                   brand_sf=brand_df,
+                                   feat_sf=feat_df,
+                                   ctr_store_list=ctr_store_list,
+                                   cust_uplift_lv="brand")
 
 # COMMAND ----------
 
