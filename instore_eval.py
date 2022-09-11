@@ -1634,7 +1634,7 @@ def get_customer_uplift_by_mech(txn: SparkDataFrame,
 
         out_df = out_df.unionByName(uplift_out, allowMissingColumns=True)
 
-        return out_df
+    return out_df
 
 def get_cust_activated_prmzn(
         txn: SparkDataFrame,
