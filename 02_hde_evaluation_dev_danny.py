@@ -192,6 +192,7 @@ def _get_exposed_cust(txn: SparkDataFrame,
          .join(adj_prod_sf, "upc_id", "inner")
          .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
          .select("household_id", "mech_name", F.col("transaction_uid").alias("exposed_txn_id"), F.col("tran_datetime").alias("exposed_datetime"))
+         .withColumn("first_exposed_date", F.min(F.to_date("exposed_datetime")).over(Window.partitionBy("household_id")) )
          .drop_duplicates()
         )
     return out
@@ -209,6 +210,7 @@ def _get_shppr(txn: SparkDataFrame,
          .where(F.col(period_wk_col_nm).isin(["cmp"]))
          .join(prd_scope_df, 'upc_id')
          .select('household_id', F.col("transaction_uid").alias("shp_txn_id"), F.col("tran_datetime").alias("shp_datetime"))
+         .withColumn("first_shp_date", F.min(F.to_date("shp_datetime")).over(Window.partitionBy("household_id")) )
          .drop_duplicates()
         )
     return out
@@ -221,11 +223,24 @@ cmp_shppr = _get_shppr(txn=txn, period_wk_col_nm="period_fis_wk", prd_scope_df=b
 
 # COMMAND ----------
 
+cmp_activated = \
+(cmp_exposed
+ .join(cmp_shppr, "household_id", "left")
+ .where(F.col('first_exposed_date').isNotNull())
+ .where(F.col('first_shp_date').isNotNull())
+ .where(F.col('first_exposed_date') <= F.col('first_shp_date'))
+ .select("household_id")
+ .drop_duplicates()
+)
+cmp_activated.agg(F.count_distinct("household_id")).display()
+
+# COMMAND ----------
+
 cmp_exposed_buy = \
 (cmp_exposed
  .join(cmp_shppr, "household_id", "left")
- .withColumn("exp_x_shp", F.count("*").over(Window.partitionBy("household_id")))
  .withColumn("sec_diff", F.col("shp_datetime").cast("long") - F.col("exposed_datetime").cast("long"))
+ .withColumn("day_diff", F.datediff("shp_datetime", "exposed_datetime"))
  .withColumn("n_mech_exp", F.size(F.collect_set("mech_name").over(Window.partitionBy("household_id"))))
  .withColumn("n_exp", F.size(F.collect_set("exposed_txn_id").over(Window.partitionBy("household_id"))))
  .withColumn("n_shp", F.size(F.collect_set("shp_txn_id").over(Window.partitionBy("household_id"))))
@@ -241,29 +256,57 @@ cmp_exposed_buy = \
 # COMMAND ----------
 
 cmp_exposed_buy = spark.read.parquet("dbfs:/FileStore/thanakrit/temp/dev_cmp_exposed_buy.parquet")
-cmp_exposed_buy.agg(F.count_distinct("household_id")).show()
+cmp_exposed_buy.agg(F.count_distinct("household_id")).display()
 
 # COMMAND ----------
 
-cmp_exposed_buy.groupBy("mech_name").agg(F.count_distinct("household_id")).show()
+cmp_exposed_buy.groupBy("mech_name").agg(F.count_distinct("household_id")).display()
 
 # COMMAND ----------
 
-flag_exposed_by_mech = \
+# MAGIC %md ## Exposed
+
+# COMMAND ----------
+
+#---- Compare exposed & buy old vs new
+old_cond = \
 (cmp_exposed_buy
- .where(F.col("sec_diff").isNotNull())
- .where(F.col("sec_diff")>=0)
- .withColumn("proximity_rank", 
-             F.row_number().over(Window.partitionBy("household_id", "shp_txn_id")
-                           .orderBy(F.col("sec_diff").asc_nulls_last())))
- .where(F.col("proximity_rank")==1)
- .select("household_id", "mech_name")
+ .where(F.col('first_exposed_date').isNotNull())
+ .where(F.col('first_shp_date').isNotNull())
+ .where(F.col('first_exposed_date') <= F.col('first_shp_date'))
  .drop_duplicates()
 )
 
+flag_exposed_by_mech = \
+(cmp_exposed_buy
+ .where(F.col('first_exposed_date').isNotNull())
+ .where(F.col('first_shp_date').isNotNull())
+ .where(F.col('first_exposed_date') <= F.col('first_shp_date')) # if first shop happned in ctrl store, still flag as exposed correct?
+ .where(F.col("day_diff").isNotNull())
+ .where(F.col("day_diff")>=0)
+ .withColumn("proximity_rank", 
+             F.row_number().over(Window.partitionBy("household_id", "shp_txn_id")
+                           .orderBy(F.col("day_diff").asc_nulls_last())))
+ .where(F.col("proximity_rank")==1)
+#  .select("household_id", "mech_name")
+ .drop_duplicates()
+)
+
+flag_exposed_by_mech.agg(F.count_distinct("household_id")).display()
+old_cond.agg(F.count_distinct("household_id")).display()
+
+flag_exposed_by_mech.join(old_cond, "household_id", "leftanti").agg(F.count_distinct("household_id")).display()
+flag_exposed_by_mech.join(old_cond, "household_id", "leftanti").display()
+old_cond.join(flag_exposed_by_mech, "household_id", "leftanti").agg(F.count_distinct("household_id")).display()
+old_cond.join(flag_exposed_by_mech, "household_id", "leftanti").display()
+
 # COMMAND ----------
 
-flag_exposed_by_mech.groupBy("mech_name").agg(F.count_distinct("household_id")).show()
+flag_exposed_by_mech.groupBy("mech_name").agg(F.count_distinct("household_id")).display()
+
+# COMMAND ----------
+
+# MAGIC %md ##Unexposed 
 
 # COMMAND ----------
 
@@ -273,6 +316,7 @@ cmp_unexposed = \
 (_get_exposed_cust(txn=txn_all, test_store_sf=ctr_str, adj_prod_sf=adj_prod_sf)
  .withColumnRenamed("exposed_datetime", "unexposed_datetime")
  .withColumnRenamed("exposed_txn_id", "unexposed_txn_id")
+ .withColumnRenamed("first_exposed_date", "first_unexposed_date")
 )
 
 cmp_shppr = _get_shppr(txn=txn, period_wk_col_nm="period_fis_wk", prd_scope_df=brand_df)
@@ -280,8 +324,8 @@ cmp_shppr = _get_shppr(txn=txn, period_wk_col_nm="period_fis_wk", prd_scope_df=b
 cmp_unexposed_buy = \
 (cmp_unexposed
  .join(cmp_shppr, "household_id", "left")
- .withColumn("exp_x_shp", F.count("*").over(Window.partitionBy("household_id")))
  .withColumn("sec_diff", F.col("shp_datetime").cast("long") - F.col("unexposed_datetime").cast("long"))
+ .withColumn("day_diff", F.datediff("shp_datetime", "unexposed_datetime"))
  .withColumn("n_mech_unexp", F.size(F.collect_set("mech_name").over(Window.partitionBy("household_id"))))
  .withColumn("n_unexp", F.size(F.collect_set("unexposed_txn_id").over(Window.partitionBy("household_id"))))
  .withColumn("n_shp", F.size(F.collect_set("shp_txn_id").over(Window.partitionBy("household_id"))))
@@ -296,110 +340,154 @@ cmp_unexposed_buy = \
 
 # COMMAND ----------
 
-cmp_unexposed_buy = spark.read.parquet("dbfs:/FileStore/thanakrit/temp/dev_cmp_unexposed_buy.parquet")
-cmp_unexposed_buy.display()
+# old logic
+cmp_unexposed.agg(F.count_distinct("household_id")).display()
 
 # COMMAND ----------
 
+# Old logic
+cmp_unactivated = \
+(cmp_unexposed
+ .join(cmp_exposed_buy, "household_id", "leftanti")
+ .join(cmp_shppr, "household_id", "left")
+ .where(F.col('first_unexposed_date').isNotNull())
+ .where(F.col('first_shp_date').isNotNull())
+ .where(F.col('first_unexposed_date') <= F.col('first_shp_date'))
+ .select("household_id")
+ .drop_duplicates()
+)
+cmp_unactivated.agg(F.count_distinct("household_id")).display()
+
+# COMMAND ----------
+
+cmp_unexposed_buy = spark.read.parquet("dbfs:/FileStore/thanakrit/temp/dev_cmp_unexposed_buy.parquet")
 cmp_unexposed_buy.groupby("mech_name").agg(F.count_distinct("household_id")).display()
 
 # COMMAND ----------
 
-flag_unexposed_by_mech = \
-(cmp_unexposed_buy
- .where(F.col("sec_diff").isNotNull())
- .where(F.col("sec_diff")>=0)
- .withColumn("proximity_rank", 
-             F.row_number().over(Window.partitionBy("household_id", "shp_txn_id")
-                           .orderBy(F.col("sec_diff").asc_nulls_last())))
- .where(F.col("proximity_rank")==1)
- .select("household_id", "mech_name")
+#---- Compare exposed & buy old vs new condition
+old_cond = \
+(cmp_unexposed
+ .join(cmp_exposed_buy, "household_id", "leftanti")
+ .join(cmp_shppr, "household_id", "left")
+ .where(F.col('first_unexposed_date').isNotNull())
+ .where(F.col('first_shp_date').isNotNull())
+ .where(F.col('first_unexposed_date') <= F.col('first_shp_date'))
+ .select("household_id")
  .drop_duplicates()
 )
 
-flag_unexposed_by_mech.display()
-
-# COMMAND ----------
-
-flag_unexposed_by_mech.count()
-
-# COMMAND ----------
-
-flag_unexposed_by_mech.join(flag_exposed_by_mech.select("household_id").drop_duplicates(), "household_id", "leftanti").count()
-
-# COMMAND ----------
-
-# MAGIC %md ##Compare old logic vs New logic : Unexposed
-
-# COMMAND ----------
-
-old_logic = spark.read.parquet("dbfs:/FileStore/thanakrit/temp/exposed_unexposed_buy_flag.parquet")
-
-# COMMAND ----------
-
-old_logic.display()
-
-# COMMAND ----------
-
-old_logic.where(F.col("unexposed_and_buy_flag")==1).count()
-
-# COMMAND ----------
-
-old_logic_hh = old_logic.where(F.col("unexposed_and_buy_flag")==1)
-
-# COMMAND ----------
-
-old_logic_hh.count()
-
-# COMMAND ----------
-
-flag_unexposed_by_mech.join(old_logic_hh, "household_id", "inner").count()
-
-# COMMAND ----------
-
-old_logic_hh.join(flag_unexposed_by_mech, "household_id", "leftanti").count()
-
-# COMMAND ----------
-
-cmp_unexposed_buy.join(old_logic_hh.join(flag_unexposed_by_mech, "household_id", "leftanti").select("household_id"), "household_id","inner").display()
-
-# COMMAND ----------
-
-flag_unexposed_by_mech.join(old_logic_hh, "household_id", "leftanti").count()
-
-# COMMAND ----------
-
-cmp_unexposed_buy.join(flag_unexposed_by_mech, "household_id").display()
-
-# COMMAND ----------
-
-(old_logic.join(flag_unexposed_by_mech.join(old_logic_hh, "household_id", "leftanti").select("household_id"), "household_id")
- .where(F.col("household_id")==102111060000012744)
-).display()
-
-# COMMAND ----------
 
 flag_unexposed_by_mech = \
 (cmp_unexposed_buy
-#  .where(F.col("sec_diff").isNotNull())
-#  .where(F.col("sec_diff")>=0)
+
+ # Propose exclude only exposed & buy
+#  .join(cmp_exposed_buy , "household_id", "leftanti") # use thist condition to align with old logic
+ .join(flag_exposed_by_mech, "household_id", "leftanti")
+ 
+ .where(F.col('first_unexposed_date').isNotNull())
+ .where(F.col('first_shp_date').isNotNull())
+ .where(F.col('first_unexposed_date') <= F.col('first_shp_date'))
+ 
+ .where(F.col("day_diff").isNotNull())
+ .where(F.col("day_diff")>=0)
  .withColumn("proximity_rank", 
              F.row_number().over(Window.partitionBy("household_id", "shp_txn_id")
-                           .orderBy(F.col("sec_diff").asc_nulls_last())))
-#  .where(F.col("proximity_rank")==1)
+                           .orderBy(F.col("day_diff").asc_nulls_last())))
+ .where(F.col("proximity_rank")==1)
 #  .select("household_id", "mech_name")
-#  .drop_duplicates()
+ .drop_duplicates()
 )
 
-flag_unexposed_by_mech.where(F.col("household_id")==102111060000012744).display()
+flag_unexposed_by_mech.agg(F.count_distinct("household_id")).display()
+old_cond.agg(F.count_distinct("household_id")).display()
+
+print("New logic flag unexposed, but not in old logic ")
+flag_unexposed_by_mech.join(old_cond, "household_id", "leftanti").agg(F.count_distinct("household_id")).display()
+flag_unexposed_by_mech.join(old_cond, "household_id", "leftanti").display()
+print("Old logic flag unexposed, but not in old logic")
+old_cond.join(flag_unexposed_by_mech, "household_id", "leftanti").agg(F.count_distinct("household_id")).display()
+old_cond.join(flag_unexposed_by_mech, "household_id", "leftanti").display()
 
 # COMMAND ----------
 
-cmp_shppr.where(F.col("household_id")==102111060000012744).display()
+sel_hh_id = "102111060019377851"
 
 # COMMAND ----------
 
-# MAGIC %md -----
+print("Check unexposed")
+cmp_unexposed_buy.where(F.col("household_id")==sel_hh_id).display()
+flag_unexposed_by_mech.where(F.col("household_id")==sel_hh_id).display()
+print("Check exposed")
+cmp_exposed_buy.where(F.col("household_id")==sel_hh_id).display()
+flag_exposed_by_mech.where(F.col("household_id")==sel_hh_id).display()
+
+# COMMAND ----------
+
+# MAGIC %md ----
+
+# COMMAND ----------
+
+# MAGIC %md ## Unexposed, non exclusion vs exclusion exposed
+
+# COMMAND ----------
+
+
+flag_unexposed_by_mech_no_exc = \
+(cmp_unexposed_buy
+
+ # Propose no exclude both exposed or exposed & buy
+#  .join(cmp_exposed_buy , "household_id", "leftanti") # use thist condition to align with old logic
+#  .join(flag_exposed_by_mech, "household_id", "leftanti")
+ 
+ .where(F.col('first_unexposed_date').isNotNull())
+ .where(F.col('first_shp_date').isNotNull())
+ .where(F.col('first_unexposed_date') <= F.col('first_shp_date'))
+ 
+ .where(F.col("day_diff").isNotNull())
+ .where(F.col("day_diff")>=0)
+ .withColumn("proximity_rank", 
+             F.row_number().over(Window.partitionBy("household_id", "shp_txn_id")
+                           .orderBy(F.col("day_diff").asc_nulls_last())))
+ .where(F.col("proximity_rank")==1)
+#  .select("household_id", "mech_name")
+ .drop_duplicates()
+)
+
+flag_unexposed_by_mech_w_exc = \
+(cmp_unexposed_buy
+
+ # Propose no exclude both exposed or exposed & buy
+#  .join(cmp_exposed_buy , "household_id", "leftanti") # use thist condition to align with old logic
+ .join(flag_exposed_by_mech, "household_id", "leftanti")
+ 
+ .where(F.col('first_unexposed_date').isNotNull())
+ .where(F.col('first_shp_date').isNotNull())
+ .where(F.col('first_unexposed_date') <= F.col('first_shp_date'))
+ 
+ .where(F.col("day_diff").isNotNull())
+ .where(F.col("day_diff")>=0)
+ .withColumn("proximity_rank", 
+             F.row_number().over(Window.partitionBy("household_id", "shp_txn_id")
+                           .orderBy(F.col("day_diff").asc_nulls_last())))
+ .where(F.col("proximity_rank")==1)
+#  .select("household_id", "mech_name")
+ .drop_duplicates()
+)
+
+# COMMAND ----------
+
+flag_unexposed_by_mech_no_exc.join(flag_unexposed_by_mech_w_exc, "household_id", "leftanti").display()
+
+# COMMAND ----------
+
+sel_hh_id = 102111060002503743
+print("Unexposed")
+cmp_unexposed_buy.where(F.col("household_id")==sel_hh_id).display()
+flag_unexposed_by_mech_no_exc.where(F.col("household_id")==sel_hh_id).display()
+print("Exposed")
+cmp_exposed_buy.where(F.col("household_id")==sel_hh_id).display()
+flag_exposed_by_mech.where(F.col("household_id")==sel_hh_id).display()
 
 # COMMAND ----------
 
