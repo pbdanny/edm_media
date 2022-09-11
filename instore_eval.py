@@ -12,6 +12,7 @@ from pyspark.sql import DataFrame as SparkDataFrame
 from pyspark.dbutils import DBUtils
 
 import pandas as pd
+from pandas import DataFrame as PandasDataFrame
 
 spark = SparkSession.builder.appName("media_eval").getOrCreate()
 dbutils = DBUtils(spark)
@@ -1553,7 +1554,7 @@ def get_customer_uplift_by_mech(txn: SparkDataFrame,
                     .otherwise('new'))
         )
 
-        movement_and_exposure.where(F.col('exposed_flag')==1).groupBy('customer_group').agg(F.countDistinct('household_id')).show()
+        movement_and_exposure.where(F.col('exposed_flag')==1).groupBy('customer_group').agg(F.countDistinct('household_id')).display()
 
         ##---- Uplift Calculation
         ### Count customer by group
@@ -1775,7 +1776,7 @@ def get_cust_cltv(txn: SparkDataFrame,
                   media_spend: float,
                   svv_table: str,
                   pcyc_table: str,
-                  cate_cd_list: str
+                  cate_cd_list: List
                   ):
     """(Uplift) Customer Life Time Value - EPOS @ Brand Level
     I) Calculate SpC metrics
@@ -1814,7 +1815,8 @@ def get_cust_cltv(txn: SparkDataFrame,
 
         return sec_id_class_id_subclass_id_feature_product, sec_id_class_id_feature_product, brand_of_feature_product
 
-    def _to_pandas(sf: SparkDataFrame) -> pd.DataFrame:
+    def _to_pandas(sf: SparkDataFrame # type: ignore
+                   ) -> PandasDataFrame:
         """Solve DecimalType conversion to PandasDataFrame as string
         with pre-covert DecimalType to DoubleType then toPandas()
         automatically convert to float64
