@@ -11,7 +11,7 @@
 
 # COMMAND ----------
 
-from instore_eval import get_cust_activated, get_cust_movement, get_cust_brand_switching_and_penetration, get_cust_sku_switching, get_profile_truprice, get_customer_uplift, get_cust_cltv, get_cust_activated_by_mech, get_customer_uplift_by_mech
+from instore_eval import get_cust_activated, get_cust_movement, get_cust_brand_switching_and_penetration, get_cust_sku_switching, get_profile_truprice, get_customer_uplift, get_cust_cltv, get_cust_activated_by_mech, get_customer_uplift_by_mech, get_customer_uplift_per_mechanic
 
 # COMMAND ----------
 
@@ -129,40 +129,53 @@ adj_prod_sf = use_ai_df
 
 # COMMAND ----------
 
+# MAGIC %md ##Test Ta's Code
+
+# COMMAND ----------
+
+uplift_feature, exposed_unexposed_buy_flag_by_mech_sku = get_customer_uplift_per_mechanic(txn=txn_all, 
+                                                                                           cp_start_date=cmp_st_date, 
+                                                                                           cp_end_date=cmp_end_date,
+                                                                                           wk_type="fis_week",
+                                                                                           test_store_sf=test_store_sf,
+                                                                                           adj_prod_sf=use_ai_df, 
+                                                                                           brand_sf=brand_df,
+                                                                                           feat_sf=feat_df,
+                                                                                           ctr_store_list=ctr_store_list,
+                                                                                           cust_uplift_lv="brand")
+
+# COMMAND ----------
+
 # MAGIC %md ## Test activated by mech
 
 # COMMAND ----------
 
-brand_activated, sku_activated = get_cust_activated_by_mech(txn_all,
-                                                    cmp_start,
-                                                    cmp_end,
-                                                    "fis_week",
-                                                    test_store_sf,
-                                                    adj_prod_sf,
-                                                    brand_df,
-                                                    feat_df)
+# brand_activated, sku_activated = get_cust_activated_by_mech(txn_all,
+#                                                     cmp_start,
+#                                                     cmp_end,
+#                                                     "fis_week",
+#                                                     test_store_sf,
+#                                                     adj_prod_sf,
+#                                                     brand_df,
+#                                                     feat_df)
 
 # COMMAND ----------
 
-display(brand_activated.agg(F.count_distinct("household_id")))
+# display(brand_activated.agg(F.count_distinct("household_id")))
 
 # COMMAND ----------
 
-uplift_brand = get_customer_uplift_by_mech(txn=txn_all, 
-                                   cp_start_date=cmp_st_date, 
-                                   cp_end_date=cmp_end_date,
-                                   wk_type="fis_week",
-                                   test_store_sf=test_store_sf,
-                                   adj_prod_sf=adj_prod_sf, 
-                                   brand_sf=brand_df,
-                                   feat_sf=feat_df,
-                                   ctr_store_list=ctr_store_list,
-                                   cust_uplift_lv="brand")
+# uplift_brand = get_customer_uplift_by_mech(txn=txn_all, 
+#                                    cp_start_date=cmp_st_date, 
+#                                    cp_end_date=cmp_end_date,
+#                                    wk_type="fis_week",
+#                                    test_store_sf=test_store_sf,
+#                                    adj_prod_sf=adj_prod_sf, 
+#                                    brand_sf=brand_df,
+#                                    feat_sf=feat_df,
+#                                    ctr_store_list=ctr_store_list,
+#                                    cust_uplift_lv="brand")
 
 # COMMAND ----------
 
 uplift_brand.display()
-
-# COMMAND ----------
-
-
