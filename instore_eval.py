@@ -1930,19 +1930,19 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
         prd_scope_df = feat_sf
 
     ##---- Expose - UnExpose : Flag customer
-    target_str = _create_test_store_sf(test_store_sf=test_store_sf, cp_start_date=cp_start_date, cp_end_date=cp_end_date)
-    cmp_exposed = _get_exposed_cust(txn=txn, test_store_sf=target_str, adj_prod_sf=adj_prod_sf)
+    # target_str = _create_test_store_sf(test_store_sf=test_store_sf, cp_start_date=cp_start_date, cp_end_date=cp_end_date)
+    # cmp_exposed = _get_exposed_cust(txn=txn, test_store_sf=target_str, adj_prod_sf=adj_prod_sf)
 
     ctr_str = _create_ctrl_store_sf(ctr_store_list=ctr_store_list, cp_start_date=cp_start_date, cp_end_date=cp_end_date)
-    cmp_unexposed = _get_exposed_cust(txn=txn, test_store_sf=ctr_str, adj_prod_sf=adj_prod_sf)
+    # cmp_unexposed = _get_exposed_cust(txn=txn, test_store_sf=ctr_str, adj_prod_sf=adj_prod_sf)
 
-    exposed_flag = cmp_exposed.withColumn("exposed_flag", F.lit(1))
-    unexposed_flag = cmp_unexposed.withColumn("unexposed_flag", F.lit(1)).withColumnRenamed("first_exposed_date", "first_unexposed_date")
+    # exposed_flag = cmp_exposed.withColumn("exposed_flag", F.lit(1))
+    # unexposed_flag = cmp_unexposed.withColumn("unexposed_flag", F.lit(1)).withColumnRenamed("first_exposed_date", "first_unexposed_date")
 
-    exposure_cust_table = exposed_flag.join(unexposed_flag, 'household_id', 'outer').fillna(0)
+    # exposure_cust_table = exposed_flag.join(unexposed_flag, 'household_id', 'outer').fillna(0)
 
     ## Flag Shopper in campaign
-    cmp_shppr = _get_shppr(txn=txn, period_wk_col_nm=period_wk_col, prd_scope_df=prd_scope_df)
+    # cmp_shppr = _get_shppr(txn=txn, period_wk_col_nm=period_wk_col, prd_scope_df=prd_scope_df)
     
     ## Tag exposed media of each shopper
     cmp_shppr_last_seen = _get_activ_mech_last_seen(txn=txn, test_store_sf=test_store_sf, ctr_str=ctr_str, adj_prod_sf=adj_prod_sf, 
@@ -2055,21 +2055,24 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
     
     # Total customers for Exposed Purchased and Exposed Non-purchased per each mechanic (if more than 1 mechanic)
     if num_of_mechanics > 1:
-
-      for mech in mechanic_list:
-        n_cust_exposed_purchased_mech[mech] = movement_and_exposure_by_mech.filter(F.col('group') == 'Exposed_Purchased').filter(F.col(mech) == 1) \
-                                                                           .groupBy('customer_group') \
-                                                                           .agg(F.countDistinct(F.col('household_id')).alias('Exposed_Purchased'))
         
-        n_cust_total_exposed_purchased = n_cust_total_exposed_purchased.join(n_cust_exposed_purchased_mech[mech], on='customer_group', how='left')
+        n_cust_exposed_purchased_mech = {}
+        n_cust_exposed_non_purchased_mech = {}
         
-      for mech in mechanic_list:
-        n_cust_exposed_non_purchased_mech[mech] = movement_and_exposure_by_mech.filter(F.col('group') == 'Exposed_Non_purchased').filter(F.col(mech) == 1) \
-                                                                               .groupBy('customer_group') \
-                                                                               .agg(F.countDistinct(F.col('household_id')).alias('Exposed_Purchased'))
+        for mech in mechanic_list:
+            n_cust_exposed_purchased_mech[mech] = movement_and_exposure_by_mech.filter(F.col('group') == 'Exposed_Purchased').filter(F.col(mech) == 1) \
+                                                                            .groupBy('customer_group') \
+                                                                            .agg(F.countDistinct(F.col('household_id')).alias('Exposed_Purchased'))
+            
+            n_cust_total_exposed_purchased = n_cust_total_exposed_purchased.join(n_cust_exposed_purchased_mech[mech], on='customer_group', how='left')
         
-        n_cust_total_exposed_non_purchased = n_cust_total_exposed_non_purchased.join(n_cust_exposed_non_purchased_mech[mech], on='customer_group', how='left')
-        
+        for mech in mechanic_list:
+            n_cust_exposed_non_purchased_mech[mech] = movement_and_exposure_by_mech.filter(F.col('group') == 'Exposed_Non_purchased').filter(F.col(mech) == 1) \
+                                                                                .groupBy('customer_group') \
+                                                                                .agg(F.countDistinct(F.col('household_id')).alias('Exposed_Purchased'))
+            
+            n_cust_total_exposed_non_purchased = n_cust_total_exposed_non_purchased.join(n_cust_exposed_non_purchased_mech[mech], on='customer_group', how='left')
+            
     
     combine_n_cust = n_cust_total_non_exposed_purchased.join(n_cust_total_non_exposed_non_purchased, on='customer_group', how='left') \
                                                        .join(n_cust_total_exposed_purchased, on='customer_group', how='left') \
