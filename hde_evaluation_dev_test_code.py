@@ -113,10 +113,6 @@ use_ai_group_list, use_ai_sec_list = _get_prod_df(feat_list, cate_lvl, std_ai_df
 
 # COMMAND ----------
 
-type(cate_cd_list)
-
-# COMMAND ----------
-
 store_matching_df = pd.read_csv("/dbfs/FileStore/media/campaign_eval/01_hde/Jun_2022/2022_0012_M01M_Nescafe_Shelf_Divider/output/store_matching.csv")
 ctr_store_list = list(set([s for s in store_matching_df.ctr_store_var]))
 
