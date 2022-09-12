@@ -1636,6 +1636,490 @@ def get_customer_uplift_by_mech(txn: SparkDataFrame,
 
     return out_df
 
+@print_dev
+def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
+                                     cp_start_date: str,
+                                     cp_end_date: str,
+                                     wk_type: str,
+                                     test_store_sf: SparkDataFrame,
+                                     adj_prod_sf: SparkDataFrame,
+                                     brand_sf: SparkDataFrame,
+                                     feat_sf: SparkDataFrame,
+                                     ctr_store_list: List,
+                                     cust_uplift_lv: str):
+    """Customer Uplift : Exposed vs Unexposed
+    Exposed : shop adjacency product during campaing in test store
+    Unexpose : shop adjacency product during campaing in control store
+    In case customer exposed and unexposed -> flag customer as exposed
+    """
+    #--- Helper fn
+    def _get_period_wk_col_nm(wk_type: str
+                              ) -> str:
+        """Column name for period week identification
+        """
+        if wk_type in ["promo_week"]:
+            period_wk_col_nm = "period_promo_wk"
+        elif wk_type in ["promozone"]:
+            period_wk_col_nm = "period_promo_mv_wk"
+        else:
+            period_wk_col_nm = "period_fis_wk"
+        return period_wk_col_nm
+
+    def _create_test_store_sf(test_store_sf: SparkDataFrame,
+                             cp_start_date: str,
+                             cp_end_date: str
+                             ) -> SparkDataFrame:
+        """From target store definition, fill c_start, c_end
+        based on cp_start_date, cp_end_date
+        """
+        filled_test_store_sf = \
+            (test_store_sf
+            .fillna(str(cp_start_date), subset='c_start')
+            .fillna(str(cp_end_date), subset='c_end')
+            )
+        return filled_test_store_sf
+
+    def _create_ctrl_store_sf(ctr_store_list: List,
+                             cp_start_date: str,
+                             cp_end_date: str
+                             ) -> SparkDataFrame:
+        """From list of control store, fill c_start, c_end
+        based on cp_start_date, cp_end_date
+        """
+        df = pd.DataFrame(ctr_store_list, columns=["store_id"])
+        sf = spark.createDataFrame(df)  # type: ignore
+
+        filled_ctrl_store_sf = \
+            (sf
+             .withColumn("c_start", F.lit(cp_start_date))
+             .withColumn("c_end", F.lit(cp_end_date))
+            )
+        return filled_ctrl_store_sf
+
+    def _create_adj_prod_df(txn: SparkDataFrame) -> SparkDataFrame:
+        """If adj_prod_sf is None, create from all upc_id in txn
+        """
+        out = txn.select("upc_id").drop_duplicates().checkpoint()
+        return out
+
+    def _get_exposed_cust(txn: SparkDataFrame,
+                          test_store_sf: SparkDataFrame,
+                          adj_prod_sf: SparkDataFrame,
+                          channel: str = "OFFLINE"
+                          ) -> SparkDataFrame:
+        """Get exposed customer & first exposed date
+        """
+        out = \
+            (txn
+             .where(F.col("channel")==channel)
+             .where(F.col("household_id").isNotNull())
+             .join(test_store_sf, "store_id","inner") # Mapping cmp_start, cmp_end, mech_count by store
+             .join(adj_prod_sf, "upc_id", "inner")
+             .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
+             .groupBy("household_id")
+             .agg(F.min("date_id").alias("first_exposed_date"))
+            )
+        return out
+
+    def _get_shppr(txn: SparkDataFrame,
+                   period_wk_col_nm: str,
+                   prd_scope_df: SparkDataFrame
+                   ) -> SparkDataFrame:
+        """Get first brand shopped date or feature shopped date, based on input upc_id
+        Shopper in campaign period at any store format & any channel
+        """
+        out = \
+            (txn
+             .where(F.col('household_id').isNotNull())
+             .where(F.col(period_wk_col_nm).isin(["cmp"]))
+             .join(prd_scope_df, 'upc_id')
+             .groupBy('household_id')
+             .agg(F.min('date_id').alias('first_shp_date'))
+             .drop_duplicates()
+            )
+        return out
+      
+    def _get_all_feat_trans(txn: SparkDataFrame,
+                            period_wk_col_nm: str,
+                            prd_scope_df: SparkDataFrame
+                            ) -> SparkDataFrame:
+        """Get all shopped date or feature shopped date, based on input upc_id
+        Shopper in campaign period at any store format & any channel
+        """
+        out = \
+            (txn
+             .where(F.col('household_id').isNotNull())
+             .where(F.col(period_wk_col_nm).isin(["cmp"]))
+             .join(prd_scope_df, 'upc_id')
+             .select('household_id', 'transaction_uid', 'tran_datetime', 'store_id', 'date_id')
+             .drop_duplicates()
+            )
+        return out
+    
+    # Get the "last seen" mechanic(s) that a shopper saw before they make purchases
+    def _get_activ_mech_last_seen(txn: SparkDataFrame, 
+                                  test_store_sf: SparkDataFrame,
+                                  ctr_str: SparkDataFrame,
+                                  adj_prod_sf: SparkDataFrame,
+                                  period_wk_col: str,
+                                  prd_scope_df: SparkDataFrame, 
+                                  cp_start_date: str,
+                                  cp_end_date: str) -> SparkDataFrame:
+      
+        # Get all featured shopping transactions during campaign
+        all_feat_trans_item_level = _get_all_feat_trans(txn=txn, period_wk_col_nm=period_wk_col, prd_scope_df=prd_scope_df)
+        
+        all_feat_trans_trans_level = all_feat_trans_item_level.select('household_id', 'transaction_uid', 'tran_datetime', 'store_id', 'date_id') \
+                                                              .filter(F.col('date_id').between(cp_start_date, cp_end_date)) \
+                                                              .drop_duplicates()
+        
+        # Get txn that are only at stores with media and at aisles where media could be found, during time media could be found
+        filled_test_store_sf = _create_test_store_sf(test_store_sf=test_store_sf, cp_start_date=cp_start_date, cp_end_date=cp_end_date)
+        
+        txn_test_store_media_aisles = (txn.where(F.col('household_id').isNotNull())
+                                          .where(F.col(period_wk_col).isin(["cmp"]))
+                                          .filter(F.col('date_id').between(cp_start_date, cp_end_date))
+                                          .join(filled_test_store_sf.select('store_id', 'c_start', 'c_end', 'mech_name'), on='store_id', how='inner')
+                                          .join(adj_prod_sf.select('upc_id'), on='upc_id', how='inner')
+                                          .filter(F.col('date_id').between(F.col('c_start'), F.col('c_end')))
+                                          .select('household_id', 'transaction_uid', 'tran_datetime', 'mech_name').drop_duplicates() 
+                                          .withColumnRenamed('transaction_uid', 'other_transaction_uid')
+                                          .withColumnRenamed('tran_datetime', 'other_tran_datetime'))
+    
+        # For each featured shopping transaction, join with other media-exposed transactions of that customer, 
+        # and keep transactions only that happen at or prior to such transaction
+        txn_each_purchase = (all_feat_trans_trans_level.join(txn_test_store_media_aisles, on='household_id', how='left')
+                                                       .filter(F.col('other_tran_datetime') <= F.col('tran_datetime')))
+          
+        # For each other transaction, get the difference between the time of that transaction and the featured shopping transaction
+        # Rank (ascending) by the difference, and only take the other transaction with the lowest difference i.e. the most recent transaction
+        windowSpec = Window.partitionBy('transaction_uid').orderBy(F.col('time_diff'))
+        
+        txn_each_purchase_rank = (txn_each_purchase.withColumn('time_diff', F.col('tran_datetime') - F.col('other_tran_datetime'))
+                                                   .withColumn('recency_rank', F.dense_rank().over(windowSpec)))
+          
+        txn_each_purchase_most_recent_media_exposed = txn_each_purchase_rank.filter(F.col('recency_rank') == 1).drop_duplicates()
+        
+        # For each exposed featured product shopper, get the number of times they were exposed to each mechanic
+        purchased_exposure_count = txn_each_purchase_most_recent_media_exposed.groupBy('household_id').pivot('mech_name').agg(F.countDistinct(F.col('transaction_uid'))).fillna(0)
+        
+        # For each mechanic, instead of count, change to flag (0 if no exposure, 1 if exposure regardless of count)
+        mech_name_columns = purchased_exposure_count.columns
+        mech_name_columns.remove('household_id')
+        
+        purchased_exposure_flagged = purchased_exposure_count
+        
+        for col in mech_name_columns:
+          purchased_exposure_flagged = purchased_exposure_flagged.withColumn(col, F.when(F.col(col) == 0, 0).otherwise(1))
+          
+        # Find Non-exposed Purchased customers by getting transactions happening at Control stores, deducting any exposed customers found previously 
+        all_feat_trans_trans_level_control_store = all_feat_trans_trans_level.join(ctr_str, on='store_id', how='inner')
+        
+        all_featured_shoppers_control_store = all_feat_trans_trans_level_control_store.select('household_id').drop_duplicates()
+        all_purchased_exposed_shoppers = purchased_exposure_flagged.select('household_id').drop_duplicates()
+        
+        all_purchased_nonexposed_shoppers = all_featured_shoppers_control_store.join(all_purchased_exposed_shoppers, on='household_id', how='leftanti')
+        
+        # Add Non-exposed Purchased to flagged list, filling all exposed flags with 0
+        purchased_custs_flagged = purchased_exposure_flagged.unionByName(all_purchased_nonexposed_shoppers, allowMissingColumns=True).fillna(0)
+        
+        return purchased_custs_flagged
+      
+    def _get_non_shpprs_by_mech(txn: SparkDataFrame, 
+                                adj_prod_sf: SparkDataFrame,
+                                cmp_shppr_last_seen: SparkDataFrame,
+                                test_store_sf: SparkDataFrame,
+                                ctr_str: SparkDataFrame,
+                                cp_start_date: str,
+                                cp_end_date: str,
+                                period_wk_col: str) -> SparkDataFrame:
+        
+        # Get all adjacent transactions in test and control store - cover all exposed and non-exposed customers
+        # For test stores, only have mechanic type if transaction happens within in the campaign period
+        filled_test_store_sf = _create_test_store_sf(test_store_sf=test_store_sf, cp_start_date=cp_start_date, cp_end_date=cp_end_date)
+        
+        test_control_stores = filled_test_store_sf.unionByName(ctr_str, allowMissingColumns=True).fillna('1960-01-01', subset=['c_start', 'c_end'])
+        
+        txn_all_test_control_adj = (txn.where(F.col('household_id').isNotNull())
+                                       .where(F.col(period_wk_col).isin(["cmp"]))
+                                       .filter(F.col('date_id').between(cp_start_date, cp_end_date))
+                                       .join(test_control_stores.select('store_id', 'c_start', 'c_end', 'mech_name'), on='store_id', how='inner')
+                                       .join(adj_prod_sf.select('upc_id'), on='upc_id', how='inner')
+                                       .select('household_id', 'transaction_uid', 'date_id', 'store_id', 'c_start', 'c_end', 'mech_name').drop_duplicates()
+                                   )
+        
+        # Filter out all customers already identified as Purchased
+        txn_non_purchased = txn_all_test_control_adj.join(cmp_shppr_last_seen, on='household_id', how='leftanti')
+        
+        # For remaining Non-Purchased customers, group by and aggregate counts of how many times they have been exposed to each media
+        # Only for transaction occuring in test stores during campaign period
+        txn_non_purchased_test_dur = txn_non_purchased.filter(F.col('mech_name').isNotNull()).filter(F.col('date_id').between(F.col('c_start'), F.col('c_end')))
+        nonpurchased_exposed_count = txn_non_purchased_test_dur.groupBy('household_id').pivot('mech_name').agg(F.countDistinct(F.col('transaction_uid'))).fillna(0)
+        
+        # For each mechanic, instead of count, change to flag (0 if no exposure, 1 if exposure regardless of count)
+        mech_name_columns = nonpurchased_exposed_count.columns
+        mech_name_columns.remove('household_id')
+        
+        nonpurchased_exposed_flagged = nonpurchased_exposed_count
+        
+        for col in mech_name_columns:
+          nonpurchased_exposed_flagged = nonpurchased_exposed_flagged.withColumn(col, F.when(F.col(col) == 0, 0).otherwise(1))
+          
+        # Find Non-exposed Non-purchased customers by deducting exposed customers from the non-purchase adjacent visit customers list
+        all_non_shoppers = txn_non_purchased.select('household_id').drop_duplicates()
+        all_nonpurchased_exposed_shoppers = nonpurchased_exposed_flagged.select('household_id').drop_duplicates()
+        
+        all_nonpurchased_nonexposed_shoppers = all_non_shoppers.join(all_nonpurchased_exposed_shoppers, on='household_id', how='leftanti')
+        
+        # Add Non-exposed Non-purchased to flagged list, filling all exposed flags with 0
+        nonpurchased_custs_flagged = nonpurchased_exposed_flagged.unionByName(all_nonpurchased_nonexposed_shoppers, allowMissingColumns=True).fillna(0)
+        
+        return nonpurchased_custs_flagged
+    
+
+    def _get_mvmnt_prior_pre(txn: SparkDataFrame,
+                             period_wk_col: str,
+                             prd_scope_df: SparkDataFrame
+                             ) -> SparkDataFrame:
+        """Get customer movement prior (ppp) / pre (pre) of
+        product scope
+        """
+        prior = \
+            (txn
+             .where(F.col(period_wk_col).isin(['ppp']))
+             .where(F.col('household_id').isNotNull())
+             .join(prd_scope_df, 'upc_id')
+             .groupBy('household_id')
+             .agg(F.sum('net_spend_amt').alias('prior_spending'))
+             )
+        pre = \
+            (txn
+             .where(F.col(period_wk_col).isin(['pre']))
+             .where(F.col('household_id').isNotNull())
+             .join(prd_scope_df, 'upc_id')
+             .groupBy('household_id')
+             .agg(F.sum('net_spend_amt').alias('pre_spending'))
+             )
+        prior_pre = prior.join(pre, "household_id", "outer").fillna(0)
+
+        return prior_pre
+
+    #---- Main
+    print("-"*80)
+    print("Customer Uplift")
+    print("Media Exposed = shopped in media aisle within campaign period (base on target input file) at target store , channel OFFLINE ")
+    print("Media UnExposed = shopped in media aisle within campaign period (base on target input file) at control store , channel OFFLINE ")
+    print("-"*80)
+    if adj_prod_sf is None:
+        print("Media exposed use total store level (all products)")
+        adj_prod_sf = _create_adj_prod_df(txn)
+    print("-"*80)
+    print(f"Activate = Exposed & Shop {cust_uplift_lv.upper()} in campaign period at any store format and any channel")
+    print("-"*80)
+    period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
+    print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
+    print("-"*80)
+    
+    mechanic_list = test_store_sf.select('mech_name').drop_duplicates().rdd.flatMap(lambda x: x).collect()
+    
+    print("List of detected mechanics from store list: ", mechanic_list)
+
+    if cust_uplift_lv == 'brand':
+        prd_scope_df = brand_sf
+    else:
+        prd_scope_df = feat_sf
+
+    ##---- Expose - UnExpose : Flag customer
+    target_str = _create_test_store_sf(test_store_sf=test_store_sf, cp_start_date=cp_start_date, cp_end_date=cp_end_date)
+    cmp_exposed = _get_exposed_cust(txn=txn, test_store_sf=target_str, adj_prod_sf=adj_prod_sf)
+
+    ctr_str = _create_ctrl_store_sf(ctr_store_list=ctr_store_list, cp_start_date=cp_start_date, cp_end_date=cp_end_date)
+    cmp_unexposed = _get_exposed_cust(txn=txn, test_store_sf=ctr_str, adj_prod_sf=adj_prod_sf)
+
+    exposed_flag = cmp_exposed.withColumn("exposed_flag", F.lit(1))
+    unexposed_flag = cmp_unexposed.withColumn("unexposed_flag", F.lit(1)).withColumnRenamed("first_exposed_date", "first_unexposed_date")
+
+    exposure_cust_table = exposed_flag.join(unexposed_flag, 'household_id', 'outer').fillna(0)
+
+    ## Flag Shopper in campaign
+    cmp_shppr = _get_shppr(txn=txn, period_wk_col_nm=period_wk_col, prd_scope_df=prd_scope_df)
+    
+    ## Tag exposed media of each shopper
+    cmp_shppr_last_seen = _get_activ_mech_last_seen(txn=txn, test_store_sf=test_store_sf, ctr_str=ctr_str, adj_prod_sf=adj_prod_sf, 
+                                                    period_wk_col=period_wk_col, prd_scope_df=prd_scope_df,
+                                                    cp_start_date=cp_start_date, cp_end_date=cp_end_date)
+    
+    ## Find non-shoppers who are exposed and unexposed
+    non_cmp_shppr_exposure = _get_non_shpprs_by_mech(txn=txn, adj_prod_sf=adj_prod_sf, cmp_shppr_last_seen=cmp_shppr_last_seen, test_store_sf=test_store_sf, ctr_str=ctr_str,
+                                                     cp_start_date=cp_start_date, cp_end_date=cp_end_date, period_wk_col=period_wk_col)
+    
+    ## Tag each customer by group for shopper group
+    ## If no exposure flag in any mechanic, then Non-exposed Purchased
+    ## If exposure in any mechanic, then Exposed Purchased
+    num_of_mechanics = len(mechanic_list)
+    
+    cmp_shppr_last_seen_tag = cmp_shppr_last_seen.withColumn('total_mechanics_exposed', sum(cmp_shppr_last_seen[col] for col in cmp_shppr_last_seen.columns[1:num_of_mechanics+1])) \
+                                                 .withColumn('group', F.when(F.col('total_mechanics_exposed') == 0, 'Non_exposed_Purchased') \
+                                                                       .otherwise('Exposed_Purchased'))
+    
+    ## Tag each customer by group for non-shopper group
+    ## If no exposure flag in any mechanic, then Non-exposed Non-purchased
+    ## If exposure in any mechanic, then Exposed Non-purchased
+    non_cmp_shppr_exposure_tag = non_cmp_shppr_exposure.withColumn('total_mechanics_exposed', sum(non_cmp_shppr_exposure[col] for col in non_cmp_shppr_exposure.columns[1:num_of_mechanics+1])) \
+                                                       .withColumn('group', F.when(F.col('total_mechanics_exposed') == 0, 'Non_exposed_Non_purchased') \
+                                                                             .otherwise('Exposed_Non_purchased'))
+    
+    # Add the two lists together
+    exposed_unexposed_buy_flag_by_mech = cmp_shppr_last_seen_tag.unionByName(non_cmp_shppr_exposure_tag)
+    
+    # Show summary in cell output
+    print('exposure groups new logic:')
+    exposed_unexposed_buy_flag_by_mech.groupBy('group').pivot('total_mechanics_exposed').agg(F.countDistinct(F.col('household_id'))).fillna(0).show()
+    
+    ##---- Movement : prior - pre
+    prior_pre = _get_mvmnt_prior_pre(txn=txn, period_wk_col=period_wk_col, prd_scope_df=prd_scope_df)
+
+    ##---- Flag customer movement and exposure
+    movement_and_exposure = \
+    (exposed_unexposed_buy_flag_by_mech
+     .join(prior_pre,'household_id', 'left')
+     .withColumn('customer_group',
+                 F.when(F.col('pre_spending')>0,'existing')
+                  .when(F.col('prior_spending')>0,'lapse')
+                  .otherwise('new'))
+    )
+
+    print('customer movement original logic:')
+    movement_and_exposure.where(F.col('exposed_flag')==1).groupBy('customer_group').agg(F.countDistinct('household_id')).show()
+    
+    ##---- Flag customer movement and exposure
+    movement_and_exposure_by_mech = \
+    (exposed_unexposed_buy_flag_by_mech
+     .join(prior_pre,'household_id', 'left')
+     .withColumn('customer_group',
+                 F.when(F.col('pre_spending')>0,'existing')
+                  .when(F.col('prior_spending')>0,'lapse')
+                  .otherwise('new'))
+    )
+    
+    print('customer movement new logic:')
+    movement_and_exposure_by_mech.groupBy('group').pivot('customer_group').agg(F.countDistinct('household_id')).show()
+
+    ##---- Uplift Calculation
+    ### Count customer by group
+    n_cust_by_group = \
+        (movement_and_exposure
+         .groupby('customer_group','exposed_flag','unexposed_flag','exposed_and_buy_flag','unexposed_and_buy_flag')
+         .agg(F.countDistinct('household_id').alias('customers'))
+        )
+    gr_exposed = \
+        (n_cust_by_group
+         .where(F.col('exposed_flag')==1)
+         .groupBy('customer_group')
+         .agg(F.sum('customers').alias('exposed_customers'))
+        )
+    gr_exposed_buy = \
+        (n_cust_by_group
+         .where(F.col('exposed_and_buy_flag')==1)
+         .groupBy('customer_group')
+         .agg(F.sum('customers').alias('exposed_shoppers'))
+         )
+    gr_unexposed = \
+        (n_cust_by_group
+        .where( (F.col('exposed_flag')==0) & (F.col('unexposed_flag')==1) )
+        .groupBy('customer_group').agg(F.sum('customers').alias('unexposed_customers'))
+        )
+    gr_unexposed_buy = \
+        (n_cust_by_group
+        .where(F.col('unexposed_and_buy_flag')==1)
+        .groupBy('customer_group')
+        .agg(F.sum('customers').alias('unexposed_shoppers'))
+        )
+    combine_gr = \
+        (gr_exposed.join(gr_exposed_buy,'customer_group')
+         .join(gr_unexposed,'customer_group')
+         .join(gr_unexposed_buy,'customer_group')
+        )
+    
+    ##---- Uplift Calculation by mechanic
+    
+    # Total customers for each exposure tag (Non-exposed Purchased, Non-exposed Non-purchased, Exposed Purchased, Exposed Non-purchased)
+    n_cust_total_non_exposed_purchased = movement_and_exposure_by_mech.filter(F.col('group') == 'Non_exposed_Purchased') \
+                                                                      .groupBy('customer_group').agg(F.countDistinct(F.col('household_id')).alias('Non_exposed_Purchased_all'))
+    n_cust_total_non_exposed_non_purchased = movement_and_exposure_by_mech.filter(F.col('group') == 'Non_exposed_Non_purchased') \
+                                                                          .groupBy('customer_group').agg(F.countDistinct(F.col('household_id')).alias('Non_exposed_Non_purchased_all'))
+    n_cust_total_exposed_purchased = movement_and_exposure_by_mech.filter(F.col('group') == 'Exposed_Purchased') \
+                                                                  .groupBy('customer_group').agg(F.countDistinct(F.col('household_id')).alias('Exposed_Purchased_all'))
+    n_cust_total_exposed_non_purchased = movement_and_exposure_by_mech.filter(F.col('group') == 'Exposed_Non_purchased') \
+                                                                      .groupBy('customer_group').agg(F.countDistinct(F.col('household_id')).alias('Exposed_Non_purchased_all'))
+    
+    # Total customers for Exposed Purchased and Exposed Non-purchased per each mechanic (if more than 1 mechanic)
+    if num_of_mechanics > 1:
+
+      for mech in mechanic_list:
+        n_cust_exposed_purchased_mech[mech] = movement_and_exposure_by_mech.filter(F.col('group') == 'Exposed_Purchased').filter(F.col(mech) == 1) \
+                                                                           .groupBy('customer_group') \
+                                                                           .agg(F.countDistinct(F.col('household_id')).alias('Exposed_Purchased'))
+        
+        n_cust_total_exposed_purchased = n_cust_total_exposed_purchased.join(n_cust_exposed_purchased_mech[mech], on='customer_group', how='left')
+        
+      for mech in mechanic_list:
+        n_cust_exposed_non_purchased_mech[mech] = movement_and_exposure_by_mech.filter(F.col('group') == 'Exposed_Non_purchased').filter(F.col(mech) == 1) \
+                                                                               .groupBy('customer_group') \
+                                                                               .agg(F.countDistinct(F.col('household_id')).alias('Exposed_Purchased'))
+        
+        n_cust_total_exposed_non_purchased = n_cust_total_exposed_non_purchased.join(n_cust_exposed_non_purchased_mech[mech], on='customer_group', how='left')
+        
+    
+    combine_n_cust = n_cust_total_non_exposed_purchased.join(n_cust_total_non_exposed_non_purchased, on='customer_group', how='left') \
+                                                       .join(n_cust_total_exposed_purchased, on='customer_group', how='left') \
+                                                       .join(n_cust_total_exposed_non_purchased, on='customer_group', how='left')
+
+    print('Count by group all mechs: ')
+    combine_n_cust.show()
+
+    ### Calculate conversion & uplift
+    total_cust_uplift = (combine_gr
+                         .agg(F.sum("exposed_customers").alias("exposed_customers"),
+                              F.sum("exposed_shoppers").alias("exposed_shoppers"),
+                              F.sum("unexposed_customers").alias("unexposed_customers"),
+                              F.sum("unexposed_shoppers").alias("unexposed_shoppers")
+                              )
+                         .withColumn("customer_group", F.lit("Total"))
+                        )
+
+    uplift_w_total = combine_gr.unionByName(total_cust_uplift, allowMissingColumns=True)
+
+    uplift_result = uplift_w_total.withColumn('uplift_lv', F.lit(cust_uplift_lv)) \
+                          .withColumn('cvs_rate_test', F.col('exposed_shoppers')/F.col('exposed_customers'))\
+                          .withColumn('cvs_rate_ctr', F.col('unexposed_shoppers')/F.col('unexposed_customers'))\
+                          .withColumn('pct_uplift', F.col('cvs_rate_test')/F.col('cvs_rate_ctr') - 1 )\
+                          .withColumn('uplift_cust',(F.col('cvs_rate_test')-F.col('cvs_rate_ctr'))*F.col('exposed_customers'))
+
+    ### Re-calculation positive uplift & percent positive customer uplift
+    positive_cust_uplift = \
+        (uplift_result
+         .where(F.col("customer_group")!="Total")
+         .select("customer_group", "uplift_cust")
+         .withColumn("pstv_cstmr_uplift", F.when(F.col("uplift_cust")>=0, F.col("uplift_cust")).otherwise(0))
+         .select("customer_group", "pstv_cstmr_uplift")
+        )
+    total_positive_cust_uplift_num = positive_cust_uplift.agg(F.sum("pstv_cstmr_uplift")).collect()[0][0]
+    total_positive_cust_uplift_sf = spark.createDataFrame([("Total", total_positive_cust_uplift_num),], ["customer_group", "pstv_cstmr_uplift"])
+    recal_cust_uplift = positive_cust_uplift.unionByName(total_positive_cust_uplift_sf)
+
+    uplift_out = \
+        (uplift_result.join(recal_cust_uplift, "customer_group", "left")
+         .withColumn("pct_positive_cust_uplift", F.col("pstv_cstmr_uplift")/F.col("exposed_shoppers"))
+        )
+    # Sort row order , export as SparkFrame
+    df = uplift_out.toPandas()
+    sort_dict = {"new":0, "existing":1, "lapse":2, "Total":3}
+    df = df.sort_values(by=["customer_group"], key=lambda x: x.map(sort_dict))  # type: ignore
+    uplift_out = spark.createDataFrame(df)
+
+    return uplift_out, exposed_unexposed_buy_flag_by_mech
+
 def get_cust_activated_prmzn(
         txn: SparkDataFrame,
         cp_start_date: str,
