@@ -1630,8 +1630,7 @@ def get_customer_uplift_by_mech(txn: SparkDataFrame,
         df = uplift_out.toPandas()
         sort_dict = {"new":0, "existing":1, "lapse":2, "Total":3}
         df = df.sort_values(by=["customer_group"], key=lambda x: x.map(sort_dict))  # type: ignore
-        uplift_out = spark.createDataFrame(df)
-        uplift_out.withColumn("mech_name", F.lit(mech_nm))
+        uplift_out = spark.createDataFrame(df).withColumn("mech_name", F.lit(mech_nm))
 
         out_df = out_df.unionByName(uplift_out, allowMissingColumns=True)
 
