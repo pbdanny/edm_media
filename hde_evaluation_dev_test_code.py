@@ -125,23 +125,6 @@ adj_prod_sf = use_ai_df
 
 # COMMAND ----------
 
-# MAGIC %md ##Test Ta's Code
-
-# COMMAND ----------
-
-uplift_feature, exposed_unexposed_buy_flag_by_mech_sku = get_customer_uplift_per_mechanic(txn=txn_all, 
-                                                                                           cp_start_date=cmp_st_date, 
-                                                                                           cp_end_date=cmp_end_date,
-                                                                                           wk_type="fis_week",
-                                                                                           test_store_sf=test_store_sf,
-                                                                                           adj_prod_sf=use_ai_df, 
-                                                                                           brand_sf=brand_df,
-                                                                                           feat_sf=feat_df,
-                                                                                           ctr_store_list=ctr_store_list,
-                                                                                           cust_uplift_lv="brand")
-
-# COMMAND ----------
-
 # MAGIC %md ## Test activated by mech
 
 # COMMAND ----------
