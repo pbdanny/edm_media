@@ -1178,6 +1178,8 @@ pandas_to_csv_filestore(uplift_brand_df, 'customer_uplift_brand.csv', prefix=os.
 
 # New uplift by mech
 
+store_matching_df_var = spark.createDataFrame(store_matching_df).select('store_id', 'ctr_store_var')
+
 uplift_out_sku, exposed_unexposed_buy_flag_by_mech_sku = get_customer_uplift_per_mechanic(txn=txn_all, 
                                                                                           cp_start_date=cmp_st_date, 
                                                                                           cp_end_date=cmp_end_date,
@@ -1188,7 +1190,7 @@ uplift_out_sku, exposed_unexposed_buy_flag_by_mech_sku = get_customer_uplift_per
                                                                                           feat_sf=feat_df,
                                                                                           ctr_store_list=ctr_store_list,
                                                                                           cust_uplift_lv="sku",
-                                                                                          store_matching_df_var=store_matching_df)
+                                                                                          store_matching_df_var=store_matching_df_var)
 
 #---- Uplift at Sku : Danny 1 Aug 2022
 
