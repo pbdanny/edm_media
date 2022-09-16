@@ -1188,7 +1188,7 @@ uplift_out_sku, exposed_unexposed_buy_flag_by_mech_sku = get_customer_uplift_per
                                                                                           feat_sf=feat_df,
                                                                                           ctr_store_list=ctr_store_list,
                                                                                           cust_uplift_lv="sku",
-                                                                                          store_matching_df_var=store_matching_df_var)
+                                                                                          store_matching_df_var=store_matching_df)
 
 #---- Uplift at Sku : Danny 1 Aug 2022
 
