@@ -2416,7 +2416,7 @@ def get_cust_cltv(txn: SparkDataFrame,
                 return None
 
             ## get weighted average svv by sale to category -- All sale values
-            cate_sales  = svv_cate.agg(F.sum(svv_cate.sales).alias('cate_sales')).collect()[0].cate_sales
+            cate_sales  = svv_cate.agg(F.sum(F.col("sales"))).collect()[0][0]
 
             ## Pat add to get list of category name in case of multiple category define -- Pat 25 Jul 22
 
@@ -2449,10 +2449,20 @@ def get_cust_cltv(txn: SparkDataFrame,
 
             return svv_cate_wg_avg
 
-        def __get_avg_multi_brand_svv(brand_csr_sf):
+        def __get_avg_multi_brand_svv(brand_csr_sf: SparkDataFrame,
+                                      cate_nm_txt: str,
+                                      brand_nm_txt: str):
             """Get all KPIs weighted average of muli-brand survival rate
+            Param
+            -----
+            brand_csr_sf: SparkDataFrame
+                Initial retrived bradn csr
+            cate_nm_txt: str
+                Cleaned & conbined multi category name
+            brand_nm_txt: str
+                Cleaned & conbined multi brand name
             """
-            brand_sales = brand_csr_sf.agg(F.sum(brand_csr_sf.spending).alias('brand_sales')).collect()[0].brand_sales  ## sum sales value of all brand
+            brand_sales = brand_csr_sf.agg(F.sum(F.col("spending"))).collect()[0][0]  ## sum sales value of all brand
 
             brand_csr_w     = brand_csr_sf.withColumn('pct_share_w', brand_csr_sf.spending/brand_sales)\
                                         .withColumn('w_q1', brand_csr_sf.CSR_13_wks * (brand_csr_sf.spending/brand_sales))\
@@ -2463,7 +2473,7 @@ def get_cust_cltv(txn: SparkDataFrame,
                                         .withColumn('w_auc',brand_csr_sf.AUC            * (brand_csr_sf.spending/brand_sales))\
                                         .withColumn('w_spd',brand_csr_sf.spc_per_day    * (brand_csr_sf.spending/brand_sales))
 
-            brand_csr_w_sf  = brand_csr_w.agg (F.lit(cate_nm_txt).alias('category_name')
+            brand_csr_w_sf  = brand_csr_w.agg(F.lit(cate_nm_txt).alias('category_name')
                                             ,F.lit(brand_nm_txt).alias('brand_name')
                                             ,F.lit(1).alias('CSR_0_wks')
                                             ,F.sum(brand_csr_w.w_q1).alias('CSR_13_wks_wavg')
@@ -2509,14 +2519,14 @@ def get_cust_cltv(txn: SparkDataFrame,
             use_average_flag  = 0
 
         elif len(brand_csr_initial_df) > 1 :  # case has multiple brand in SKU, will need to do average
-            brand_csr = __get_avg_multi_brand_svv(brand_csr_sf=brand_csr_initial_df)
-            # brand_csr_df = brand_csr.toPandas()
-
             brand_nm_txt = _list2string(cate_nm_initial_lst, ' and ')
             cate_nm_txt  = _list2string(brand_nm_initial_lst, ' and ')
 
             brand_nm_txt = str(brand_nm_txt)
             cate_nm_txt  = str(cate_nm_txt)
+            
+            brand_csr = __get_avg_multi_brand_svv(brand_csr_sf=brand_csr_initial, cate_nm_txt=cate_nm_txt, brand_nm_txt=brand_nm_txt)
+            # brand_csr_df = brand_csr.toPandas()
 
             print('#'*80)
             print(' Warning !! Feature SKUs are in multiple brand name/multiple category, will need to do average between all data.')
