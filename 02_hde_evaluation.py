@@ -76,7 +76,7 @@ import pathlib
 
 sys.path.append(os.path.abspath("/Workspace/Repos/thanakrit.boonquarmdee@lotuss.com/edm_media"))
 
-from instore_eval import get_cust_activated, get_cust_movement, get_cust_brand_switching_and_penetration, get_cust_sku_switching, get_profile_truprice, get_customer_uplift, get_cust_activated_prmzn, check_combine_region, get_cust_cltv
+from instore_eval import get_cust_activated, get_cust_movement, get_cust_brand_switching_and_penetration, get_cust_sku_switching, get_profile_truprice, get_customer_uplift, get_cust_activated_prmzn, check_combine_region, get_cust_cltv, get_customer_uplift_per_mechanic
 
 # COMMAND ----------
 
@@ -688,13 +688,13 @@ pandas_to_csv_filestore(featues_product_and_exposure_df, 'feature_product_and_ex
 
 cmp_st_date = datetime.strptime(cmp_start, '%Y-%m-%d')
 cmp_end_date = datetime.strptime(cmp_end, '%Y-%m-%d')
-exposure_all, exposure_region = get_awareness(txn_all, cp_start_date=cmp_st_date, cp_end_date=cmp_end_date,
-                                              store_fmt=store_fmt, test_store_sf=test_store_sf, adj_prod_sf=use_ai_df,
-                                              media_spend=float(media_fee))
-exposure_all_df = to_pandas(exposure_all)
-pandas_to_csv_filestore(exposure_all_df, 'exposure_all.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
-exposure_region_df = to_pandas(exposure_region)
-pandas_to_csv_filestore(exposure_region_df, 'exposure_region.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
+# exposure_all, exposure_region = get_awareness(txn_all, cp_start_date=cmp_st_date, cp_end_date=cmp_end_date,
+#                                               store_fmt=store_fmt, test_store_sf=test_store_sf, adj_prod_sf=use_ai_df,
+#                                               media_spend=float(media_fee))
+# exposure_all_df = to_pandas(exposure_all)
+# pandas_to_csv_filestore(exposure_all_df, 'exposure_all.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
+# exposure_region_df = to_pandas(exposure_region)
+# pandas_to_csv_filestore(exposure_region_df, 'exposure_region.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
     
 
 # COMMAND ----------
@@ -751,30 +751,30 @@ cust_mv_count_df = to_pandas(cust_mv_count)
 pandas_to_csv_filestore(cust_mv_count_df, 'customer_movement.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
 
 #----- Customer brand switching & brand penetration : Danny 1 Aug 2022
-cust_mv = spark.table(f'tdm_seg.media_camp_eval_{cmp_id}_cust_mv')
-cust_brand_switching, cust_brand_penetration, cust_brand_switching_and_pen = \
-get_cust_brand_switching_and_penetration(
-    txn=txn_all,
-    switching_lv=cate_lvl, 
-    brand_df=brand_df,
-    class_df=class_df,
-    sclass_df=sclass_df,
-    cust_movement_sf=cust_mv,
-    wk_type=week_type)
-cust_brand_switching_and_pen_df = to_pandas(cust_brand_switching_and_pen)
-pandas_to_csv_filestore(cust_brand_switching_and_pen_df, 'customer_brand_switching_penetration.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
+# cust_mv = spark.table(f'tdm_seg.media_camp_eval_{cmp_id}_cust_mv')
+# cust_brand_switching, cust_brand_penetration, cust_brand_switching_and_pen = \
+# get_cust_brand_switching_and_penetration(
+#     txn=txn_all,
+#     switching_lv=cate_lvl, 
+#     brand_df=brand_df,
+#     class_df=class_df,
+#     sclass_df=sclass_df,
+#     cust_movement_sf=cust_mv,
+#     wk_type=week_type)
+# cust_brand_switching_and_pen_df = to_pandas(cust_brand_switching_and_pen)
+# pandas_to_csv_filestore(cust_brand_switching_and_pen_df, 'customer_brand_switching_penetration.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
 
 #---- Customer SKU switching : Danny 1 Aug 2022
-sku_switcher = get_cust_sku_switching(txn=txn_all, 
-                                      switching_lv=cate_lvl, 
-                                      sku_activated=sku_activated,
-                                      feat_list=feat_list,
-                                      class_df=class_df,
-                                      sclass_df=sclass_df,
-                                      wk_type=week_type)
+# sku_switcher = get_cust_sku_switching(txn=txn_all, 
+#                                       switching_lv=cate_lvl, 
+#                                       sku_activated=sku_activated,
+#                                       feat_list=feat_list,
+#                                       class_df=class_df,
+#                                       sclass_df=sclass_df,
+#                                       wk_type=week_type)
 
-cust_sku_switching_df = to_pandas(sku_switcher)
-pandas_to_csv_filestore(cust_sku_switching_df, 'customer_sku_switching.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
+# cust_sku_switching_df = to_pandas(sku_switcher)
+# pandas_to_csv_filestore(cust_sku_switching_df, 'customer_sku_switching.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
 
 # COMMAND ----------
 
@@ -837,23 +837,23 @@ cst_pfr_seg_c = cst_pfr_seg.where(cst_pfr_seg.period_id == mx_period).persist()
 
 ## SKU Level
 
-grp_str_reg_sku_pd, grp_reg_sku_pd = get_atv_cust_region(sku_atv_cst, cst_pfr_seg_c, 'sku')
+# grp_str_reg_sku_pd, grp_reg_sku_pd = get_atv_cust_region(sku_atv_cst, cst_pfr_seg_c, 'sku')
 
 ## Export output
 
-pandas_to_csv_filestore(grp_reg_sku_pd, 'atv_sku_cust_region.csv', prefix=os.path.join(dbfs_project_path, 'result'))
-pandas_to_csv_filestore(grp_str_reg_sku_pd, 'atv_sku_cust_by_format_region.csv', prefix=os.path.join(dbfs_project_path, 'output'))
+# pandas_to_csv_filestore(grp_reg_sku_pd, 'atv_sku_cust_region.csv', prefix=os.path.join(dbfs_project_path, 'result'))
+# pandas_to_csv_filestore(grp_str_reg_sku_pd, 'atv_sku_cust_by_format_region.csv', prefix=os.path.join(dbfs_project_path, 'output'))
 
-del grp_reg_sku_pd, grp_str_reg_sku_pd
+# del grp_reg_sku_pd, grp_str_reg_sku_pd
 
 ## Brand Level
 
-grp_str_reg_brand_pd, grp_reg_brand_pd = get_atv_cust_region(brand_atv_cst, cst_pfr_seg_c, 'brand')
+# grp_str_reg_brand_pd, grp_reg_brand_pd = get_atv_cust_region(brand_atv_cst, cst_pfr_seg_c, 'brand')
 
-pandas_to_csv_filestore(grp_reg_brand_pd, 'atv_brand_cust_region.csv', prefix=os.path.join(dbfs_project_path, 'result'))
-pandas_to_csv_filestore(grp_str_reg_brand_pd, 'atv_brand_cust_by_format_region.csv', prefix=os.path.join(dbfs_project_path, 'output'))
+# pandas_to_csv_filestore(grp_reg_brand_pd, 'atv_brand_cust_region.csv', prefix=os.path.join(dbfs_project_path, 'result'))
+# pandas_to_csv_filestore(grp_str_reg_brand_pd, 'atv_brand_cust_by_format_region.csv', prefix=os.path.join(dbfs_project_path, 'output'))
 
-del grp_reg_brand_pd, grp_str_reg_brand_pd
+# del grp_reg_brand_pd, grp_str_reg_brand_pd
 
 
 # COMMAND ----------
@@ -880,17 +880,17 @@ del grp_reg_brand_pd, grp_str_reg_brand_pd
 
 # COMMAND ----------
 
-truprice_profile = get_profile_truprice(txn=txn_all, 
-                                        store_fmt=store_fmt,
-                                        cp_end_date=cmp_end,
-                                        wk_type=week_type,
-                                        sku_activated=sku_activated,
-                                        switching_lv=cate_lvl,
-                                        class_df=class_df,
-                                        sclass_df=sclass_df,
-)
-truprice_profile_df = to_pandas(truprice_profile)
-pandas_to_csv_filestore(truprice_profile_df, 'profile_sku_activated_truprice.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
+# truprice_profile = get_profile_truprice(txn=txn_all, 
+#                                         store_fmt=store_fmt,
+#                                         cp_end_date=cmp_end,
+#                                         wk_type=week_type,
+#                                         sku_activated=sku_activated,
+#                                         switching_lv=cate_lvl,
+#                                         class_df=class_df,
+#                                         sclass_df=sclass_df,
+# )
+# truprice_profile_df = to_pandas(truprice_profile)
+# pandas_to_csv_filestore(truprice_profile_df, 'profile_sku_activated_truprice.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
 
 # COMMAND ----------
 
@@ -902,55 +902,55 @@ pandas_to_csv_filestore(truprice_profile_df, 'profile_sku_activated_truprice.csv
 ## Do this for standard evaluation, if full will do with control store
 ## Brand at class
 
-sales_brand_class_fiswk   = get_sales_mkt_growth_noctrl( txn_all
-                                                           ,brand_df
-                                                           ,class_df
-                                                           ,'brand'
-                                                           ,'class'
-                                                           ,wk_type
-                                                           ,store_fmt
-                                                           ,trg_str_df
-                                                          )
+# sales_brand_class_fiswk   = get_sales_mkt_growth_noctrl( txn_all
+#                                                            ,brand_df
+#                                                            ,class_df
+#                                                            ,'brand'
+#                                                            ,'class'
+#                                                            ,wk_type
+#                                                            ,store_fmt
+#                                                            ,trg_str_df
+#                                                           )
    
-## brand at sublcass
-sales_brand_subclass_fiswk = get_sales_mkt_growth_noctrl( txn_all
-                                                           ,brand_df
-                                                           ,sclass_df
-                                                           ,'brand'
-                                                           ,'subclass'
-                                                           ,wk_type
-                                                           ,store_fmt
-                                                           ,trg_str_df
-                                                          )
+# ## brand at sublcass
+# sales_brand_subclass_fiswk = get_sales_mkt_growth_noctrl( txn_all
+#                                                            ,brand_df
+#                                                            ,sclass_df
+#                                                            ,'brand'
+#                                                            ,'subclass'
+#                                                            ,wk_type
+#                                                            ,store_fmt
+#                                                            ,trg_str_df
+#                                                           )
 
-## feature at class
-sales_sku_class_fiswk      = get_sales_mkt_growth_noctrl( txn_all
-                                                          ,feat_df
-                                                          ,class_df
-                                                          ,'sku'
-                                                          ,'class'
-                                                          ,wk_type
-                                                          ,store_fmt
-                                                          ,trg_str_df
-                                                         )
-## feature at subclass
-sales_sku_subclass_fiswk    = get_sales_mkt_growth_noctrl( txn_all
-                                                            ,feat_df
-                                                            ,sclass_df
-                                                            ,'sku'
-                                                            ,'subclass'
-                                                            ,wk_type
-                                                            ,store_fmt
-                                                            ,trg_str_df
-                                                           )
+# ## feature at class
+# sales_sku_class_fiswk      = get_sales_mkt_growth_noctrl( txn_all
+#                                                           ,feat_df
+#                                                           ,class_df
+#                                                           ,'sku'
+#                                                           ,'class'
+#                                                           ,wk_type
+#                                                           ,store_fmt
+#                                                           ,trg_str_df
+#                                                          )
+# ## feature at subclass
+# sales_sku_subclass_fiswk    = get_sales_mkt_growth_noctrl( txn_all
+#                                                             ,feat_df
+#                                                             ,sclass_df
+#                                                             ,'sku'
+#                                                             ,'subclass'
+#                                                             ,wk_type
+#                                                             ,store_fmt
+#                                                             ,trg_str_df
+#                                                            )
 ## Export File sales market share growth
 
 wk_tp = wk_type.replace('_', '')
 
-pandas_to_csv_filestore(sales_brand_class_fiswk, 'sales_brand_class_growth_target_'+ wk_tp + '.csv', prefix=os.path.join(dbfs_project_path, 'result'))
-pandas_to_csv_filestore(sales_brand_subclass_fiswk, 'sales_brand_subclass_growth_target_'+ wk_tp + '.csv', prefix=os.path.join(dbfs_project_path, 'result'))
-pandas_to_csv_filestore(sales_sku_class_fiswk, 'sales_sku_class_growth_target_'+ wk_tp + '.csv', prefix=os.path.join(dbfs_project_path, 'result'))
-pandas_to_csv_filestore(sales_sku_subclass_fiswk, 'sales_sku_subclass_growth_target_'+ wk_tp + '.csv', prefix=os.path.join(dbfs_project_path, 'result'))
+# pandas_to_csv_filestore(sales_brand_class_fiswk, 'sales_brand_class_growth_target_'+ wk_tp + '.csv', prefix=os.path.join(dbfs_project_path, 'result'))
+# pandas_to_csv_filestore(sales_brand_subclass_fiswk, 'sales_brand_subclass_growth_target_'+ wk_tp + '.csv', prefix=os.path.join(dbfs_project_path, 'result'))
+# pandas_to_csv_filestore(sales_sku_class_fiswk, 'sales_sku_class_growth_target_'+ wk_tp + '.csv', prefix=os.path.join(dbfs_project_path, 'result'))
+# pandas_to_csv_filestore(sales_sku_subclass_fiswk, 'sales_sku_subclass_growth_target_'+ wk_tp + '.csv', prefix=os.path.join(dbfs_project_path, 'result'))
 
 
 # COMMAND ----------
@@ -969,22 +969,22 @@ pandas_to_csv_filestore(sales_sku_subclass_fiswk, 'sales_sku_subclass_growth_tar
 
 ## SKU Sales trend in spark df format 
 
-sku_trend_trg   = get_sales_trend_trg(txn_all, trg_str_df, feat_df, 'SKU', wk_type, 'period_' + wk_type)
+# sku_trend_trg   = get_sales_trend_trg(txn_all, trg_str_df, feat_df, 'SKU', wk_type, 'period_' + wk_type)
 
-## Brand sales trend
-brand_trend_trg = get_sales_trend_trg(txn_all, trg_str_df, brand_df, 'Brand', wk_type, 'period_' + wk_type)
+# ## Brand sales trend
+# brand_trend_trg = get_sales_trend_trg(txn_all, trg_str_df, brand_df, 'Brand', wk_type, 'period_' + wk_type)
 
-## Category sales trend
-cate_trend_trg  = get_sales_trend_trg(txn_all, trg_str_df, cate_df, 'Category', wk_type, 'period_' + wk_type)
+# ## Category sales trend
+# cate_trend_trg  = get_sales_trend_trg(txn_all, trg_str_df, cate_df, 'Category', wk_type, 'period_' + wk_type)
 
 
 # COMMAND ----------
 
 ## Convert to pandas and write out
 
-pd_sku_trend_trg   = sku_trend_trg.toPandas()
-pd_brand_trend_trg = brand_trend_trg.toPandas()
-pd_cate_trend_trg  = cate_trend_trg.toPandas()
+# pd_sku_trend_trg   = sku_trend_trg.toPandas()
+# pd_brand_trend_trg = brand_trend_trg.toPandas()
+# pd_cate_trend_trg  = cate_trend_trg.toPandas()
 
 ## cmp_out_path_fl
 
@@ -993,9 +993,9 @@ pd_cate_trend_trg  = cate_trend_trg.toPandas()
 # cate_file          = cmp_out_path_fl + 'weekly_sales_trend_promowk_cate.csv'
 
 
-pandas_to_csv_filestore(pd_sku_trend_trg, 'weekly_sales_trend_' + wk_tp + '_sku.csv', prefix=os.path.join(dbfs_project_path, 'result'))
-pandas_to_csv_filestore(pd_brand_trend_trg, 'weekly_sales_trend_' + wk_tp + '_brand.csv', prefix=os.path.join(dbfs_project_path, 'result'))
-pandas_to_csv_filestore(pd_cate_trend_trg, 'weekly_sales_trend_' + wk_tp + '_cate.csv', prefix=os.path.join(dbfs_project_path, 'result'))
+# pandas_to_csv_filestore(pd_sku_trend_trg, 'weekly_sales_trend_' + wk_tp + '_sku.csv', prefix=os.path.join(dbfs_project_path, 'result'))
+# pandas_to_csv_filestore(pd_brand_trend_trg, 'weekly_sales_trend_' + wk_tp + '_brand.csv', prefix=os.path.join(dbfs_project_path, 'result'))
+# pandas_to_csv_filestore(pd_cate_trend_trg, 'weekly_sales_trend_' + wk_tp + '_cate.csv', prefix=os.path.join(dbfs_project_path, 'result'))
 
 # COMMAND ----------
 
@@ -1026,31 +1026,31 @@ pandas_to_csv_filestore(pd_cate_trend_trg, 'weekly_sales_trend_' + wk_tp + '_cat
 ### 
 ## Enable - kpi no control for campaign evaluation type 
 ##if eval_type == 'std':
-if wk_type == 'fis_wk' :
-    kpi_spdf, kpi_pd, cust_share_pd = cust_kpi_noctrl_fiswk(txn_all 
-                                                           ,store_fmt 
-                                                           ,trg_str_df
-                                                           ,feat_list
-                                                           ,brand_df
-                                                           ,cate_df)
-    kpi_pd.display()
-    cust_share_pd.display()
-elif wk_type == 'promo_wk':
-    kpi_spdf, kpi_pd, cust_share_pd = cust_kpi_noctrl( txn_all 
-                                                      ,store_fmt 
-                                                      ,trg_str_df
-                                                      ,feat_list
-                                                      ,brand_df
-                                                      ,cate_df)
+# if wk_type == 'fis_wk' :
+#     kpi_spdf, kpi_pd, cust_share_pd = cust_kpi_noctrl_fiswk(txn_all 
+#                                                            ,store_fmt 
+#                                                            ,trg_str_df
+#                                                            ,feat_list
+#                                                            ,brand_df
+#                                                            ,cate_df)
+#     kpi_pd.display()
+#     cust_share_pd.display()
+# elif wk_type == 'promo_wk':
+#     kpi_spdf, kpi_pd, cust_share_pd = cust_kpi_noctrl( txn_all 
+#                                                       ,store_fmt 
+#                                                       ,trg_str_df
+#                                                       ,feat_list
+#                                                       ,brand_df
+#                                                       ,cate_df)
  
-    kpi_pd.display() 
-    cust_share_pd.display()
+#     kpi_pd.display() 
+#     cust_share_pd.display()
 ## end if
 
 ## export File cust share & KPI
 
-pandas_to_csv_filestore(kpi_pd, f'all_kpi_in_category_no_control.csv', prefix=os.path.join(dbfs_project_path, 'result'))
-pandas_to_csv_filestore(cust_share_pd, f'cust_share_target.csv', prefix=os.path.join(dbfs_project_path, 'result'))
+# pandas_to_csv_filestore(kpi_pd, f'all_kpi_in_category_no_control.csv', prefix=os.path.join(dbfs_project_path, 'result'))
+# pandas_to_csv_filestore(cust_share_pd, f'cust_share_target.csv', prefix=os.path.join(dbfs_project_path, 'result'))
 ## end if
 
 # COMMAND ----------
@@ -1136,22 +1136,22 @@ pandas_to_csv_filestore(store_matching_df, 'store_matching.csv', prefix= os.path
 
 # COMMAND ----------
 
-if wk_type == 'fis_wk' :
-    combined_kpi, kpi_df, df_pv = cust_kpi( txn_all
-                                           ,store_fmt=store_fmt
-                                           ,test_store_sf=trg_str_df
-                                           ,ctr_store_list=ctr_store_list
-                                           ,feat_list=feat_list)
-elif wk_type == 'promo_wk':
-    combined_kpi, kpi_df, df_pv = cust_kpi_promo_wk( txn_all
-                                                    ,store_fmt=store_fmt
-                                                    ,test_store_sf=trg_str_df
-                                                    ,ctr_store_list=ctr_store_list
-                                                    ,feat_list=feat_list)
+# if wk_type == 'fis_wk' :
+#     combined_kpi, kpi_df, df_pv = cust_kpi( txn_all
+#                                            ,store_fmt=store_fmt
+#                                            ,test_store_sf=trg_str_df
+#                                            ,ctr_store_list=ctr_store_list
+#                                            ,feat_list=feat_list)
+# elif wk_type == 'promo_wk':
+#     combined_kpi, kpi_df, df_pv = cust_kpi_promo_wk( txn_all
+#                                                     ,store_fmt=store_fmt
+#                                                     ,test_store_sf=trg_str_df
+#                                                     ,ctr_store_list=ctr_store_list
+                                                    # ,feat_list=feat_list)
 ## end if
                         
-pandas_to_csv_filestore(kpi_df, 'kpi_test_ctrl_pre_dur.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
-pandas_to_csv_filestore(df_pv, 'customer_share_test_ctrl_pre_dur.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
+# pandas_to_csv_filestore(kpi_df, 'kpi_test_ctrl_pre_dur.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
+# pandas_to_csv_filestore(df_pv, 'customer_share_test_ctrl_pre_dur.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
 
 # COMMAND ----------
 
@@ -1176,21 +1176,35 @@ pandas_to_csv_filestore(uplift_brand_df, 'customer_uplift_brand.csv', prefix=os.
 
 # COMMAND ----------
 
+# New uplift by mech
+
+uplift_out_sku, exposed_unexposed_buy_flag_by_mech_sku = get_customer_uplift_per_mechanic(txn=txn_all, 
+                                                                                          cp_start_date=cmp_st_date, 
+                                                                                          cp_end_date=cmp_end_date,
+                                                                                          wk_type="fis_week",
+                                                                                          test_store_sf=test_store_sf,
+                                                                                          adj_prod_sf=use_ai_df, 
+                                                                                          brand_sf=brand_df,
+                                                                                          feat_sf=feat_df,
+                                                                                          ctr_store_list=ctr_store_list,
+                                                                                          cust_uplift_lv="sku",
+                                                                                          store_matching_df_var=store_matching_df_var)
+
 #---- Uplift at Sku : Danny 1 Aug 2022
 
-uplift_feature = get_customer_uplift(txn=txn_all, 
-                                   cp_start_date=cmp_st_date, 
-                                   cp_end_date=cmp_end_date,
-                                   wk_type=wk_type,
-                                   test_store_sf=test_store_sf,
-                                   adj_prod_sf=adj_prod_sf, 
-                                   brand_sf=brand_df,
-                                   feat_sf=feat_df,
-                                   ctr_store_list=ctr_store_list,
-                                   cust_uplift_lv="sku")
+# uplift_feature = get_customer_uplift(txn=txn_all, 
+#                                    cp_start_date=cmp_st_date, 
+#                                    cp_end_date=cmp_end_date,
+#                                    wk_type=wk_type,
+#                                    test_store_sf=test_store_sf,
+#                                    adj_prod_sf=adj_prod_sf, 
+#                                    brand_sf=brand_df,
+#                                    feat_sf=feat_df,
+#                                    ctr_store_list=ctr_store_list,
+#                                    cust_uplift_lv="sku")
 
-uplift_feature_df = to_pandas(uplift_feature)
-pandas_to_csv_filestore(uplift_feature_df, 'customer_uplift_features_sku.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
+# uplift_feature_df = to_pandas(uplift_feature)
+# pandas_to_csv_filestore(uplift_feature_df, 'customer_uplift_features_sku.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
 
 # COMMAND ----------
 
@@ -1645,58 +1659,58 @@ elif wk_type == 'promo_wk' :
 ##                         ):
 ## convert matching pandas dataframe to spark for this function
 
-if wk_type == 'fis_wk' :
+# if wk_type == 'fis_wk' :
         
-    store_matching_spk = spark.createDataFrame(store_matching_df)
+#     store_matching_spk = spark.createDataFrame(store_matching_df)
     
-    sales_brand_class_fiswk = get_sales_mkt_growth( txn_all
-                                                      ,brand_df
-                                                      ,class_df
-                                                      ,'brand'
-                                                      ,'class'
-                                                      ,'fis_wk'
-                                                      ,store_fmt
-                                                      ,store_matching_spk
-                                                     )
+#     sales_brand_class_fiswk = get_sales_mkt_growth( txn_all
+#                                                       ,brand_df
+#                                                       ,class_df
+#                                                       ,'brand'
+#                                                       ,'class'
+#                                                       ,'fis_wk'
+#                                                       ,store_fmt
+#                                                       ,store_matching_spk
+#                                                      )
     
-    sales_brand_subclass_fiswk = get_sales_mkt_growth( txn_all
-                                                        ,brand_df
-                                                        ,sclass_df
-                                                        ,'brand'
-                                                        ,'subclass'
-                                                        ,'fis_wk'
-                                                        ,store_fmt
-                                                        ,store_matching_spk
-                                                     )
+#     sales_brand_subclass_fiswk = get_sales_mkt_growth( txn_all
+#                                                         ,brand_df
+#                                                         ,sclass_df
+#                                                         ,'brand'
+#                                                         ,'subclass'
+#                                                         ,'fis_wk'
+#                                                         ,store_fmt
+#                                                         ,store_matching_spk
+#                                                      )
     
-    sales_sku_class_fiswk = get_sales_mkt_growth( txn_all
-                                                   ,feat_df
-                                                   ,class_df
-                                                   ,'sku'
-                                                   ,'class'
-                                                   ,'fis_wk'
-                                                   ,store_fmt
-                                                   ,store_matching_spk
-                                                  )
+#     sales_sku_class_fiswk = get_sales_mkt_growth( txn_all
+#                                                    ,feat_df
+#                                                    ,class_df
+#                                                    ,'sku'
+#                                                    ,'class'
+#                                                    ,'fis_wk'
+#                                                    ,store_fmt
+#                                                    ,store_matching_spk
+#                                                   )
     
-    sales_sku_subclass_fiswk = get_sales_mkt_growth( txn_all
-                                                      ,feat_df
-                                                      ,sclass_df
-                                                      ,'sku'
-                                                      ,'subclass'
-                                                      ,'fis_wk'
-                                                      ,store_fmt
-                                                      ,store_matching_spk
-                                                     )
+#     sales_sku_subclass_fiswk = get_sales_mkt_growth( txn_all
+#                                                       ,feat_df
+#                                                       ,sclass_df
+#                                                       ,'sku'
+#                                                       ,'subclass'
+#                                                       ,'fis_wk'
+#                                                       ,store_fmt
+#                                                       ,store_matching_spk
+#                                                      )
     
     #sales_brand_class_fiswk.display()
     
     ## Export File
     
-    pandas_to_csv_filestore(sales_brand_class_fiswk, 'sales_brand_class_growth_fiswk.csv', prefix=os.path.join(dbfs_project_path, 'result'))
-    pandas_to_csv_filestore(sales_brand_subclass_fiswk, 'sales_brand_subclass_growth_fiswk.csv', prefix=os.path.join(dbfs_project_path, 'result'))
-    pandas_to_csv_filestore(sales_sku_class_fiswk, 'sales_sku_class_growth_fiswk.csv', prefix=os.path.join(dbfs_project_path, 'result'))
-    pandas_to_csv_filestore(sales_sku_subclass_fiswk, 'sales_sku_subclass_growth_fiswk.csv', prefix=os.path.join(dbfs_project_path, 'result'))
+    # pandas_to_csv_filestore(sales_brand_class_fiswk, 'sales_brand_class_growth_fiswk.csv', prefix=os.path.join(dbfs_project_path, 'result'))
+    # pandas_to_csv_filestore(sales_brand_subclass_fiswk, 'sales_brand_subclass_growth_fiswk.csv', prefix=os.path.join(dbfs_project_path, 'result'))
+    # pandas_to_csv_filestore(sales_sku_class_fiswk, 'sales_sku_class_growth_fiswk.csv', prefix=os.path.join(dbfs_project_path, 'result'))
+    # pandas_to_csv_filestore(sales_sku_subclass_fiswk, 'sales_sku_subclass_growth_fiswk.csv', prefix=os.path.join(dbfs_project_path, 'result'))
 
 ## end if    
 
@@ -1721,58 +1735,58 @@ if wk_type == 'fis_wk' :
 ##                         ):
 ## convert matching pandas dataframe to spark for this function
 
-if wk_type == 'promo_wk' :
+# if wk_type == 'promo_wk' :
 
-    store_matching_spk = spark.createDataFrame(store_matching_df)
+#     store_matching_spk = spark.createDataFrame(store_matching_df)
     
-    sales_brand_class_promowk = get_sales_mkt_growth( txn_all
-                                                      ,brand_df
-                                                      ,class_df
-                                                      ,'brand'
-                                                      ,'class'
-                                                      ,'promo_wk'
-                                                      ,store_fmt
-                                                      ,store_matching_spk
-                                                     )
+#     sales_brand_class_promowk = get_sales_mkt_growth( txn_all
+#                                                       ,brand_df
+#                                                       ,class_df
+#                                                       ,'brand'
+#                                                       ,'class'
+#                                                       ,'promo_wk'
+#                                                       ,store_fmt
+#                                                       ,store_matching_spk
+#                                                      )
     
-    sales_brand_subclass_promowk = get_sales_mkt_growth( txn_all
-                                                        ,brand_df
-                                                        ,sclass_df
-                                                        ,'brand'
-                                                        ,'subclass'
-                                                        ,'promo_wk'
-                                                        ,store_fmt
-                                                        ,store_matching_spk
-                                                     )
+#     sales_brand_subclass_promowk = get_sales_mkt_growth( txn_all
+#                                                         ,brand_df
+#                                                         ,sclass_df
+#                                                         ,'brand'
+#                                                         ,'subclass'
+#                                                         ,'promo_wk'
+#                                                         ,store_fmt
+#                                                         ,store_matching_spk
+#                                                      )
     
-    sales_sku_class_promowk = get_sales_mkt_growth( txn_all
-                                                   ,feat_df
-                                                   ,class_df
-                                                   ,'sku'
-                                                   ,'class'
-                                                   ,'promo_wk'
-                                                   ,store_fmt
-                                                   ,store_matching_spk
-                                                  )
+#     sales_sku_class_promowk = get_sales_mkt_growth( txn_all
+#                                                    ,feat_df
+#                                                    ,class_df
+#                                                    ,'sku'
+#                                                    ,'class'
+#                                                    ,'promo_wk'
+#                                                    ,store_fmt
+#                                                    ,store_matching_spk
+#                                                   )
     
-    sales_sku_subclass_promowk = get_sales_mkt_growth( txn_all
-                                                      ,feat_df
-                                                      ,sclass_df
-                                                      ,'sku'
-                                                      ,'subclass'
-                                                      ,'promo_wk'
-                                                      ,store_fmt
-                                                      ,store_matching_spk
-                                                     )
+#     sales_sku_subclass_promowk = get_sales_mkt_growth( txn_all
+#                                                       ,feat_df
+#                                                       ,sclass_df
+#                                                       ,'sku'
+#                                                       ,'subclass'
+#                                                       ,'promo_wk'
+#                                                       ,store_fmt
+#                                                       ,store_matching_spk
+#                                                      )
     
     #sales_brand_class_promowk.display()
     
     ## Export File
     
-    pandas_to_csv_filestore(sales_brand_class_promowk, 'sales_brand_class_growth_promowk.csv', prefix=os.path.join(dbfs_project_path, 'result'))
-    pandas_to_csv_filestore(sales_brand_subclass_promowk, 'sales_brand_subclass_growth_promowk.csv', prefix=os.path.join(dbfs_project_path, 'result'))
-    pandas_to_csv_filestore(sales_sku_class_promowk, 'sales_sku_class_growth_promowk.csv', prefix=os.path.join(dbfs_project_path, 'result'))
-    pandas_to_csv_filestore(sales_sku_subclass_promowk, 'sales_sku_subclass_growth_promowk.csv', prefix=os.path.join(dbfs_project_path, 'result'))
+    # pandas_to_csv_filestore(sales_brand_class_promowk, 'sales_brand_class_growth_promowk.csv', prefix=os.path.join(dbfs_project_path, 'result'))
+    # pandas_to_csv_filestore(sales_brand_subclass_promowk, 'sales_brand_subclass_growth_promowk.csv', prefix=os.path.join(dbfs_project_path, 'result'))
+    # pandas_to_csv_filestore(sales_sku_class_promowk, 'sales_sku_class_growth_promowk.csv', prefix=os.path.join(dbfs_project_path, 'result'))
+    # pandas_to_csv_filestore(sales_sku_subclass_promowk, 'sales_sku_subclass_growth_promowk.csv', prefix=os.path.join(dbfs_project_path, 'result'))
     
 ## end if
 
