@@ -1696,7 +1696,7 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
              .withColumn("c_end", F.lit(cp_end_date))
             )
         return filled_ctrl_store_sf
-      
+
     def _create_ctrl_store_sf_with_mech(filled_test_store_sf: SparkDataFrame,
                                         filled_ctrl_store_sf: SparkDataFrame,
                                         store_matching_df_var: SparkDataFrame,
@@ -1705,36 +1705,36 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
         '''
         Create control store table that tag the mechanic types of their matching test stores
         '''
-        # For each mechanic, add boolean column tagging each test store 
-        store_matching_df_var_tagged = store_matching_df_var.join(filled_test_store_sf.select('store_id', 'mech_name').drop_duplicates(), 
+        # For each mechanic, add boolean column tagging each test store
+        store_matching_df_var_tagged = store_matching_df_var.join(filled_test_store_sf.select('store_id', 'mech_name').drop_duplicates(),
                                                                   on='store_id', how='left')
-        
+
         for mech in mechanic_list:
           store_matching_df_var_tagged = store_matching_df_var_tagged.withColumn('flag_ctr_' + mech, F.when(F.col('mech_name') == mech, 1).otherwise(0))
-          
+
         # Sum number of mechanics over each control store's window
         windowSpec = Window.partitionBy('ctr_store_var')
-        
+
         ctr_store_sum = store_matching_df_var_tagged.select("*")
-        
+
         for mech in mechanic_list:
           ctr_store_sum = ctr_store_sum.withColumn('sum_ctr_' + mech, F.sum(F.col('flag_ctr_' + mech)).over(windowSpec)).drop('flag_ctr_' + mech)
-          
+
         # Select control stores level only and drop dupes
         ctr_store_sum_only = ctr_store_sum.drop('store_id', 'mech_name').drop_duplicates()
-        
+
         ctr_store_mech_flag = ctr_store_sum_only.select("*")
-        
+
         # Turn into Boolean columns
         for mech in mechanic_list:
           ctr_store_mech_flag = ctr_store_mech_flag.withColumn('ctr_' + mech, F.when(F.col('sum_ctr_' + mech) > 0, 1).otherwise(0)).drop('sum_ctr_' + mech)
-          
+
         ctr_store_mech_flag = ctr_store_mech_flag.withColumnRenamed('ctr_store_var', 'store_id')
-          
+
         filled_ctrl_store_sf_with_mech = filled_ctrl_store_sf.join(ctr_store_mech_flag, on='store_id', how='left')
-        
+
         filled_ctrl_store_sf_with_mech = filled_ctrl_store_sf_with_mech.drop('c_start', 'c_end')
-        
+
         return filled_ctrl_store_sf_with_mech
 
     def _create_adj_prod_df(txn: SparkDataFrame) -> SparkDataFrame:
@@ -1779,7 +1779,7 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
 #              .drop_duplicates()
 #             )
 #         return out
-      
+
     def _get_all_feat_trans(txn: SparkDataFrame,
                             period_wk_col_nm: str,
                             prd_scope_df: SparkDataFrame
@@ -1796,29 +1796,29 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
              .drop_duplicates()
             )
         return out
-    
+
     # Get the "last seen" mechanic(s) that a shopper saw before they make purchases
-    def _get_activ_mech_last_seen(txn: SparkDataFrame, 
+    def _get_activ_mech_last_seen(txn: SparkDataFrame,
                                   test_store_sf: SparkDataFrame,
                                   ctr_str: SparkDataFrame,
                                   adj_prod_sf: SparkDataFrame,
                                   period_wk_col: str,
-                                  prd_scope_df: SparkDataFrame, 
+                                  prd_scope_df: SparkDataFrame,
                                   cp_start_date: str,
                                   cp_end_date: str,
                                   filled_ctrl_store_sf_with_mech: SparkDataFrame
                                  ) -> SparkDataFrame:
-      
+
         # Get all featured shopping transactions during campaign
         all_feat_trans_item_level = _get_all_feat_trans(txn=txn, period_wk_col_nm=period_wk_col, prd_scope_df=prd_scope_df)
-        
+
         all_feat_trans_trans_level = all_feat_trans_item_level.select('household_id', 'transaction_uid', 'tran_datetime', 'store_id', 'date_id') \
                                                               .filter(F.col('date_id').between(cp_start_date, cp_end_date)) \
                                                               .drop_duplicates()
-        
+
         # Get txn that are only at stores with media and at aisles where media could be found, during time media could be found
         filled_test_store_sf = _create_test_store_sf(test_store_sf=test_store_sf, cp_start_date=cp_start_date, cp_end_date=cp_end_date)
-        
+
         txn_test_store_media_aisles = (txn.where(F.col('household_id').isNotNull())
                                           .where(F.col(period_wk_col).isin(["cmp"]))
                                           .filter(F.col('date_id').between(cp_start_date, cp_end_date))
@@ -1826,71 +1826,71 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
                                           .join(adj_prod_sf.select('upc_id'), on='upc_id', how='inner')
                                           .filter(F.col('offline_online_other_channel') == 'OFFLINE')
                                           .filter(F.col('date_id').between(F.col('c_start'), F.col('c_end')))
-                                          .select('household_id', 'transaction_uid', 'tran_datetime', 'mech_name').drop_duplicates() 
+                                          .select('household_id', 'transaction_uid', 'tran_datetime', 'mech_name').drop_duplicates()
                                           .withColumnRenamed('transaction_uid', 'other_transaction_uid')
                                           .withColumnRenamed('tran_datetime', 'other_tran_datetime'))
-    
-        # For each featured shopping transaction, join with other media-exposed transactions of that customer, 
+
+        # For each featured shopping transaction, join with other media-exposed transactions of that customer,
         # and keep transactions only that happen at or prior to such transaction
         txn_each_purchase = (all_feat_trans_trans_level.join(txn_test_store_media_aisles, on='household_id', how='left')
                                                        .filter(F.col('other_tran_datetime') <= F.col('tran_datetime')))
-          
+
         # For each other transaction, get the difference between the time of that transaction and the featured shopping transaction
         # Rank (ascending) by the difference, and only take the other transaction with the lowest difference i.e. the most recent transaction
         windowSpec = Window.partitionBy('transaction_uid').orderBy(F.col('time_diff'))
-        
+
         txn_each_purchase_rank = (txn_each_purchase.withColumn('time_diff', F.col('tran_datetime') - F.col('other_tran_datetime'))
                                                    .withColumn('recency_rank', F.dense_rank().over(windowSpec)))
-          
+
         txn_each_purchase_most_recent_media_exposed = txn_each_purchase_rank.filter(F.col('recency_rank') == 1).drop_duplicates()
-        
+
         # For each exposed featured product shopper, get the number of times they were exposed to each mechanic
         purchased_exposure_count = txn_each_purchase_most_recent_media_exposed.groupBy('household_id').pivot('mech_name').agg(F.countDistinct(F.col('transaction_uid'))).fillna(0)
-        
+
         # For each mechanic, instead of count, change to flag (0 if no exposure, 1 if exposure regardless of count)
         mech_name_columns = purchased_exposure_count.columns
         mech_name_columns.remove('household_id')
-        
+
         purchased_exposure_flagged = purchased_exposure_count.select("*")
-        
+
         for col in mech_name_columns:
           purchased_exposure_flagged = purchased_exposure_flagged.withColumn(col, F.when(F.col(col) == 0, 0).otherwise(1))
-          
-        # Find Non-exposed Purchased customers by getting transactions happening at Control stores, deducting any exposed customers found previously 
+
+        # Find Non-exposed Purchased customers by getting transactions happening at Control stores, deducting any exposed customers found previously
         all_feat_trans_trans_level_control_store = all_feat_trans_trans_level.join(filled_ctrl_store_sf_with_mech, on='store_id', how='inner')
-        
+
         all_purchased_exposed_shoppers = purchased_exposure_flagged.select('household_id').drop_duplicates()
-        
-        all_feat_trans_trans_level_control_store_nonexposed = all_feat_trans_trans_level_control_store.join(all_purchased_exposed_shoppers, 
+
+        all_feat_trans_trans_level_control_store_nonexposed = all_feat_trans_trans_level_control_store.join(all_purchased_exposed_shoppers,
                                                                                                             on='household_id', how='leftanti')
-        
+
         # For each customer, check from the control stores to see what mechanics are at the matching test stores
         ctr_mech_name_columns = filled_ctrl_store_sf_with_mech.columns
         ctr_mech_name_columns.remove('store_id')
-        
+
         all_purchased_nonexposed_shoppers = all_feat_trans_trans_level_control_store_nonexposed.select('household_id').drop_duplicates()
-        
+
         ctr_mech_count = {}
-        
+
         for ctr_mech in ctr_mech_name_columns:
           mech = ctr_mech[4:]
           ctr_mech_count[ctr_mech] = all_feat_trans_trans_level_control_store_nonexposed.groupBy('household_id').agg(F.sum(F.col(ctr_mech)).alias(mech))
-          
+
           all_purchased_nonexposed_shoppers = all_purchased_nonexposed_shoppers.join(ctr_mech_count[ctr_mech], on='household_id', how='left')
-        
+
         # Convert to boolean
         purchased_nonexposed_shoppers_flagged = all_purchased_nonexposed_shoppers.select("*")
-        
+
         for col in mech_name_columns:
           purchased_nonexposed_shoppers_flagged = purchased_nonexposed_shoppers_flagged.withColumn(col, F.when(F.col(col) == 0, 0).otherwise(1))
-        
+
         # Add Non-exposed Purchased to flagged list, filling all exposed flags with 0
         purchased_custs_flagged = purchased_exposure_flagged.withColumn('group', F.lit('Exposed_Purchased')) \
                                                             .unionByName(purchased_nonexposed_shoppers_flagged.withColumn('group', F.lit('Non_exposed_Purchased')))
-        
+
         return purchased_custs_flagged
-      
-    def _get_non_shpprs_by_mech(txn: SparkDataFrame, 
+
+    def _get_non_shpprs_by_mech(txn: SparkDataFrame,
                                 adj_prod_sf: SparkDataFrame,
                                 cmp_shppr_last_seen: SparkDataFrame,
                                 test_store_sf: SparkDataFrame,
@@ -1900,13 +1900,13 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
                                 period_wk_col: str,
                                 filled_ctrl_store_sf_with_mech: SparkDataFrame
                                ) -> SparkDataFrame:
-        
+
         # Get all adjacent transactions in test and control store - cover all exposed and non-exposed customers
         # For test stores, only have mechanic type if transaction happens within in the campaign period
         filled_test_store_sf = _create_test_store_sf(test_store_sf=test_store_sf, cp_start_date=cp_start_date, cp_end_date=cp_end_date)
-        
+
         test_control_stores = filled_test_store_sf.unionByName(ctr_str, allowMissingColumns=True).fillna('1960-01-01', subset=['c_start', 'c_end'])
-        
+
         txn_all_test_control_adj = (txn.where(F.col('household_id').isNotNull())
                                        .where(F.col(period_wk_col).isin(["cmp"]))
                                        .filter(F.col('date_id').between(cp_start_date, cp_end_date))
@@ -1915,59 +1915,59 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
                                        .filter(F.col('offline_online_other_channel') == 'OFFLINE')
                                        .select('household_id', 'transaction_uid', 'date_id', 'store_id', 'c_start', 'c_end', 'mech_name').drop_duplicates()
                                    )
-        
+
         # Filter out all customers already identified as Purchased
         txn_non_purchased = txn_all_test_control_adj.join(cmp_shppr_last_seen, on='household_id', how='leftanti')
-        
+
         # For remaining Non-Purchased customers, group by and aggregate counts of how many times they have been exposed to each media
         # Only for transaction occuring in test stores during campaign period
         txn_non_purchased_test_dur = txn_non_purchased.filter(F.col('mech_name').isNotNull()).filter(F.col('date_id').between(F.col('c_start'), F.col('c_end')))
         nonpurchased_exposed_count = txn_non_purchased_test_dur.groupBy('household_id').pivot('mech_name').agg(F.countDistinct(F.col('transaction_uid'))).fillna(0)
-        
+
         # For each mechanic, instead of count, change to flag (0 if no exposure, 1 if exposure regardless of count)
         mech_name_columns = nonpurchased_exposed_count.columns
         mech_name_columns.remove('household_id')
-        
+
         nonpurchased_exposed_flagged = nonpurchased_exposed_count
-        
+
         for col in mech_name_columns:
           nonpurchased_exposed_flagged = nonpurchased_exposed_flagged.withColumn(col, F.when(F.col(col) == 0, 0).otherwise(1))
-          
+
         # Find Non-exposed Non-purchased customers by deducting exposed customers from the non-purchase adjacent visit customers list
         all_nonpurchased_exposed_shoppers = nonpurchased_exposed_flagged.select('household_id').drop_duplicates()
-        
+
         all_nonpurchased_nonexposed_transactions = txn_non_purchased.join(all_nonpurchased_exposed_shoppers, on='household_id', how='leftanti')
-        
-        # Tag with Control store mech matching types 
+
+        # Tag with Control store mech matching types
         all_nonpurchased_nonexposed_transactions_tagged = all_nonpurchased_nonexposed_transactions.join(filled_ctrl_store_sf_with_mech,
                                                                                                         on='store_id', how='left')
-        
+
         # For each customer, check from the control stores to see what mechanics are at the matching test stores
         ctr_mech_name_columns = filled_ctrl_store_sf_with_mech.columns
         ctr_mech_name_columns.remove('store_id')
-        
+
         all_nonpurchased_nonexposed_shoppers = all_nonpurchased_nonexposed_transactions_tagged.select('household_id').drop_duplicates()
-        
+
         ctr_mech_count = {}
-        
+
         for ctr_mech in ctr_mech_name_columns:
           mech = ctr_mech[4:]
           ctr_mech_count[ctr_mech] = all_nonpurchased_nonexposed_transactions_tagged.groupBy('household_id').agg(F.sum(F.col(ctr_mech)).alias(mech))
-          
+
           all_nonpurchased_nonexposed_shoppers = all_nonpurchased_nonexposed_shoppers.join(ctr_mech_count[ctr_mech], on='household_id', how='left')
-        
+
         # Convert to boolean
         nonpurchased_nonexposed_shoppers_flagged = all_nonpurchased_nonexposed_shoppers.select("*")
-        
+
         for col in mech_name_columns:
           nonpurchased_nonexposed_shoppers_flagged = nonpurchased_nonexposed_shoppers_flagged.withColumn(col, F.when(F.col(col) == 0, 0).otherwise(1))
-        
+
         # Add Non-exposed Non-purchased to flagged list, filling all exposed flags with 0
         nonpurchased_custs_flagged = nonpurchased_exposed_flagged.withColumn('group', F.lit('Exposed_Non_purchased')) \
                                                                  .unionByName(nonpurchased_nonexposed_shoppers_flagged.withColumn('group', F.lit('Non_exposed_Non_purchased')))
-        
+
         return nonpurchased_custs_flagged
-    
+
 
     def _get_mvmnt_prior_pre(txn: SparkDataFrame,
                              period_wk_col: str,
@@ -1995,7 +1995,7 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
         prior_pre = prior.join(pre, "household_id", "outer").fillna(0)
 
         return prior_pre
-      
+
     def _get_total_cust_per_mech(n_cust_total: SparkDataFrame,
                                  ex_pur_group: str,
                                  movement_and_exposure_by_mech: SparkDataFrame,
@@ -2003,10 +2003,10 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
                                 ) -> SparkDataFrame:
         '''Get total numbers of customers, divided into group New/Existing/Lapse
         '''
-        
+
         n_cust_mech = {}
-        
-        # Get numbers of customers per each mechanic 
+
+        # Get numbers of customers per each mechanic
         for mech in mechanic_list:
           # Get number of customers per each customer type (new/existing/lapse)
           n_cust_mech[mech] = movement_and_exposure_by_mech.filter(F.col('group') == ex_pur_group).filter(F.col(mech) == 1) \
@@ -2021,7 +2021,7 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
                                                .withColumn('customer_group', F.lit('Total')))
 
           n_cust_total = n_cust_total.join(n_cust_mech[mech].select('customer_group', ex_pur_group + '_' + mech), on='customer_group', how='left')
-          
+
         return n_cust_total
 
     #---- Main
@@ -2039,9 +2039,9 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
     period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
     print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
     print("-"*80)
-    
+
     mechanic_list = test_store_sf.select('mech_name').drop_duplicates().rdd.flatMap(lambda x: x).collect()
-    
+
     print("List of detected mechanics from store list: ", mechanic_list)
 
     if cust_uplift_lv == 'brand':
@@ -2055,47 +2055,47 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
 
     ctr_str = _create_ctrl_store_sf(ctr_store_list=ctr_store_list, cp_start_date=cp_start_date, cp_end_date=cp_end_date)
 #     cmp_unexposed = _get_exposed_cust(txn=txn, test_store_sf=ctr_str, adj_prod_sf=adj_prod_sf)
-    
+
     filled_ctrl_store_sf_with_mech = _create_ctrl_store_sf_with_mech(filled_test_store_sf=target_str,
                                                                      filled_ctrl_store_sf=ctr_str,
                                                                      store_matching_df_var=store_matching_df_var,
                                                                      mechanic_list=mechanic_list)
-    
+
     ## Tag exposed media of each shopper
-    cmp_shppr_last_seen = _get_activ_mech_last_seen(txn=txn, test_store_sf=test_store_sf, ctr_str=ctr_str, adj_prod_sf=adj_prod_sf, 
+    cmp_shppr_last_seen = _get_activ_mech_last_seen(txn=txn, test_store_sf=test_store_sf, ctr_str=ctr_str, adj_prod_sf=adj_prod_sf,
                                                     period_wk_col=period_wk_col, prd_scope_df=prd_scope_df,
                                                     cp_start_date=cp_start_date, cp_end_date=cp_end_date,
                                                     filled_ctrl_store_sf_with_mech=filled_ctrl_store_sf_with_mech)
-    
+
     ## Find non-shoppers who are exposed and unexposed
     non_cmp_shppr_exposure = _get_non_shpprs_by_mech(txn=txn, adj_prod_sf=adj_prod_sf, cmp_shppr_last_seen=cmp_shppr_last_seen, test_store_sf=test_store_sf, ctr_str=ctr_str,
                                                      cp_start_date=cp_start_date, cp_end_date=cp_end_date, period_wk_col=period_wk_col,
                                                      filled_ctrl_store_sf_with_mech=filled_ctrl_store_sf_with_mech)
-    
+
     ## Tag each customer by group for shopper group
     ## If no exposure flag in any mechanic, then Non-exposed Purchased
     ## If exposure in any mechanic, then Exposed Purchased
     num_of_mechanics = len(mechanic_list)
-    
-    cmp_shppr_last_seen_tag = cmp_shppr_last_seen.withColumn('total_mechanics_exposed', 
+
+    cmp_shppr_last_seen_tag = cmp_shppr_last_seen.withColumn('total_mechanics_exposed',
                                                              sum(cmp_shppr_last_seen[col] for col in cmp_shppr_last_seen.columns[1:num_of_mechanics+1]))
-    
+
     ## Tag each customer by group for non-shopper group
     ## If no exposure flag in any mechanic, then Non-exposed Non-purchased
     ## If exposure in any mechanic, then Exposed Non-purchased
-    non_cmp_shppr_exposure_tag = non_cmp_shppr_exposure.withColumn('total_mechanics_exposed', 
-                                                                   sum(non_cmp_shppr_exposure[col] for col in non_cmp_shppr_exposure.columns[1:num_of_mechanics+1])) 
-    
+    non_cmp_shppr_exposure_tag = non_cmp_shppr_exposure.withColumn('total_mechanics_exposed',
+                                                                   sum(non_cmp_shppr_exposure[col] for col in non_cmp_shppr_exposure.columns[1:num_of_mechanics+1]))
+
     # Add the two lists together
     exposed_unexposed_buy_flag_by_mech = cmp_shppr_last_seen_tag.unionByName(non_cmp_shppr_exposure_tag)
-    
+
     # Show summary in cell output
     print('exposure groups new logic:')
     exposed_unexposed_buy_flag_by_mech.groupBy('group').pivot('total_mechanics_exposed').agg(F.countDistinct(F.col('household_id'))).fillna(0).show()
-    
+
     ##---- Movement : prior - pre
     prior_pre = _get_mvmnt_prior_pre(txn=txn, period_wk_col=period_wk_col, prd_scope_df=prd_scope_df)
-    
+
     ##---- Flag customer movement and exposure
     movement_and_exposure_by_mech = \
     (exposed_unexposed_buy_flag_by_mech
@@ -2105,20 +2105,20 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
                   .when(F.col('prior_spending')>0,'lapse')
                   .otherwise('new'))
     )
-    
-    
+
+
     # Save and load temp table
     spark.sql('DROP TABLE IF EXISTS tdm_seg.cust_uplift_by_mech_temp')
     movement_and_exposure_by_mech.write.saveAsTable('tdm_seg.cust_uplift_by_mech_temp')
 
     movement_and_exposure_by_mech = spark.table('tdm_seg.cust_uplift_by_mech_temp')
-    
+
     print('customer movement new logic:')
     movement_and_exposure_by_mech.groupBy('customer_group').pivot('group').agg(F.countDistinct('household_id')).show()
-  
-    
+
+
     ##---- Uplift Calculation by mechanic
-    
+
     # Total customers for each exposure tag (Non-exposed Purchased, Non-exposed Non-purchased, Exposed Purchased, Exposed Non-purchased)
     n_cust_total_non_exposed_purchased = movement_and_exposure_by_mech.filter(F.col('group') == 'Non_exposed_Purchased') \
                                                                       .groupBy('customer_group') \
@@ -2127,7 +2127,7 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
                                                                                    .agg(F.countDistinct(F.col('household_id')) \
                                                                                          .alias('Non_exposed_Purchased_all')).fillna(0) \
                                                                                    .withColumn('customer_group', F.lit('Total')))
-    
+
     n_cust_total_non_exposed_non_purchased = movement_and_exposure_by_mech.filter(F.col('group') == 'Non_exposed_Non_purchased') \
                                                                           .groupBy('customer_group') \
                                                                           .agg(F.countDistinct(F.col('household_id')).alias('Non_exposed_Non_purchased_all')) \
@@ -2135,8 +2135,8 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
                                                                                        .agg(F.countDistinct(F.col('household_id')) \
                                                                                              .alias('Non_exposed_Non_purchased_all')).fillna(0) \
                                                                                        .withColumn('customer_group', F.lit('Total')))
-    
-    
+
+
     n_cust_total_exposed_purchased = movement_and_exposure_by_mech.filter(F.col('group') == 'Exposed_Purchased') \
                                                                   .groupBy('customer_group') \
                                                                   .agg(F.countDistinct(F.col('household_id')).alias('Exposed_Purchased_all')) \
@@ -2144,9 +2144,9 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
                                                                                .agg(F.countDistinct(F.col('household_id')) \
                                                                                      .alias('Exposed_Purchased_all')).fillna(0) \
                                                                                .withColumn('customer_group', F.lit('Total')))
-    
-    
-    
+
+
+
     n_cust_total_exposed_non_purchased = movement_and_exposure_by_mech.filter(F.col('group') == 'Exposed_Non_purchased') \
                                                                       .groupBy('customer_group') \
                                                                       .agg(F.countDistinct(F.col('household_id')).alias('Exposed_Non_purchased_all'))\
@@ -2154,9 +2154,9 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
                                                                                    .agg(F.countDistinct(F.col('household_id')) \
                                                                                          .alias('Exposed_Non_purchased_all')).fillna(0) \
                                                                                    .withColumn('customer_group', F.lit('Total')))
-    
 
-    
+
+
     # Total customers for Exposed Purchased and Exposed Non-purchased per each mechanic (if more than 1 mechanic)
     if num_of_mechanics > 1:
 
@@ -2164,79 +2164,79 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
                                                                 ex_pur_group='Exposed_Purchased',
                                                                 movement_and_exposure_by_mech=movement_and_exposure_by_mech,
                                                                 mechanic_list=mechanic_list)
-      
+
       n_cust_total_exposed_non_purchased = _get_total_cust_per_mech(n_cust_total=n_cust_total_exposed_non_purchased,
                                                                     ex_pur_group='Exposed_Non_purchased',
                                                                     movement_and_exposure_by_mech=movement_and_exposure_by_mech,
                                                                     mechanic_list=mechanic_list)
-      
+
       n_cust_total_non_exposed_purchased = _get_total_cust_per_mech(n_cust_total=n_cust_total_non_exposed_purchased,
                                                                     ex_pur_group='Non_exposed_Purchased',
                                                                     movement_and_exposure_by_mech=movement_and_exposure_by_mech,
                                                                     mechanic_list=mechanic_list)
-      
+
       n_cust_total_non_exposed_non_purchased = _get_total_cust_per_mech(n_cust_total=n_cust_total_non_exposed_non_purchased,
                                                                         ex_pur_group='Non_exposed_Non_purchased',
                                                                         movement_and_exposure_by_mech=movement_and_exposure_by_mech,
                                                                         mechanic_list=mechanic_list)
 
-    
+
     combine_n_cust = n_cust_total_non_exposed_purchased.join(n_cust_total_non_exposed_non_purchased, on='customer_group', how='left') \
                                                        .join(n_cust_total_exposed_purchased, on='customer_group', how='left') \
                                                        .join(n_cust_total_exposed_non_purchased, on='customer_group', how='left')
-    
+
 #     combine_n_cust.show()
 
-    
+
     ## Conversion and Uplift New Logic
     # Get basic calcuations of conversion rates, uplift percent and number of customers
     results = combine_n_cust.withColumn('uplift_lv', F.lit(cust_uplift_lv)) \
-                            .withColumn('cvs_rate_exposed_all_mech', 
+                            .withColumn('cvs_rate_exposed_all_mech',
                                         F.col('Exposed_Purchased_all') / (F.col('Exposed_Purchased_all') + F.col('Exposed_Non_purchased_all'))) \
                             .withColumn('cvs_rate_unexposed_all_mech',
                                         F.col('Non_exposed_Purchased_all') / (F.col('Non_exposed_Purchased_all') + F.col('Non_exposed_Non_purchased_all'))) \
                             .withColumn('pct_uplift_all_mech',
                                         (F.col('cvs_rate_exposed_all_mech') / (F.col('cvs_rate_unexposed_all_mech'))) - 1) \
                             .withColumn('uplift_cust_all_mech',
-                                        (F.col('cvs_rate_exposed_all_mech') - F.col('cvs_rate_unexposed_all_mech')) * 
-                                        (F.col('Exposed_Purchased_all') + F.col('Exposed_Non_purchased_all'))) 
-    
+                                        (F.col('cvs_rate_exposed_all_mech') - F.col('cvs_rate_unexposed_all_mech')) *
+                                        (F.col('Exposed_Purchased_all') + F.col('Exposed_Non_purchased_all')))
+
     # Get only positive customer uplift for each customer group (New/Lapse/Existing)
     pstv_cstmr_uplift_all_mech_col = results.select('customer_group', 'uplift_cust_all_mech').filter("customer_group <> 'Total'") \
                                             .withColumn('pstv_cstmr_uplift_all_mech',
                                                         F.when(F.col('uplift_cust_all_mech') > 0, F.col('uplift_cust_all_mech')).otherwise(0))
-    
+
     # Get Total customer uplift, ignoring negative values
     pstv_cstmr_uplift_all_mech_col = pstv_cstmr_uplift_all_mech_col.select('customer_group', 'pstv_cstmr_uplift_all_mech') \
                                                                    .unionByName(pstv_cstmr_uplift_all_mech_col.agg(F.sum(F.col('pstv_cstmr_uplift_all_mech')) \
                                                                                                                     .alias('pstv_cstmr_uplift_all_mech')).fillna(0) \
                                                                                                               .withColumn('customer_group', F.lit('Total')))
-    
+
     results = results.join(pstv_cstmr_uplift_all_mech_col.select('customer_group', 'pstv_cstmr_uplift_all_mech'), on='customer_group', how='left')
-    
+
     # Recalculate uplift using total positive customers
-    results = results.withColumn('pct_positive_cust_uplift_all_mech', 
-                                 (F.col('pstv_cstmr_uplift_all_mech') / (F.col('Exposed_Purchased_all') + F.col('Exposed_Non_purchased_all'))) / F.col('cvs_rate_unexposed_all_mech')) 
-    
+    results = results.withColumn('pct_positive_cust_uplift_all_mech',
+                                 (F.col('pstv_cstmr_uplift_all_mech') / (F.col('Exposed_Purchased_all') + F.col('Exposed_Non_purchased_all'))) / F.col('cvs_rate_unexposed_all_mech'))
+
     # Repeat for all mechanics if multiple mechanics
     if num_of_mechanics > 1:
-      
+
       mech_result = {}
       pstv_cstmr_uplift_col = {}
-      
+
       for mech in mechanic_list:
         mech_result[mech] = combine_n_cust.join(results.select('customer_group', 'cvs_rate_unexposed_all_mech'), on='customer_group', how='left') \
-                                          .withColumn('cvs_rate_exposed_' + mech, 
-                                                      F.col('Exposed_Purchased_' + mech) / 
+                                          .withColumn('cvs_rate_exposed_' + mech,
+                                                      F.col('Exposed_Purchased_' + mech) /
                                                       (F.col('Exposed_Purchased_' + mech) + F.col('Exposed_Non_purchased_' + mech))) \
                                           .withColumn('cvs_rate_unexposed_' + mech,
                                                       F.col('Non_exposed_Purchased_' + mech) / (F.col('Non_exposed_Purchased_' + mech) + F.col('Non_exposed_Non_purchased_' + mech))) \
                                           .withColumn('pct_uplift_' + mech,
                                                       (F.col('cvs_rate_exposed_' + mech) / (F.col('cvs_rate_unexposed_' + mech))) - 1) \
                                           .withColumn('uplift_cust_' + mech,
-                                                      (F.col('cvs_rate_exposed_' + mech) - F.col('cvs_rate_unexposed_' + mech)) * 
+                                                      (F.col('cvs_rate_exposed_' + mech) - F.col('cvs_rate_unexposed_' + mech)) *
                                                       (F.col('Exposed_Purchased_' + mech) + F.col('Exposed_Non_purchased_' + mech)))
-        
+
         pstv_cstmr_uplift_col[mech] = mech_result[mech].select('customer_group', 'uplift_cust_' + mech).filter("customer_group <> 'Total'") \
                                                        .withColumn('pstv_cstmr_uplift_' + mech,
                                                                    F.when(F.col('uplift_cust_' + mech) > 0, F.col('uplift_cust_' + mech)).otherwise(0))
@@ -2245,14 +2245,14 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
                                                                  .unionByName(pstv_cstmr_uplift_col[mech].agg(F.sum(F.col('pstv_cstmr_uplift_' + mech)) \
                                                                                                                .alias('pstv_cstmr_uplift_' + mech)).fillna(0) \
                                                                                                          .withColumn('customer_group', F.lit('Total')))
-        
+
         mech_result[mech] = mech_result[mech].join(pstv_cstmr_uplift_col[mech].select('customer_group', 'pstv_cstmr_uplift_' + mech), on='customer_group', how='left')
-    
-        mech_result[mech] = mech_result[mech].withColumn('pct_positive_cust_uplift_' + mech, 
-                                                         (F.col('pstv_cstmr_uplift_' + mech) / 
+
+        mech_result[mech] = mech_result[mech].withColumn('pct_positive_cust_uplift_' + mech,
+                                                         (F.col('pstv_cstmr_uplift_' + mech) /
                                                           (F.col('Exposed_Purchased_' + mech) + F.col('Exposed_Non_purchased_' + mech))) /
                                                          F.col('cvs_rate_unexposed_' + mech))
-    
+
         results = results.join(mech_result[mech].select('customer_group',
                                                         'cvs_rate_exposed_' + mech,
                                                         'cvs_rate_unexposed_' + mech,
@@ -2261,7 +2261,7 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
                                                         'pstv_cstmr_uplift_' + mech,
                                                         'pct_positive_cust_uplift_' + mech),
                                on='customer_group', how='left')
-      
+
     # Sort row order , export as SparkFrame
     df = results.toPandas()
     sort_dict = {"new":0, "existing":1, "lapse":2, "Total":3}
@@ -2671,7 +2671,7 @@ def get_cust_cltv(txn: SparkDataFrame,
 
             brand_nm_txt = str(brand_nm_txt)
             cate_nm_txt  = str(cate_nm_txt)
-            
+
             brand_csr = __get_avg_multi_brand_svv(brand_csr_sf=brand_csr_initial, cate_nm_txt=cate_nm_txt, brand_nm_txt=brand_nm_txt)
             # brand_csr_df = brand_csr.toPandas()
 
