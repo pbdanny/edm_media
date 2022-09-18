@@ -1,8 +1,10 @@
-from typing import List
 from copy import deepcopy
 from datetime import datetime, timedelta
 import functools
+from typing import List
 
+import pandas as pd
+from pandas import DataFrame as PandasDataFrame
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql import types as T
@@ -10,9 +12,6 @@ from pyspark.sql import Window
 from pyspark.sql import DataFrame as SparkDataFrame
 
 from pyspark.dbutils import DBUtils
-
-import pandas as pd
-from pandas import DataFrame as PandasDataFrame
 
 spark = SparkSession.builder.appName("media_eval").getOrCreate()
 dbutils = DBUtils(spark)
@@ -258,7 +257,6 @@ def get_cust_activated(txn: SparkDataFrame,
 
     return cmp_brand_activated, cmp_sku_activated
 
-@print_dev
 def get_cust_activated_by_mech(txn: SparkDataFrame,
                                cp_start_date: str,
                                cp_end_date: str,
@@ -632,6 +630,7 @@ def get_cust_movement(txn: SparkDataFrame,
         print('Not recognized Movement and Switching level param')
         return None, None
 
+@print_dev
 def get_cust_brand_switching_and_penetration(
         txn: SparkDataFrame,
         switching_lv: str,
@@ -656,6 +655,55 @@ def get_cust_brand_switching_and_penetration(
         else:
             period_wk_col_nm = "period_fis_wk"
         return period_wk_col_nm
+
+    def _combine_col_value_as_str(sf, col_nm):
+        """
+        Find unique value in col_nm, create string of combined column
+        """
+        unique_val_sf = sf.select(col_nm).drop_duplicates()
+        df = unique_val_sf.toPandas()
+        str_comb = str(df[col_nm].to_numpy().tolist())
+
+        return str_comb
+
+    def _combine_feature_brand(txn, brand_df):
+        """
+        Combine class_id, class_name, subclass_id, subclass_nm
+        of all product in features brand
+        """
+        hier_details = \
+        (txn
+        .where(F.col('household_id').isNotNull())
+        .where(F.col(period_wk_col).isin(['pre', 'ppp']))
+        .join(brand_df, "upc_id", "inner")
+        .select("class_code", "class_name",
+                "subclass_code", "subclass_name")
+        .drop_duplicates()
+        )
+
+        hier_details.display()
+
+        comb_class_nm = _combine_col_value_as_str(hier_details, "class_name")
+        comb_subclass_nm = _combine_col_value_as_str(hier_details, "subclass_name")
+
+        hier_combine = (hier_details
+                        .withColumn("comb_class_name", F.lit(comb_class_nm))
+                        .withColumn("comb_subclass_name", F.lit(comb_subclass_nm))
+                        .drop("class_name", "subclass_name")
+                    )
+
+        hier_combine.display()
+
+        txn_combine = (
+            txn.join(hier_combine, ["class_code", "subclass_code"], "left")
+            .withColumn("new_class_name", F.coalesce("comb_class_name", "class_name"))
+            .withColumn("new_subclass_name", F.coalesce("comb_subclass_name", "subclass_name"))
+            .drop("class_name", "subclass_name")
+            .withColumnRenamed("new_class_name", "class_name")
+            .withColumnRenamed("new_subclass_name", "subclass_name")
+        )
+
+        return txn_combine
 
     ## Customer Switching by Sai
     def _switching(switching_lv:str, micro_flag: str, cust_movement_sf: SparkDataFrame,
@@ -691,8 +739,8 @@ def get_cust_brand_switching_and_penetration(
             cust_micro_df2 = \
             (cust_micro_df
              .groupby('division_name','department_name','section_name',
-                      'class_name',
-                      # 'subclass_name',
+                      'class_name', # support multi subclass
+                      'subclass_name', # support multi subclass
                       F.col('brand_name').alias('original_brand'),
                       'customer_macro_flag','customer_micro_flag')
              .agg(F.sum('brand_spend_'+period).alias('total_ori_brand_spend'),
@@ -704,7 +752,7 @@ def get_cust_brand_switching_and_penetration(
             cust_micro_df2 = \
             (cust_micro_df
              .groupby('division_name','department_name','section_name',
-                      'class_name', # TO BE DONE support for multi-class
+                      'class_name', # support multi subclass
                       F.col('brand_name').alias('original_brand'),
                       'customer_macro_flag','customer_micro_flag')
              .agg(F.sum('brand_spend_'+period).alias('total_ori_brand_spend'),
@@ -715,6 +763,7 @@ def get_cust_brand_switching_and_penetration(
         #---- To be done : if switching at multi class
         # elif prod_lev == 'class':
         #     micro_df_summ = cust_micro_df2.join(cust_micro_kpi_prod_lv, on='section_name', how='inner')
+
         else:
             micro_df_summ = spark.createDataFrame([],[])
 
@@ -722,14 +771,13 @@ def get_cust_brand_switching_and_penetration(
         switching_result = \
         (micro_df_summ
          .select('division_name','department_name','section_name',
-                 'class_name', # TO BE DONE support for multi-class
+                 'class_name', # support multi subclass
+                 'subclass_name', # support multi subclass
                  'original_brand',
                  'customer_macro_flag','customer_micro_flag','total_ori_brand_cust','total_ori_brand_spend',
                  'oth_'+full_prod_lev,'oth_'+prod_lev+'_customers','oth_'+prod_lev+'_spend','total_oth_'+prod_lev+'_spend')
          .withColumn('pct_cust_oth_'+full_prod_lev, F.col('oth_'+prod_lev+'_customers')/F.col('total_ori_brand_cust'))
          .withColumn('pct_spend_oth_'+full_prod_lev, F.col('oth_'+prod_lev+'_spend')/F.col('total_oth_'+prod_lev+'_spend'))
-        #  .orderBy(F.col('pct_cust_oth_'+full_prod_lev).desc(),
-                #   F.col('pct_spend_oth_'+full_prod_lev).desc()
         )
 
         switching_result = switching_result.checkpoint()
@@ -786,11 +834,16 @@ def get_cust_brand_switching_and_penetration(
         )
 
         cust_movement_pre_dur_spend = cust_movement_sf.join(pre_dur_band_spend, 'household_id', 'left')
+
+        # Create combine class_name, subclass_name of features brand in switching lv
+
+
+
         new_to_brand_switching_from = _switching(switching_lv, 'new_to_brand',
                                                  cust_movement_pre_dur_spend,
                                                  prior_pre_cc_txn_prd_scope,
                                                # ['subclass_name', 'brand_name'],
-                                                 ["class_name", 'brand_name'], # TO BE DONE : support for multi-subclass
+                                                 ["class_name", "subclass_name", 'brand_name'], # test support for multi class & subclass
                                                  'brand', 'brand_in_category', 'brand_name', 'dur')
         # Brand penetration within subclass
         dur_prd_scope_cust = dur_cc_txn_prd_scope.agg(F.countDistinct('household_id')).collect()[0][0]
@@ -1743,43 +1796,6 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
         out = txn.select("upc_id").drop_duplicates().checkpoint()
         return out
 
-#     def _get_exposed_cust(txn: SparkDataFrame,
-#                           test_store_sf: SparkDataFrame,
-#                           adj_prod_sf: SparkDataFrame,
-#                           channel: str = "OFFLINE"
-#                           ) -> SparkDataFrame:
-#         """Get exposed customer & first exposed date
-#         """
-#         out = \
-#             (txn
-#              .where(F.col("channel")==channel)
-#              .where(F.col("household_id").isNotNull())
-#              .join(test_store_sf, "store_id","inner") # Mapping cmp_start, cmp_end, mech_count by store
-#              .join(adj_prod_sf, "upc_id", "inner")
-#              .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
-#              .groupBy("household_id")
-#              .agg(F.min("date_id").alias("first_exposed_date"))
-#             )
-#         return out
-
-#     def _get_shppr(txn: SparkDataFrame,
-#                    period_wk_col_nm: str,
-#                    prd_scope_df: SparkDataFrame
-#                    ) -> SparkDataFrame:
-#         """Get first brand shopped date or feature shopped date, based on input upc_id
-#         Shopper in campaign period at any store format & any channel
-#         """
-#         out = \
-#             (txn
-#              .where(F.col('household_id').isNotNull())
-#              .where(F.col(period_wk_col_nm).isin(["cmp"]))
-#              .join(prd_scope_df, 'upc_id')
-#              .groupBy('household_id')
-#              .agg(F.min('date_id').alias('first_shp_date'))
-#              .drop_duplicates()
-#             )
-#         return out
-
     def _get_all_feat_trans(txn: SparkDataFrame,
                             period_wk_col_nm: str,
                             prd_scope_df: SparkDataFrame
@@ -2051,10 +2067,10 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
 
     ##---- Expose - UnExpose : Flag customer
     target_str = _create_test_store_sf(test_store_sf=test_store_sf, cp_start_date=cp_start_date, cp_end_date=cp_end_date)
-#     cmp_exposed = _get_exposed_cust(txn=txn, test_store_sf=target_str, adj_prod_sf=adj_prod_sf)
+    #     cmp_exposed = _get_exposed_cust(txn=txn, test_store_sf=target_str, adj_prod_sf=adj_prod_sf)
 
     ctr_str = _create_ctrl_store_sf(ctr_store_list=ctr_store_list, cp_start_date=cp_start_date, cp_end_date=cp_end_date)
-#     cmp_unexposed = _get_exposed_cust(txn=txn, test_store_sf=ctr_str, adj_prod_sf=adj_prod_sf)
+    #     cmp_unexposed = _get_exposed_cust(txn=txn, test_store_sf=ctr_str, adj_prod_sf=adj_prod_sf)
 
     filled_ctrl_store_sf_with_mech = _create_ctrl_store_sf_with_mech(filled_test_store_sf=target_str,
                                                                      filled_ctrl_store_sf=ctr_str,
@@ -2185,7 +2201,7 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
                                                        .join(n_cust_total_exposed_purchased, on='customer_group', how='left') \
                                                        .join(n_cust_total_exposed_non_purchased, on='customer_group', how='left')
 
-#     combine_n_cust.show()
+    #     combine_n_cust.show()
 
 
     ## Conversion and Uplift New Logic
