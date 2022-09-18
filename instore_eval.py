@@ -836,8 +836,7 @@ def get_cust_brand_switching_and_penetration(
         cust_movement_pre_dur_spend = cust_movement_sf.join(pre_dur_band_spend, 'household_id', 'left')
 
         # Create combine class_name, subclass_name of features brand in switching lv
-
-
+        comb_prior_pre_cc_txn_prd_scope = _combine_feature_brand(prior_pre_cc_txn_prd_scope, brand_df)
 
         new_to_brand_switching_from = _switching(switching_lv, 'new_to_brand',
                                                  cust_movement_pre_dur_spend,
