@@ -655,55 +655,6 @@ def get_cust_brand_switching_and_penetration(
             period_wk_col_nm = "period_fis_wk"
         return period_wk_col_nm
 
-    def _combine_col_value_as_str(sf, col_nm):
-        """
-        Find unique value in col_nm, create string of combined column
-        """
-        unique_val_sf = sf.select(col_nm).drop_duplicates()
-        df = unique_val_sf.toPandas()
-        str_comb = str(df[col_nm].to_numpy().tolist())
-
-        return str_comb
-
-    def _combine_feature_brand(txn, brand_df):
-        """
-        Combine class_id, class_name, subclass_id, subclass_nm
-        of all product in features brand
-        """
-        hier_details = \
-        (txn
-        .where(F.col('household_id').isNotNull())
-        .where(F.col(period_wk_col).isin(['pre', 'ppp']))
-        .join(brand_df, "upc_id", "inner")
-        .select("class_code", "class_name",
-                "subclass_code", "subclass_name")
-        .drop_duplicates()
-        )
-
-        hier_details.display()
-
-        comb_class_nm = _combine_col_value_as_str(hier_details, "class_name")
-        comb_subclass_nm = _combine_col_value_as_str(hier_details, "subclass_name")
-
-        hier_combine = (hier_details
-                        .withColumn("comb_class_name", F.lit(comb_class_nm))
-                        .withColumn("comb_subclass_name", F.lit(comb_subclass_nm))
-                        .drop("class_name", "subclass_name")
-                    )
-
-        hier_combine.display()
-
-        txn_combine = (
-            txn.join(hier_combine, ["class_code", "subclass_code"], "left")
-            .withColumn("new_class_name", F.coalesce("comb_class_name", "class_name"))
-            .withColumn("new_subclass_name", F.coalesce("comb_subclass_name", "subclass_name"))
-            .drop("class_name", "subclass_name")
-            .withColumnRenamed("new_class_name", "class_name")
-            .withColumnRenamed("new_subclass_name", "subclass_name")
-        )
-
-        return txn_combine
-
     ## Customer Switching by Sai
     def _switching(switching_lv:str, micro_flag: str, cust_movement_sf: SparkDataFrame,
                    prod_trans: SparkDataFrame, grp: List,
@@ -738,8 +689,8 @@ def get_cust_brand_switching_and_penetration(
             cust_micro_df2 = \
             (cust_micro_df
              .groupby('division_name','department_name','section_name',
-                      'class_name', # support multi subclass
-                      'subclass_name', # support multi subclass
+                      'class_name',
+                      # 'subclass_name',
                       F.col('brand_name').alias('original_brand'),
                       'customer_macro_flag','customer_micro_flag')
              .agg(F.sum('brand_spend_'+period).alias('total_ori_brand_spend'),
@@ -751,7 +702,7 @@ def get_cust_brand_switching_and_penetration(
             cust_micro_df2 = \
             (cust_micro_df
              .groupby('division_name','department_name','section_name',
-                      'class_name', # support multi subclass
+                      'class_name', # TO BE DONE support for multi-class
                       F.col('brand_name').alias('original_brand'),
                       'customer_macro_flag','customer_micro_flag')
              .agg(F.sum('brand_spend_'+period).alias('total_ori_brand_spend'),
@@ -762,7 +713,6 @@ def get_cust_brand_switching_and_penetration(
         #---- To be done : if switching at multi class
         # elif prod_lev == 'class':
         #     micro_df_summ = cust_micro_df2.join(cust_micro_kpi_prod_lv, on='section_name', how='inner')
-
         else:
             micro_df_summ = spark.createDataFrame([],[])
 
@@ -770,13 +720,14 @@ def get_cust_brand_switching_and_penetration(
         switching_result = \
         (micro_df_summ
          .select('division_name','department_name','section_name',
-                 'class_name', # support multi subclass
-                 'subclass_name', # support multi subclass
+                 'class_name', # TO BE DONE support for multi-class
                  'original_brand',
                  'customer_macro_flag','customer_micro_flag','total_ori_brand_cust','total_ori_brand_spend',
                  'oth_'+full_prod_lev,'oth_'+prod_lev+'_customers','oth_'+prod_lev+'_spend','total_oth_'+prod_lev+'_spend')
          .withColumn('pct_cust_oth_'+full_prod_lev, F.col('oth_'+prod_lev+'_customers')/F.col('total_ori_brand_cust'))
          .withColumn('pct_spend_oth_'+full_prod_lev, F.col('oth_'+prod_lev+'_spend')/F.col('total_oth_'+prod_lev+'_spend'))
+        #  .orderBy(F.col('pct_cust_oth_'+full_prod_lev).desc(),
+                #   F.col('pct_spend_oth_'+full_prod_lev).desc()
         )
 
         switching_result = switching_result.checkpoint()
@@ -833,15 +784,11 @@ def get_cust_brand_switching_and_penetration(
         )
 
         cust_movement_pre_dur_spend = cust_movement_sf.join(pre_dur_band_spend, 'household_id', 'left')
-
-        # Create combine class_name, subclass_name of features brand in switching lv
-        comb_prior_pre_cc_txn_prd_scope = _combine_feature_brand(prior_pre_cc_txn_prd_scope, brand_df)
-
         new_to_brand_switching_from = _switching(switching_lv, 'new_to_brand',
                                                  cust_movement_pre_dur_spend,
                                                  prior_pre_cc_txn_prd_scope,
                                                # ['subclass_name', 'brand_name'],
-                                                 ["class_name", "subclass_name", 'brand_name'], # test support for multi class & subclass
+                                                 ["class_name", 'brand_name'], # TO BE DONE : support for multi-subclass
                                                  'brand', 'brand_in_category', 'brand_name', 'dur')
         # Brand penetration within subclass
         dur_prd_scope_cust = dur_cc_txn_prd_scope.agg(F.countDistinct('household_id')).collect()[0][0]
