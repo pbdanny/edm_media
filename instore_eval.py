@@ -878,6 +878,9 @@ def get_cust_brand_switching_and_penetration(
 def get_cust_brand_switching_and_penetration_multi(
         txn: SparkDataFrame,
         switching_lv: str,
+        brand_df: SparkDataFrame,
+        class_df: SparkDataFrame,
+        sclass_df: SparkDataFrame,
         cate_df: SparkDataFrame,
         cust_movement_sf: SparkDataFrame,
         wk_type: str,
@@ -885,7 +888,6 @@ def get_cust_brand_switching_and_penetration_multi(
     """Media evaluation solution, customer switching
     """
     spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
-
     #---- Helper fn
     def _get_period_wk_col_nm(wk_type: str
                               ) -> str:
@@ -907,18 +909,19 @@ def get_cust_brand_switching_and_penetration_multi(
     period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
     print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
     print("-"*80)
-
+    
     new_to_brand_cust = cust_movement_sf.where(F.col('customer_micro_flag') == "new_to_brand")
-
+    n_new_to_brand_cust = cust_movement_sf.where(F.col('customer_micro_flag') == "new_to_brand").agg(F.count_distinct("household_id")).collect()[0][0]
+    
     prior_pre_new_to_brand_txn_in_cate = \
     (txn
      .where(F.col('household_id').isNotNull())
      .where(F.col(period_wk_col).isin(['pre', 'ppp']))
-
+     
      .join(new_to_brand_cust, "household_id", "inner")
      .join(cate_df, "upc_id", "inner")
     )
-
+    prior_pre_new_to_brand_txn_in_cate.agg(F.count_distinct("household_id")).display()
     combine_hier = \
     (prior_pre_new_to_brand_txn_in_cate
      .select("brand_name", F.concat_ws("_", "division_name", "department_name", "section_name", "class_name", "subclass_name").alias("comb_hier"))
@@ -926,25 +929,24 @@ def get_cust_brand_switching_and_penetration_multi(
      .agg(F.collect_set("comb_hier").alias("category"))
      .select("brand_name", "category")
     )
-    # combine_hier.display()
-
+    
     pre_new_to_brand_cate_cust = prior_pre_new_to_brand_txn_in_cate.agg(F.count_distinct("household_id")).collect()[0][0]
     pre_brand_in_cate = \
     (prior_pre_new_to_brand_txn_in_cate
      .groupBy("brand_name")
      .agg(F.count_distinct("household_id").alias("pre_brand_switch_cust"))
-     .withColumn("pre_total_cate_switch_cust", F.lit(pre_new_to_brand_cate_cust))
-     .withColumn("prop_cust_switch", F.col("pre_brand_switch_cust")/F.col("pre_total_cate_switch_cust"))
+     .withColumn("new_to_brand_cust", F.lit(n_new_to_brand_cust))
+     .withColumn("prop_cust_switch", F.col("pre_brand_switch_cust")/F.col("new_to_brand_cust"))
     )
     #pre_brand_in_cate.display()
-
+    
     prior_pre_txn_in_cate = \
     (txn
      .where(F.col('household_id').isNotNull())
      .where(F.col(period_wk_col).isin(['pre', 'ppp']))
      .join(cate_df, "upc_id", "inner")
     )
-
+    
     pre_cate_cust = prior_pre_txn_in_cate.agg(F.count_distinct("household_id")).collect()[0][0]
     pre_brand_cust_pen = \
     (prior_pre_txn_in_cate
@@ -953,16 +955,17 @@ def get_cust_brand_switching_and_penetration_multi(
      .withColumn("pre_total_cate_cust", F.lit(pre_cate_cust))
      .withColumn("cust_pen", F.col("pre_brand_cust")/F.col("pre_total_cate_cust"))
     )
-
-    pre_switch_pen = \
+    
+    switch_pen = \
     (pre_brand_in_cate.join(pre_brand_cust_pen, "brand_name", "inner")
      .withColumn("switching_idx", F.col("prop_cust_switch")/F.col("cust_pen"))
      .join(combine_hier,  "brand_name", "inner")
      .orderBy(F.col("prop_cust_switch").desc_nulls_last())
+     .withColumnRenamed("brand_name", "pre_brand_name")
     )
-    pre_switch_pen.display()
-
-    return pre_switch_pen
+    # switch_pen.display()
+    
+    return switch_pen
 
 def get_cust_sku_switching(
         txn: SparkDataFrame,
