@@ -2790,7 +2790,12 @@ def get_cust_cltv(txn: SparkDataFrame,
 
     # ---- CLTV
     # Total uplift
-    total_uplift = uplift_brand.where(F.col("customer_group")=="Total").select("pstv_cstmr_uplift").collect()[0][0]
+    try:
+        # support new customer uplift by mech
+        total_uplift = uplift_brand.where(F.col("mechanic")=="all").where(F.col("customer_group")=="Total").select("pstv_cstmr_uplift").collect()[0][0]
+    except:
+        # Fall back to old customer uplift mech
+        total_uplift = uplift_brand.where(F.col("customer_group")=="Total").select("pstv_cstmr_uplift").collect()[0][0]
 
     # Pre-calculated onetime
     one_time_ratio = brand_csr_df.one_time_ratio[0]
