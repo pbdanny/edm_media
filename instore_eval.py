@@ -3,6 +3,9 @@ from datetime import datetime, timedelta
 import functools
 from typing import List
 
+import sys
+import os
+
 import pandas as pd
 from pandas import DataFrame as PandasDataFrame
 from pyspark.sql import SparkSession
@@ -15,6 +18,9 @@ from pyspark.dbutils import DBUtils
 
 spark = SparkSession.builder.appName("media_eval").getOrCreate()
 dbutils = DBUtils(spark)
+
+sys.path.append(os.path.abspath("/Workspace/Repos/thanakrit.boonquarmdee@lotuss.com/edm_util"))
+from edm_helper import get_lag_wk_id, to_pandas
 
 def print_dev(func):
     @functools.wraps(func)
@@ -275,9 +281,6 @@ def get_cust_activated(txn: SparkDataFrame,
         
         return actv_sales_df, sum_actv_sales_df
     
-    ## End def
-    
-    
     #---- Main
     print("-"*80)
     print("Customer Media Exposed -> Activated")
@@ -334,8 +337,6 @@ def get_cust_activated(txn: SparkDataFrame,
     sku_activated_sum.display()
 
     return brand_activated_info, sku_activated_info, brand_activated_sum, sku_activated_sum
-
-## end def  
 
 def get_cust_movement(txn: SparkDataFrame,
                       wk_type: str,
@@ -1041,6 +1042,260 @@ def get_profile_truprice(txn: SparkDataFrame,
     idx_tp = spark.createDataFrame(df)
 
     return idx_tp
+
+@print_dev
+def get_store_matching(txn: SparkDataFrame,
+                       pre_en_wk: int,
+                       wk_type: str,
+                       feat_sf: SparkDataFrame,
+                       brand_df: SparkDataFrame,
+                       sclass_df: SparkDataFrame,
+                       test_store_sf: SparkDataFrame,
+                       reserved_store_sf: SparkDataFrame,
+                       matching_methodology: str = 'varience') -> List:
+    """
+    Parameters
+    ----------
+    txn: sparkDataFrame
+        
+    pre_en_wk: End pre_period week --> yyyymm
+        Pre period end week
+    
+    store_matching_lv: str
+        'brand' or 'sku'
+    
+    brand_df: sparkDataFrame
+        sparkDataFrame contain all analysis SKUs of brand (at switching level)
+
+    sclass_df: sparkDataFrame
+        sparkDataFrame contain all analysis SKUs of subclass (at switching level)
+
+    sel_sku: List,
+        List of feature product (sku_id)
+        
+    test_store_sf: sparkDataFrame
+        Media features store list
+        
+    reserved_store_sf: sparkDataFrame
+        Customer picked reserved store list, for finding store matching -> control store
+        
+    matching_methodology: str, default 'varience'
+        'variance', 'euclidean', 'cosine_similarity'
+    """
+    from pyspark.sql import functions as F
+    
+    from sklearn.metrics import auc
+    from sklearn.preprocessing import StandardScaler
+
+    from scipy.spatial import distance
+    import statistics as stats
+    from sklearn.metrics.pairwise import cosine_similarity
+    
+    #--- Helper fn
+    def _get_period_wk_col_nm(wk_type: str
+                              ) -> str:
+        """Column name for period week identification
+        """
+        if wk_type in ["promo_week"]:
+            period_wk_col_nm = "period_promo_wk"
+        elif wk_type in ["promozone"]:
+            period_wk_col_nm = "period_promo_mv_wk"
+        else:
+            period_wk_col_nm = "period_fis_wk"
+            
+        return period_wk_col_nm
+    
+    def _get_min_wk_sales(prod_scope_df: SparkDataFrame,
+                          test_store_sf: SparkDataFrame,
+                          reserved_store_sf: SparkDataFrame,
+                          period_wk_col: str,
+                          pre_st_wk: str,
+                          pre_en_wk: str):
+        """Count number of week sales by store, return the smallest number of target store, control store
+        """
+        # Min sales week test store
+        txn_match_trg  = (txn
+                          .join(test_store_sf, "store_id", "inner")
+                          .join(prod_scope_df, "upc_id", "leftsemi")
+                          .where(F.col(period_wk_col).between(pre_st_wk, pre_en_wk))
+                          .where(F.col("channel") == 'OFFLINE')
+                          .select(txn['*'],
+                                F.col("store_region").alias('store_region_new'),
+                                F.lit('test').alias('store_type'),
+                                F.col("mech_name").alias('store_mech_set'))
+                          )
+        trg_wk_cnt_df = txn_match_trg.groupBy(F.col("store_id")).agg(F.count_distinct(F.col(period_wk_col)).alias('wk_sales'))
+        trg_min_wk = trg_wk_cnt_df.agg(F.min(trg_wk_cnt_df.wk_sales).alias('min_wk_sales')).collect()[0][0]
+        
+        # Min sale week ctrl store
+        txn_match_ctl = (txn
+                         .join(reserved_store_sf, "store_id", 'inner')
+                         .join(prod_scope_df, "upc_id", "leftsemi")
+                         .where(F.col(period_wk_col).between(pre_st_wk, pre_en_wk))
+                         .where(F.col("channel") == 'OFFLINE')
+                         .select(txn['*'],
+                                 F.col(".store_region").alias('store_region_new'),
+                                 F.lit('ctrl').alias('store_type'),
+                                 F.lit('No Media').alias('store_mech_set'))
+                         )
+                            
+        ctl_wk_cnt_df = txn_match_ctl.groupBy("store_id").agg(F.count_distinct(F.col(period_wk_col)).alias('wk_sales'))
+        ctl_min_wk = ctl_wk_cnt_df.agg(F.min(ctl_wk_cnt_df.wk_sales).alias('min_wk_sales')).collect()[0][0]
+        
+        return int(trg_min_wk), txn_match_trg, int(ctl_min_wk), txn_match_ctl
+        
+        def 
+        # check if can match at feature : need to have sales >= 3 weeks
+        if (trg_min_wk >= 3) & (ctl_min_wk >= 3) :
+            match_lvl = 'feat'
+            print('-'*80 + ' \n This campaign will do matching at "Feature" product \n' )
+            print(' Matching performance only "OFFLINE" \n ' + '-'*80 + '\n')
+            ## Combine transaction that use for matching
+            txn_matching = txn_match_trg.union(txn_match_ctl)
+        
+    
+    ##-------------------------------------------
+    ## need to count sales week of each store - Feature
+    ##-------------------------------------------
+    ## Target store check
+    ## Add mechanic of each store  -- Pat 6 Sep 2022
+    
+    match_lvl  = 'na'
+
+    print("-"*80)
+    period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
+    print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
+    print("-"*80)
+    pre_st_wk  = get_lag_wk_id(wk_id=pre_en_wk, lag_num=13, inclusive=True)
+    
+    # Test min week features with sales >= 3 wks
+    trg_min_wk, txn_match_trg, ctl_min_wk, txn_match_ctl = _get_min_wk_sales(feat_sf, test_store_sf, reserved_store_sf, period_wk_col, pre_en_wk, pre_en_wk)
+    
+    if (trg_min_wk >= 3) & (ctl_min_wk >= 3):
+        match_lvl = 'feat'
+        print('-'*80 + f' \n This campaign will do matching at "{match_lvl.upper()}"\n' )
+        print(' Matching performance only "OFFLINE" \n ' + '-'*80 + '\n')
+        # Combine transaction that use for matching
+        txn_matching = txn_match_trg.union(txn_match_ctl)
+    else:        
+        trg_min_wk, txn_match_trg, ctl_min_wk, txn_match_ctl = _get_min_wk_sales(brand_df, test_store_sf, reserved_store_sf, period_wk_col, pre_en_wk, pre_en_wk)
+        if (trg_min_wk >= 3) & (ctl_min_wk >= 3):
+            match_lvl = 'brand'
+            print('-'*80 + f' \n This campaign will do matching at "{match_lvl.upper()}"\n' )
+            print(' Matching performance only "OFFLINE" \n ' + '-'*80 + '\n')
+            # Combine transaction that use for matching
+            txn_matching = txn_match_trg.union(txn_match_ctl)
+        else:
+            trg_min_wk, txn_match_trg, ctl_min_wk, txn_match_ctl = _get_min_wk_sales(brand_df, test_store_sf, reserved_store_sf, period_wk_col, pre_en_wk, pre_en_wk)
+            match_lvl = 'subclass'
+            print('-'*80 + f' \n This campaign will do matching at "{match_lvl.upper()}"\n' )
+            print(' Matching performance only "OFFLINE" \n' + '-'*80 + '\n')
+            
+    #---- get weekly sales by store,region
+    test_wk_matching      = txn_match_trg.groupBy('store_id','store_region_new', 'store_mech_set').pivot(period_wk_col).agg(F.sum('net_spend_amt').alias('sales'))
+    rs_wk_matching        = txn_match_ctl.groupBy('store_id','store_region_new').pivot(period_wk_col).agg(F.sum('net_spend_amt').alias('sales'))
+    all_store_wk_matching = txn_matching.groupBy('store_id','store_region_new').pivot(period_wk_col).agg(F.sum('net_spend_amt').alias('sales'))
+
+    #convert to pandas
+    test_df = to_pandas(test_wk_matching).fillna(0)
+    rs_df   = to_pandas(rs_wk_matching).fillna(0)
+    all_store_df = to_pandas(all_store_wk_matching).fillna(0)
+    
+    #get matching features
+    f_matching = all_store_df.columns[3:]
+
+    #using Standardscaler to scale features first
+    ss = StandardScaler()
+    ss.fit(all_store_df[f_matching])
+    test_ss = ss.transform(test_df[f_matching])
+    reserved_ss = ss.transform(rs_df[f_matching])
+
+    #setup dict to collect info
+    dist_dict = {}
+    var_dict = {}
+    cos_dict = {}
+
+    #for each test store
+    for i in range(len(test_ss)):
+
+        #set standard euc_distance
+        dist0 = 10**9
+        #set standard var
+        var0 = 100
+        #set standard cosine
+        cos0 = -1
+
+        #finding its region & store_id
+        test_region = test_df.iloc[i].store_region_new
+        test_store_id = test_df.iloc[i].store_id
+        #get value from that test store
+        test = test_ss[i]
+
+        #get index for reserved store
+        ctr_index = rs_df[rs_df['store_region_new'] == test_region].index
+
+        #loop in that region
+        for j in ctr_index:
+            #get value of res store & its store_id
+            res = reserved_ss[j]
+            res_store_id = rs_df.iloc[j].store_id
+
+    #-----------------------------------------------------------------------------
+            #finding min distance
+            dist = distance.euclidean(test,res)
+            if dist < dist0:
+                dist0 = dist
+                dist_dict[test_store_id] = [res_store_id,dist]
+
+    #-----------------------------------------------------------------------------            
+            #finding min var
+            var = stats.variance(np.abs(test-res))
+            if var < var0:
+                var0 = var
+                var_dict[test_store_id] = [res_store_id,var]
+
+    #-----------------------------------------------------------------------------  
+            #finding highest cos
+            cos = cosine_similarity(test.reshape(1,-1),res.reshape(1,-1))[0][0]
+            if cos > cos0:
+                cos0 = cos
+                cos_dict[test_store_id] = [res_store_id,cos]
+    
+    #---- create dataframe            
+    dist_df = pd.DataFrame(dist_dict,index=['ctr_store_dist','euc_dist']).T.reset_index().rename(columns={'index':'store_id'})
+    var_df = pd.DataFrame(var_dict,index=['ctr_store_var','var']).T.reset_index().rename(columns={'index':'store_id'})
+    cos_df = pd.DataFrame(cos_dict,index=['ctr_store_cos','cos']).T.reset_index().rename(columns={'index':'store_id'})
+    
+    ## join to have ctr store by each method
+    ## Add 'store_mech_set' to test_df -->  Pat 6 Sep 2022
+    
+    matching_df = test_df[['store_id','store_region_new','store_mech_set']].merge(dist_df[['store_id','ctr_store_dist']],on='store_id',how='left')\
+                                                                           .merge(var_df[['store_id','ctr_store_var']],on='store_id',how='left')\
+                                                                           .merge(cos_df[['store_id','ctr_store_cos']],on='store_id',how='left')
+
+    #change data type to int
+    matching_df.ctr_store_dist = matching_df.ctr_store_dist.astype('int')
+    matching_df.ctr_store_var = matching_df.ctr_store_var.astype('int')
+    matching_df.ctr_store_cos = matching_df.ctr_store_cos.astype('int')
+    
+    matching_df.rename(columns = {'store_region_new' : 'store_region'}, inplace = True)
+    
+    print(' \n Result matching table show below \n')
+    matching_df.display()
+    
+    #----select control store using var method
+    if matching_methodology == 'varience':
+        ctr_store_list = list(set([s for s in matching_df.ctr_store_var]))
+        return ctr_store_list, matching_df
+    elif matching_methodology == 'euclidean':
+        ctr_store_list = list(set([s for s in matching_df.ctr_store_dist]))
+        return ctr_store_list, matching_df
+    elif matching_methodology == 'cosine_similarity':
+        ctr_store_list = list(set([s for s in matching_df.ctr_store_cos]))
+        return ctr_store_list, matching_df
+    else:
+        print('Matching metodology not in scope list : varience, euclidean, cosine_similarity')
+        return None
 
 def get_customer_uplift(txn: SparkDataFrame,
                        cp_start_date: str,

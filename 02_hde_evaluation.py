@@ -77,6 +77,7 @@ import pathlib
 sys.path.append(os.path.abspath("/Workspace/Repos/thanakrit.boonquarmdee@lotuss.com/edm_media"))
 
 from instore_eval import get_cust_activated, get_cust_movement, get_cust_brand_switching_and_penetration, get_cust_sku_switching, get_profile_truprice, get_customer_uplift, get_cust_activated_prmzn, check_combine_region, get_cust_cltv, get_cust_brand_switching_and_penetration_multi
+from instore_eval import get_store_matching
 
 # COMMAND ----------
 
