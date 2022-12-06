@@ -146,7 +146,7 @@ def get_cust_activated(txn: SparkDataFrame,
     #--- Helper fn
     def _get_period_wk_col_nm(wk_type: str
                               ) -> str:
-        """Column name for period week identification
+        """Column name for period week identificationget_cust_cltv
         """
         if wk_type in ["promo_week"]:
             period_wk_col_nm = "period_promo_wk"
@@ -589,6 +589,11 @@ def get_cust_brand_switching_and_penetration(
         (cust_micro_kpi_prod_lv
          .agg(F.sum('oth_'+prod_lev+'_spend').alias('_total_oth_spend'))
         ).collect()[0][0]
+        
+        ## Add check None -- to prevent error Float (NoneType) --- Pat 25 Nov 2022
+        if total_oth is None:
+            total_oth = 0
+        ## end if
 
         cust_micro_kpi_prod_lv = cust_micro_kpi_prod_lv.withColumn('total_oth_'+prod_lev+'_spend', F.lit(float(total_oth)))
 
@@ -2441,7 +2446,8 @@ def get_cust_cltv(txn: SparkDataFrame,
                   media_spend: float,
                   svv_table: str,
                   pcyc_table: str,
-                  cate_cd_list: List
+                  cate_cd_list: List,
+                  store_format: str
                   ):
     """(Uplift) Customer Life Time Value - EPOS @ Brand Level
     I) Calculate SpC metrics
