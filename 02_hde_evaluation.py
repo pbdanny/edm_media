@@ -700,13 +700,13 @@ pandas_to_csv_filestore(featues_product_and_exposure_df, 'feature_product_and_ex
 
 cmp_st_date = datetime.strptime(cmp_start, '%Y-%m-%d')
 cmp_end_date = datetime.strptime(cmp_end, '%Y-%m-%d')
-exposure_all, exposure_region = get_awareness(txn_all, cp_start_date=cmp_st_date, cp_end_date=cmp_end_date,
-                                              store_fmt=store_fmt, test_store_sf=test_store_sf, adj_prod_sf=use_ai_df,
-                                              media_spend=float(media_fee))
-exposure_all_df = to_pandas(exposure_all)
-pandas_to_csv_filestore(exposure_all_df, 'exposure_all.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
-exposure_region_df = to_pandas(exposure_region)
-pandas_to_csv_filestore(exposure_region_df, 'exposure_region.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
+# exposure_all, exposure_region = get_awareness(txn_all, cp_start_date=cmp_st_date, cp_end_date=cmp_end_date,
+#                                               store_fmt=store_fmt, test_store_sf=test_store_sf, adj_prod_sf=use_ai_df,
+#                                               media_spend=float(media_fee))
+# exposure_all_df = to_pandas(exposure_all)
+# pandas_to_csv_filestore(exposure_all_df, 'exposure_all.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
+# exposure_region_df = to_pandas(exposure_region)
+# pandas_to_csv_filestore(exposure_region_df, 'exposure_region.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
     
 
 # # COMMAND ----------
@@ -1248,7 +1248,7 @@ ctr_store_list, store_matching_df = get_store_matching(txn=txn_all,
 
 pandas_to_csv_filestore(store_matching_df, 'store_matching_dev.csv', prefix= os.path.join(dbfs_project_path, 'output'))
 
-# # COMMAND ----------
+# COMMAND ----------
 
 # # MAGIC %md ## Customer Share and KPI
 
