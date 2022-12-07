@@ -1111,7 +1111,7 @@ def get_store_matching(txn: SparkDataFrame,
         """
         # Min sales week test store
         txn_match_trg  = (txn
-                          .join(test_store_sf.drop(["store_region_orig", "store_region"]), "store_id", "inner")
+                          .join(test_store_sf.drop("store_region_orig", "store_region"), "store_id", "inner")
                           .join(prod_scope_df, "upc_id", "leftsemi")
                           .where(F.col(wk_id_col_nm).between(pre_st_wk, pre_en_wk))
                           .where(F.col("offline_online_other_channel") == 'OFFLINE')
@@ -1125,7 +1125,7 @@ def get_store_matching(txn: SparkDataFrame,
         
         # Min sale week ctrl store
         txn_match_ctl = (txn
-                         .join(reserved_store_sf.drop(["store_region_orig", "store_region"]), "store_id", 'inner')
+                         .join(reserved_store_sf.drop("store_region_orig", "store_region"), "store_id", 'inner')
                          .join(prod_scope_df, "upc_id", "leftsemi")
                          .where(F.col(wk_id_col_nm).between(pre_st_wk, pre_en_wk))
                          .where(F.col("offline_online_other_channel") == 'OFFLINE')
