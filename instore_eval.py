@@ -1056,27 +1056,26 @@ def get_store_matching(txn: SparkDataFrame,
     """
     Parameters
     ----------
-    txn: sparkDataFrame
+    txn: SparkDataFrame
         
     pre_en_wk: End pre_period week --> yyyymm
         Pre period end week
-    
-    store_matching_lv: str
-        'brand' or 'sku'
-    
-    brand_df: sparkDataFrame
-        sparkDataFrame contain all analysis SKUs of brand (at switching level)
-
-    sclass_df: sparkDataFrame
-        sparkDataFrame contain all analysis SKUs of subclass (at switching level)
-
-    sel_sku: List,
-        List of feature product (sku_id)
         
-    test_store_sf: sparkDataFrame
+    wk_type: "fis_week" or "promo_week"
+    
+    feat_sf: SparkDataFrame
+        Features upc_id
+        
+    brand_df: SparkDataFrame
+        Feature brand upc_id (brand in switching level)
+
+    sclass_df: SparkDataFrame
+        Featurs subclass upc_id (subclass in switching level)
+        
+    test_store_sf: SparkDataFrame
         Media features store list
         
-    reserved_store_sf: sparkDataFrame
+    reserved_store_sf: SparkDataFrame
         Customer picked reserved store list, for finding store matching -> control store
         
     matching_methodology: str, default 'varience'
@@ -1105,12 +1104,7 @@ def get_store_matching(txn: SparkDataFrame,
             
         return period_wk_col_nm
     
-    def _get_min_wk_sales(prod_scope_df: SparkDataFrame,
-                          test_store_sf: SparkDataFrame,
-                          reserved_store_sf: SparkDataFrame,
-                          period_wk_col: str,
-                          pre_st_wk: str,
-                          pre_en_wk: str):
+    def _get_min_wk_sales(prod_scope_df: SparkDataFrame):
         """Count number of week sales by store, return the smallest number of target store, control store
         """
         # Min sales week test store
@@ -1134,7 +1128,7 @@ def get_store_matching(txn: SparkDataFrame,
                          .where(F.col(period_wk_col).between(pre_st_wk, pre_en_wk))
                          .where(F.col("channel") == 'OFFLINE')
                          .select(txn['*'],
-                                 F.col(".store_region").alias('store_region_new'),
+                                 F.col("store_region").alias('store_region_new'),
                                  F.lit('ctrl').alias('store_type'),
                                  F.lit('No Media').alias('store_mech_set'))
                          )
@@ -1143,68 +1137,53 @@ def get_store_matching(txn: SparkDataFrame,
         ctl_min_wk = ctl_wk_cnt_df.agg(F.min(ctl_wk_cnt_df.wk_sales).alias('min_wk_sales')).collect()[0][0]
         
         return int(trg_min_wk), txn_match_trg, int(ctl_min_wk), txn_match_ctl
-        
-        def 
-        # check if can match at feature : need to have sales >= 3 weeks
-        if (trg_min_wk >= 3) & (ctl_min_wk >= 3) :
-            match_lvl = 'feat'
-            print('-'*80 + ' \n This campaign will do matching at "Feature" product \n' )
-            print(' Matching performance only "OFFLINE" \n ' + '-'*80 + '\n')
-            ## Combine transaction that use for matching
-            txn_matching = txn_match_trg.union(txn_match_ctl)
-        
-    
-    ##-------------------------------------------
-    ## need to count sales week of each store - Feature
-    ##-------------------------------------------
-    ## Target store check
-    ## Add mechanic of each store  -- Pat 6 Sep 2022
-    
-    match_lvl  = 'na'
-
+            
     print("-"*80)
     period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
     print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
+    print(' Matching performance only "OFFLINE" \n ' + '-'*80 + '\n')
     print("-"*80)
-    pre_st_wk  = get_lag_wk_id(wk_id=pre_en_wk, lag_num=13, inclusive=True)
     
+    pre_st_wk  = get_lag_wk_id(wk_id=pre_en_wk, lag_num=13, inclusive=True)
     # Test min week features with sales >= 3 wks
-    trg_min_wk, txn_match_trg, ctl_min_wk, txn_match_ctl = _get_min_wk_sales(feat_sf, test_store_sf, reserved_store_sf, period_wk_col, pre_en_wk, pre_en_wk)
+    trg_min_wk, txn_match_trg, ctl_min_wk, txn_match_ctl = _get_min_wk_sales(feat_sf)
     
     if (trg_min_wk >= 3) & (ctl_min_wk >= 3):
         match_lvl = 'feat'
-        print('-'*80 + f' \n This campaign will do matching at "{match_lvl.upper()}"\n' )
-        print(' Matching performance only "OFFLINE" \n ' + '-'*80 + '\n')
-        # Combine transaction that use for matching
         txn_matching = txn_match_trg.union(txn_match_ctl)
-    else:        
-        trg_min_wk, txn_match_trg, ctl_min_wk, txn_match_ctl = _get_min_wk_sales(brand_df, test_store_sf, reserved_store_sf, period_wk_col, pre_en_wk, pre_en_wk)
+    else:
+        trg_min_wk, txn_match_trg, ctl_min_wk, txn_match_ctl = _get_min_wk_sales(brand_df)
         if (trg_min_wk >= 3) & (ctl_min_wk >= 3):
             match_lvl = 'brand'
-            print('-'*80 + f' \n This campaign will do matching at "{match_lvl.upper()}"\n' )
-            print(' Matching performance only "OFFLINE" \n ' + '-'*80 + '\n')
-            # Combine transaction that use for matching
-            txn_matching = txn_match_trg.union(txn_match_ctl)
+            txn_matching = txn_match_trg.union(txn_match_ctl)   
         else:
-            trg_min_wk, txn_match_trg, ctl_min_wk, txn_match_ctl = _get_min_wk_sales(brand_df, test_store_sf, reserved_store_sf, period_wk_col, pre_en_wk, pre_en_wk)
+            trg_min_wk, txn_match_trg, ctl_min_wk, txn_match_ctl = _get_min_wk_sales(sclass_df)
             match_lvl = 'subclass'
-            print('-'*80 + f' \n This campaign will do matching at "{match_lvl.upper()}"\n' )
-            print(' Matching performance only "OFFLINE" \n' + '-'*80 + '\n')
-            
+            txn_matching = txn_match_trg.union(txn_match_ctl)
+    
+    print("-"*80)
+    print(f'This campaign will do matching at "{match_lvl.upper()}"\n')
+    print("-"*80)
+    
+    # ---- Defined KPI for matching
+    kpi = [F.sum('net_spend_amt').alias('sales'),
+           F.count_distinct("household_id").alias("custs")]
+    
     #---- get weekly sales by store,region
-    test_wk_matching      = txn_match_trg.groupBy('store_id','store_region_new', 'store_mech_set').pivot(period_wk_col).agg(F.sum('net_spend_amt').alias('sales'))
-    rs_wk_matching        = txn_match_ctl.groupBy('store_id','store_region_new').pivot(period_wk_col).agg(F.sum('net_spend_amt').alias('sales'))
-    all_store_wk_matching = txn_matching.groupBy('store_id','store_region_new').pivot(period_wk_col).agg(F.sum('net_spend_amt').alias('sales'))
+    test_wk_matching      = txn_match_trg.groupBy('store_id', 'store_region_new', 'store_mech_set').pivot(period_wk_col).agg(*kpi)
+    rs_wk_matching        = txn_match_ctl.groupBy('store_id','store_region_new').pivot(period_wk_col).agg(*kpi)
+    all_store_wk_matching = txn_matching.groupBy('store_id','store_region_new').pivot(period_wk_col).agg(*kpi)
 
-    #convert to pandas
+    # convert to pandas
     test_df = to_pandas(test_wk_matching).fillna(0)
     rs_df   = to_pandas(rs_wk_matching).fillna(0)
     all_store_df = to_pandas(all_store_wk_matching).fillna(0)
     
-    #get matching features
+    # get column
     f_matching = all_store_df.columns[3:]
-
-    #using Standardscaler to scale features first
+    f_matching.display()
+    
+    # using Standardscaler to scale features first
     ss = StandardScaler()
     ss.fit(all_store_df[f_matching])
     test_ss = ss.transform(test_df[f_matching])
@@ -2804,7 +2783,7 @@ def get_cust_cltv(txn: SparkDataFrame,
             svv_df : Spark dataframe of survival rate table
             cate_lvl : string : catevory level
             cate_code_list : list of category code that define brand category
-            return cate_avg_survival_rate as sparkDataframe
+            return cate_avg_survival_rate as SparkDataFrame
 
             ### add 3 more variable to use in case NPD and no survival rate at brand
             ## Pat 30 Jun 2022
