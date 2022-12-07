@@ -7,6 +7,7 @@ import sys
 import os
 
 import pandas as pd
+import numpy as np
 from pandas import DataFrame as PandasDataFrame
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
@@ -152,7 +153,7 @@ def get_cust_activated(txn: SparkDataFrame,
     #--- Helper fn
     def _get_period_wk_col_nm(wk_type: str
                               ) -> str:
-        """Column name for period week identificationget_cust_cltv
+        """Column name for period week identification
         """
         if wk_type in ["promo_week"]:
             period_wk_col_nm = "period_promo_wk"
@@ -1082,27 +1083,27 @@ def get_store_matching(txn: SparkDataFrame,
         'variance', 'euclidean', 'cosine_similarity'
     """
     from pyspark.sql import functions as F
+    from pyspark.sql.types import StringType
     
-    from sklearn.metrics import auc
     from sklearn.preprocessing import StandardScaler
 
     from scipy.spatial import distance
     import statistics as stats
     from sklearn.metrics.pairwise import cosine_similarity
     
-    #--- Helper fn
-    def _get_period_wk_col_nm(wk_type: str
+    #---- Helper fn
+    def _get_wk_id_col_nm(wk_type: str
                               ) -> str:
         """Column name for period week identification
         """
         if wk_type in ["promo_week"]:
-            period_wk_col_nm = "period_promo_wk"
+            wk_id_col_nm = "promoweek_id"
         elif wk_type in ["promozone"]:
-            period_wk_col_nm = "period_promo_mv_wk"
+            wk_id_col_nm = "promoweek_id"
         else:
-            period_wk_col_nm = "period_fis_wk"
+            wk_id_col_nm = "week_id"
             
-        return period_wk_col_nm
+        return wk_id_col_nm
     
     def _get_min_wk_sales(prod_scope_df: SparkDataFrame):
         """Count number of week sales by store, return the smallest number of target store, control store
@@ -1111,36 +1112,74 @@ def get_store_matching(txn: SparkDataFrame,
         txn_match_trg  = (txn
                           .join(test_store_sf, "store_id", "inner")
                           .join(prod_scope_df, "upc_id", "leftsemi")
-                          .where(F.col(period_wk_col).between(pre_st_wk, pre_en_wk))
-                          .where(F.col("channel") == 'OFFLINE')
+                          .where(F.col(wk_id_col_nm).between(pre_st_wk, pre_en_wk))
+                          .where(F.col("offline_online_other_channel") == 'OFFLINE')
                           .select(txn['*'],
                                 F.col("store_region").alias('store_region_new'),
                                 F.lit('test').alias('store_type'),
                                 F.col("mech_name").alias('store_mech_set'))
                           )
-        trg_wk_cnt_df = txn_match_trg.groupBy(F.col("store_id")).agg(F.count_distinct(F.col(period_wk_col)).alias('wk_sales'))
+        trg_wk_cnt_df = txn_match_trg.groupBy(F.col("store_id")).agg(F.count_distinct(F.col(wk_id_col_nm)).alias('wk_sales'))
         trg_min_wk = trg_wk_cnt_df.agg(F.min(trg_wk_cnt_df.wk_sales).alias('min_wk_sales')).collect()[0][0]
         
         # Min sale week ctrl store
         txn_match_ctl = (txn
                          .join(reserved_store_sf, "store_id", 'inner')
                          .join(prod_scope_df, "upc_id", "leftsemi")
-                         .where(F.col(period_wk_col).between(pre_st_wk, pre_en_wk))
-                         .where(F.col("channel") == 'OFFLINE')
+                         .where(F.col(wk_id_col_nm).between(pre_st_wk, pre_en_wk))
+                         .where(F.col("offline_online_other_channel") == 'OFFLINE')
                          .select(txn['*'],
                                  F.col("store_region").alias('store_region_new'),
                                  F.lit('ctrl').alias('store_type'),
                                  F.lit('No Media').alias('store_mech_set'))
                          )
                             
-        ctl_wk_cnt_df = txn_match_ctl.groupBy("store_id").agg(F.count_distinct(F.col(period_wk_col)).alias('wk_sales'))
+        ctl_wk_cnt_df = txn_match_ctl.groupBy("store_id").agg(F.count_distinct(F.col(wk_id_col_nm)).alias('wk_sales'))
         ctl_min_wk = ctl_wk_cnt_df.agg(F.min(ctl_wk_cnt_df.wk_sales).alias('min_wk_sales')).collect()[0][0]
         
         return int(trg_min_wk), txn_match_trg, int(ctl_min_wk), txn_match_ctl
+    
+    def _get_comp_score(txn: SparkDataFrame,
+                        wk_id_col_nm: str):
+        """Calculate weekly kpi by store_id
+        """        
+        def __get_std(df: PandasDataFrame) -> PandasDataFrame:
+            """
+            """
+            from sklearn.preprocessing import StandardScaler, MinMaxScaler
             
+            scalar = MinMaxScaler() # StandardScaler()
+            
+            scaled = scalar.fit_transform(df)
+            scaled_df = pd.DataFrame(data=scaled, index=df.index, columns=df.columns)
+            
+            return scaled_df
+        
+        txn = txn.withColumn("store_id", F.col("store_id").cast(StringType()))
+        
+        sales = txn.groupBy("store_id").pivot(wk_id_col_nm).agg(F.sum('net_spend_amt').alias('sales')).fillna(0)
+        custs = txn.groupBy("store_id").pivot(wk_id_col_nm).agg(F.count_distinct('household_id').alias('custs')).fillna(0)
+        
+        sales_df = to_pandas(sales).astype({'store_id':str}).set_index("store_id")
+        custs_df = to_pandas(custs).astype({'store_id':str}).set_index("store_id")
+        
+        sales_scaled_df = __get_std(sales_df)
+        custs_scaled_df = __get_std(custs_df)
+        
+        sales_unpv_df = sales_scaled_df.reset_index().melt(id_vars="store_id", value_name="std_sales", var_name="week_id")
+        custs_unpv_df = custs_scaled_df.reset_index().melt(id_vars="store_id", value_name="std_custs", var_name="week_id")        
+        comb_df = pd.merge(sales_unpv_df, custs_unpv_df, how="outer", on=["store_id", "week_id"])
+        comb_df["comp_score"] = (comb_df["std_sales"] + comb_df["std_custs"])/2
+        
+        return comb_df
+    
+    #--------------        
+    #---- Main ----
+    #--------------
+    
     print("-"*80)
-    period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
-    print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
+    wk_id_col_nm = _get_wk_id_col_nm(wk_type=wk_type)
+    print(f"Week_id based on column {wk_id_col_nm}")
     print(' Matching performance only "OFFLINE" \n ' + '-'*80 + '\n')
     print("-"*80)
     
@@ -1149,7 +1188,7 @@ def get_store_matching(txn: SparkDataFrame,
     trg_min_wk, txn_match_trg, ctl_min_wk, txn_match_ctl = _get_min_wk_sales(feat_sf)
     
     if (trg_min_wk >= 3) & (ctl_min_wk >= 3):
-        match_lvl = 'feat'
+        match_lvl = 'feature sku'
         txn_matching = txn_match_trg.union(txn_match_ctl)
     else:
         trg_min_wk, txn_match_trg, ctl_min_wk, txn_match_ctl = _get_min_wk_sales(brand_df)
@@ -1165,80 +1204,69 @@ def get_store_matching(txn: SparkDataFrame,
     print(f'This campaign will do matching at "{match_lvl.upper()}"\n')
     print("-"*80)
     
-    # ---- Defined KPI for matching
-    kpi = [F.sum('net_spend_amt').alias('sales'),
-           F.count_distinct("household_id").alias("custs")]
+    # Get composite score by store
+    store_comp_score = _get_comp_score(txn_matching, wk_id_col_nm)
+    store_comp_score_pv = store_comp_score.pivot(index="store_id", columns="week_id", values="comp_score").reset_index()
     
-    #---- get weekly sales by store,region
-    test_wk_matching      = txn_match_trg.groupBy('store_id', 'store_region_new', 'store_mech_set').pivot(period_wk_col).agg(*kpi)
-    rs_wk_matching        = txn_match_ctl.groupBy('store_id','store_region_new').pivot(period_wk_col).agg(*kpi)
-    all_store_wk_matching = txn_matching.groupBy('store_id','store_region_new').pivot(period_wk_col).agg(*kpi)
+    # get store_id, store_region_new, store_type, store_mech_set
+    store_type = txn_matching.select(F.col("store_id").cast(StringType()), "store_region_new", "store_type", "store_mech_set").drop_duplicates().toPandas()
+    region_list = store_type["store_region_new"].unique()
 
-    # convert to pandas
-    test_df = to_pandas(test_wk_matching).fillna(0)
-    rs_df   = to_pandas(rs_wk_matching).fillna(0)
-    all_store_df = to_pandas(all_store_wk_matching).fillna(0)
-    
-    # get column
-    f_matching = all_store_df.columns[3:]
-    f_matching.display()
-    
-    # using Standardscaler to scale features first
-    ss = StandardScaler()
-    ss.fit(all_store_df[f_matching])
-    test_ss = ss.transform(test_df[f_matching])
-    reserved_ss = ss.transform(rs_df[f_matching])
-
-    #setup dict to collect info
+    # setup dict to collect info
     dist_dict = {}
     var_dict = {}
     cos_dict = {}
+    
+    # Loop in each region
+    for r in region_list:
+        test_store_score = store_comp_score_pv[(store_comp_score_pv["store_region_new"]==r) & (store_comp_score_pv["store_type"]=="test")]
+        ctrl_store_score = store_comp_score_pv[(store_comp_score_pv["store_region_new"]==r) & (store_comp_score_pv["store_type"]=="ctrl")]
+    
+        # Loop test store
+        for i in range(len(test_store_score)):
 
-    #for each test store
-    for i in range(len(test_ss)):
+            #set standard euc_distance
+            dist0 = 10**9
+            #set standard var
+            var0 = 100
+            #set standard cosine
+            cos0 = -1
 
-        #set standard euc_distance
-        dist0 = 10**9
-        #set standard var
-        var0 = 100
-        #set standard cosine
-        cos0 = -1
+            # finding its region & store_id
+            test_store_id = test_store_score.iloc[i].store_id
+            
+            # get value from that test store
+            test_i_score = test_store_score[i]
 
-        #finding its region & store_id
-        test_region = test_df.iloc[i].store_region_new
-        test_store_id = test_df.iloc[i].store_id
-        #get value from that test store
-        test = test_ss[i]
+            # get index for reserved store
+            ctr_index = ctrl_store_score.index
 
-        #get index for reserved store
-        ctr_index = rs_df[rs_df['store_region_new'] == test_region].index
+            # Loop ctrl store
+            for j in ctr_index:
+                
+                ctrl_i_score = ctrl_store_score[j]
+                res_store_id = ctrl_store_score.iloc[j].store_id
 
-        #loop in that region
-        for j in ctr_index:
-            #get value of res store & its store_id
-            res = reserved_ss[j]
-            res_store_id = rs_df.iloc[j].store_id
+        #-----------------------------------------------------------------------------
+                #finding min distance
+                dist = distance.euclidean(test_i_score, ctrl_i_score)
+                if dist < dist0:
+                    dist0 = dist
+                    dist_dict[test_store_id] = [res_store_id, dist]
 
-    #-----------------------------------------------------------------------------
-            #finding min distance
-            dist = distance.euclidean(test,res)
-            if dist < dist0:
-                dist0 = dist
-                dist_dict[test_store_id] = [res_store_id,dist]
+        #-----------------------------------------------------------------------------            
+                #finding min var
+                var = stats.variance(np.abs(test_i_score - ctrl_i_score))
+                if var < var0:
+                    var0 = var
+                    var_dict[test_store_id] = [res_store_id, var]
 
-    #-----------------------------------------------------------------------------            
-            #finding min var
-            var = stats.variance(np.abs(test-res))
-            if var < var0:
-                var0 = var
-                var_dict[test_store_id] = [res_store_id,var]
-
-    #-----------------------------------------------------------------------------  
-            #finding highest cos
-            cos = cosine_similarity(test.reshape(1,-1),res.reshape(1,-1))[0][0]
-            if cos > cos0:
-                cos0 = cos
-                cos_dict[test_store_id] = [res_store_id,cos]
+        #-----------------------------------------------------------------------------  
+                #finding highest cos
+                cos = cosine_similarity(test_i_score.reshape(1,-1), ctrl_i_score.reshape(1,-1))[0][0]
+                if cos > cos0:
+                    cos0 = cos
+                    cos_dict[test_store_id] = [res_store_id,cos]
     
     #---- create dataframe            
     dist_df = pd.DataFrame(dist_dict,index=['ctr_store_dist','euc_dist']).T.reset_index().rename(columns={'index':'store_id'})
@@ -1248,9 +1276,9 @@ def get_store_matching(txn: SparkDataFrame,
     ## join to have ctr store by each method
     ## Add 'store_mech_set' to test_df -->  Pat 6 Sep 2022
     
-    matching_df = test_df[['store_id','store_region_new','store_mech_set']].merge(dist_df[['store_id','ctr_store_dist']],on='store_id',how='left')\
-                                                                           .merge(var_df[['store_id','ctr_store_var']],on='store_id',how='left')\
-                                                                           .merge(cos_df[['store_id','ctr_store_cos']],on='store_id',how='left')
+    matching_df = store_type.merge(dist_df[['store_id','ctr_store_dist']], on='store_id', how='left')\
+                            .merge(var_df[['store_id','ctr_store_var']], on='store_id', how='left')\
+                            .merge(cos_df[['store_id','ctr_store_cos']],on='store_id', how='left')
 
     #change data type to int
     matching_df.ctr_store_dist = matching_df.ctr_store_dist.astype('int')
