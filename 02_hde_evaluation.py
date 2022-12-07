@@ -1231,11 +1231,22 @@ elif wk_type == 'promo_wk' :
 ## end if
     
 ## Export to csv file
+pandas_to_csv_filestore(store_matching_df, 'store_matching.csv', prefix= os.path.join(dbfs_project_path, 'output'))
+
+print('-'*80 + '\n Store Matching information Show below \n' + '-'*80)
+
+# COMMAND ----------
+ctr_store_list, store_matching_df = get_store_matching(txn=txn_all,
+                                                       pre_en_wk=pre_en_wk,
+                                                       wk_type="fis_week",
+                                                       feat_sf=feat_df,
+                                                       brand_df=brand_df,
+                                                       sclass_df=sclass_df,
+                                                       test_store_sf=trg_str_df,
+                                                       reserved_store_sf=u_ctl_str_df,
+                                                       matching_methodology="varience")
+
 pandas_to_csv_filestore(store_matching_df, 'store_matching_dev.csv', prefix= os.path.join(dbfs_project_path, 'output'))
-
-#print('-'*80 + '\n Store Matching information Show below \n' + '-'*80)
-
-
 
 # # COMMAND ----------
 
