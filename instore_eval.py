@@ -1288,17 +1288,15 @@ def get_store_matching(txn: SparkDataFrame,
     var_df = pd.DataFrame(var_dict,index=['ctr_store_var','var']).T.reset_index().rename(columns={'index':'store_id'})
     cos_df = pd.DataFrame(cos_dict,index=['ctr_store_cos','cos']).T.reset_index().rename(columns={'index':'store_id'})
 
-    ## join to have ctr store by each method
-    ## Add 'store_mech_set' to test_df -->  Pat 6 Sep 2022
-
-    matching_df = store_type.merge(dist_df[['store_id','ctr_store_dist']], on='store_id', how='left')\
-                            .merge(var_df[['store_id','ctr_store_var']], on='store_id', how='left')\
-                            .merge(cos_df[['store_id','ctr_store_cos']],on='store_id', how='left')
-
-    #change data type to int
-    # matching_df.ctr_store_dist = matching_df.ctr_store_dist.astype('int')
-    # matching_df.ctr_store_var = matching_df.ctr_store_var.astype('int')
-    # matching_df.ctr_store_cos = matching_df.ctr_store_cos.astype('int')
+    matching_w_kpi_df = (store_type
+                         .query("store_type = 'test'")
+                         .merge(dist_df[['store_id','ctr_store_dist']], on='store_id', how='left')
+                         .merge(var_df[['store_id','ctr_store_var']], on='store_id', how='left')
+                         .merge(cos_df[['store_id','ctr_store_cos']], on='store_id', how='left')
+                         )
+    matching_w_kpi_df.display()
+    
+    matching_df = matching_w_kpi_df[["store_id", "ctr_store_dist", "ctr_store_var", "ctr_store_cos"]]
 
     matching_df.rename(columns = {'store_region_new' : 'store_region'}, inplace = True)
 
