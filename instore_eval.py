@@ -1247,10 +1247,10 @@ def get_store_matching(txn: SparkDataFrame,
                 cos0 = -1
 
                 # finding its region & store_id
-                test_store_id = test_store_score.iloc[i,:].store_id
+                test_store_id = test_store_score.iloc[i, :]["store_id"]
 
                 # get value from that test store
-                test_i_score = test_store_score.iloc[i,:]
+                test_i_score = test_store_score.iloc[i, 1:]
 
                 # get index for reserved store
                 ctr_index = ctrl_store_score.index
@@ -1258,8 +1258,8 @@ def get_store_matching(txn: SparkDataFrame,
                 # Loop ctrl store
                 for j in ctr_index:
 
-                    ctrl_i_score = ctrl_store_score.iloc[j,:]
-                    res_store_id = ctrl_store_score.iloc[j,:].store_id
+                    ctrl_i_score = ctrl_store_score.iloc[j, 1:]
+                    res_store_id = ctrl_store_score.iloc[j,:]["store_id"]
 
             #-----------------------------------------------------------------------------
                     #finding min distance
