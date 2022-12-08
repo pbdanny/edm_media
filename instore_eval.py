@@ -1296,9 +1296,9 @@ def get_store_matching(txn: SparkDataFrame,
                             .merge(cos_df[['store_id','ctr_store_cos']],on='store_id', how='left')
 
     #change data type to int
-    matching_df.ctr_store_dist = matching_df.ctr_store_dist.astype('int')
-    matching_df.ctr_store_var = matching_df.ctr_store_var.astype('int')
-    matching_df.ctr_store_cos = matching_df.ctr_store_cos.astype('int')
+    # matching_df.ctr_store_dist = matching_df.ctr_store_dist.astype('int')
+    # matching_df.ctr_store_var = matching_df.ctr_store_var.astype('int')
+    # matching_df.ctr_store_cos = matching_df.ctr_store_cos.astype('int')
 
     matching_df.rename(columns = {'store_region_new' : 'store_region'}, inplace = True)
 
