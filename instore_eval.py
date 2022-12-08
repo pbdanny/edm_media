@@ -1226,8 +1226,8 @@ def get_store_matching(txn: SparkDataFrame,
         ctrl_store_id = store_type[(store_type["store_region_new"]==r) & (store_type["store_type"]=="ctrl")]["store_id"]
         
         # Store_id and score for test, ctrl
-        test_store_score = store_comp_score_pv[store_comp_score_pv["store_id"].isin(test_store_id)].reset_index()
-        ctrl_store_score = store_comp_score_pv[store_comp_score_pv["store_id"].isin(ctrl_store_id)].reset_index()
+        test_store_score = store_comp_score_pv[store_comp_score_pv["store_id"].isin(test_store_id)].reset_index(drop=True)
+        ctrl_store_score = store_comp_score_pv[store_comp_score_pv["store_id"].isin(ctrl_store_id)].reset_index(drop=True)
         
         display(test_store_score)
         display(ctrl_store_score)
