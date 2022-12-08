@@ -237,18 +237,18 @@ def get_cust_activated(txn: SparkDataFrame,
              .drop_duplicates()
              )
         return out
-    
+
     def _get_activated_sales(txn: SparkDataFrame
                             ,shppr_actv: SparkDataFrame
                             ,prd_scope_df : SparkDataFrame
                             ,prd_scope_nm : str
                             ,period_wk_col_nm: str
                             ):
-        """ Get featured product's Sales values from activated customers (have seen media before buy product) 
+        """ Get featured product's Sales values from activated customers (have seen media before buy product)
             return sales values of activated customers
         """
         txn_dur       = txn.where ( (F.col(period_wk_col_nm) == 'cmp') & (txn.household_id.isNotNull()) )
-                                  
+
         cst_txn_dur   = txn_dur.join  ( prd_scope_df, txn_dur.upc_id == prd_scope_df.upc_id, 'left_semi')\
                                .join  ( shppr_actv,  txn_dur.household_id == shppr_actv.cust_id, 'inner')\
                                .select( txn_dur.date_id
@@ -266,23 +266,23 @@ def get_cust_activated(txn: SparkDataFrame,
                                          .otherwise(F.lit(None))
                                          .alias('actv_qty')
                                       )
-       
+
         actv_sales_df     = cst_txn_dur.groupBy(cst_txn_dur.household_id)\
                                        .agg    ( F.max( cst_txn_dur.first_shp_date).alias('first_shp_date')
-                                                ,F.sum( cst_txn_dur.actv_sales).alias('actv_spend') 
-                                                ,F.sum( cst_txn_dur.actv_qty).alias('actv_qty') 
+                                                ,F.sum( cst_txn_dur.actv_sales).alias('actv_spend')
+                                                ,F.sum( cst_txn_dur.actv_qty).alias('actv_qty')
                                                )
-        
-        
+
+
         sum_actv_sales_df = actv_sales_df.agg( F.sum(F.lit(1)).alias(prd_scope_nm + '_activated_cust_cnt')
                                              , F.sum(actv_sales_df.actv_spend).alias(prd_scope_nm + '_actv_spend')
                                              , F.avg(actv_sales_df.actv_spend).alias(prd_scope_nm + '_avg_spc')
                                              , F.sum(actv_sales_df.actv_qty).alias(prd_scope_nm + '_actv_qty')
                                              , F.avg(actv_sales_df.actv_qty).alias(prd_scope_nm + '_avg_upc')
                                              )
-        
+
         return actv_sales_df, sum_actv_sales_df
-    
+
     #---- Main
     print("-"*80)
     print("Customer Media Exposed -> Activated")
@@ -303,9 +303,9 @@ def get_cust_activated(txn: SparkDataFrame,
     cmp_brand_shppr        = _get_shppr(txn=txn, period_wk_col_nm=period_wk_col, prd_scope_df=brand_sf)
     cmp_brand_activated    = _get_activated(exposed_cust=cmp_exposed, shppr_cust=cmp_brand_shppr)
 
-    #nmbr_brand_activated  = cmp_brand_activated.count()    
+    #nmbr_brand_activated  = cmp_brand_activated.count()
     #print(f'\n Total exposed and Feature Brand (in Category scope) shopper (Brand Activated) : {nmbr_brand_activated:,d}')
-        
+
     brand_activated_info, brand_activated_sum =  _get_activated_sales( txn=txn
                                                                       , shppr_actv   = cmp_brand_activated
                                                                       , prd_scope_df = brand_sf
@@ -314,28 +314,28 @@ def get_cust_activated(txn: SparkDataFrame,
     #nmbr_brand_activated  = brand_activated_sales
     #brand_sales_amt       = brand_activated_sales.collect()[0].actv_sales
     print('\n Total exposed and Feature Brand (in Category scope) shopper (Brand Activated) Display below' )
-    
+
     brand_activated_sum.display()
-    
+
     #print('\n Sales from exposed shopper (Brand Activated)                                  : ' + str(brand_sales_amt) + ' THB' )
- 
+
     # Sku Activated
     cmp_sku_shppr         = _get_shppr(txn=txn, period_wk_col_nm=period_wk_col, prd_scope_df=feat_sf)
     cmp_sku_activated     = _get_activated(exposed_cust=cmp_exposed, shppr_cust=cmp_sku_shppr)
 
-    #nmbr_sku_activated    = cmp_sku_activated.count()    
+    #nmbr_sku_activated    = cmp_sku_activated.count()
     #print(f'\n Total exposed and Features SKU shopper (Features SKU Activated) : {nmbr_sku_activated:,d}')
-    
+
     sku_activated_info, sku_activated_sum   =  _get_activated_sales( txn=txn
                                                                     , shppr_actv   = cmp_sku_activated
                                                                     , prd_scope_df = feat_sf
                                                                     , prd_scope_nm = 'sku'
                                                                     , period_wk_col_nm = period_wk_col)
-    
+
     #sku_sales_amt         = sku_activated_sales.collect()[0].actv_sales
-    
+
     print('\n Total exposed and Feature SKU shopper (SKU Activated) Display below' )
-    
+
     sku_activated_sum.display()
 
     return brand_activated_info, sku_activated_info, brand_activated_sum, sku_activated_sum
@@ -592,7 +592,7 @@ def get_cust_brand_switching_and_penetration(
         (cust_micro_kpi_prod_lv
          .agg(F.sum('oth_'+prod_lev+'_spend').alias('_total_oth_spend'))
         ).collect()[0][0]
-        
+
         ## Add check None -- to prevent error Float (NoneType) --- Pat 25 Nov 2022
         if total_oth is None:
             total_oth = 0
@@ -1059,39 +1059,39 @@ def get_store_matching(txn: SparkDataFrame,
     Parameters
     ----------
     txn: SparkDataFrame
-        
+
     pre_en_wk: End pre_period week --> yyyymm
         Pre period end week
-        
+
     wk_type: "fis_week" or "promo_week"
-    
+
     feat_sf: SparkDataFrame
         Features upc_id
-        
+
     brand_df: SparkDataFrame
         Feature brand upc_id (brand in switching level)
 
     sclass_df: SparkDataFrame
         Featurs subclass upc_id (subclass in switching level)
-        
+
     test_store_sf: SparkDataFrame
         Media features store list
-        
+
     reserved_store_sf: SparkDataFrame
         Customer picked reserved store list, for finding store matching -> control store
-        
+
     matching_methodology: str, default 'varience'
         'variance', 'euclidean', 'cosine_similarity'
     """
     from pyspark.sql import functions as F
     from pyspark.sql.types import StringType
-    
+
     from sklearn.preprocessing import StandardScaler
 
     from scipy.spatial import distance
     import statistics as stats
     from sklearn.metrics.pairwise import cosine_similarity
-    
+
     #---- Helper fn
     def _get_wk_id_col_nm(wk_type: str
                               ) -> str:
@@ -1103,9 +1103,9 @@ def get_store_matching(txn: SparkDataFrame,
             wk_id_col_nm = "promoweek_id"
         else:
             wk_id_col_nm = "week_id"
-            
+
         return wk_id_col_nm
-    
+
     def _get_min_wk_sales(prod_scope_df: SparkDataFrame):
         """Count number of week sales by store, return the smallest number of target store, control store
         """
@@ -1122,7 +1122,7 @@ def get_store_matching(txn: SparkDataFrame,
                           )
         trg_wk_cnt_df = txn_match_trg.groupBy(F.col("store_id")).agg(F.count_distinct(F.col(wk_id_col_nm)).alias('wk_sales'))
         trg_min_wk = trg_wk_cnt_df.agg(F.min(trg_wk_cnt_df.wk_sales).alias('min_wk_sales')).collect()[0][0]
-        
+
         # Min sale week ctrl store
         txn_match_ctl = (txn
                          .join(reserved_store_sf.drop("store_region_orig", "store_region"), "store_id", 'inner')
@@ -1134,60 +1134,60 @@ def get_store_matching(txn: SparkDataFrame,
                                  F.lit('ctrl').alias('store_type'),
                                  F.lit('No Media').alias('store_mech_set'))
                          )
-                            
+
         ctl_wk_cnt_df = txn_match_ctl.groupBy("store_id").agg(F.count_distinct(F.col(wk_id_col_nm)).alias('wk_sales'))
         ctl_min_wk = ctl_wk_cnt_df.agg(F.min(ctl_wk_cnt_df.wk_sales).alias('min_wk_sales')).collect()[0][0]
-        
+
         return int(trg_min_wk), txn_match_trg, int(ctl_min_wk), txn_match_ctl
-    
+
     def _get_comp_score(txn: SparkDataFrame,
                         wk_id_col_nm: str):
         """Calculate weekly kpi by store_id
-        """        
+        """
         def __get_std(df: PandasDataFrame) -> PandasDataFrame:
             """
             """
             from sklearn.preprocessing import StandardScaler, MinMaxScaler
-            
+
             scalar = MinMaxScaler() # StandardScaler()
-            
+
             scaled = scalar.fit_transform(df)
             scaled_df = pd.DataFrame(data=scaled, index=df.index, columns=df.columns)
-            
+
             return scaled_df
-        
+
         txn = txn.withColumn("store_id", F.col("store_id").cast(StringType()))
-        
+
         sales = txn.groupBy("store_id").pivot(wk_id_col_nm).agg(F.sum('net_spend_amt').alias('sales')).fillna(0)
         custs = txn.groupBy("store_id").pivot(wk_id_col_nm).agg(F.count_distinct('household_id').alias('custs')).fillna(0)
-        
+
         sales_df = to_pandas(sales).astype({'store_id':str}).set_index("store_id")
         custs_df = to_pandas(custs).astype({'store_id':str}).set_index("store_id")
-        
+
         sales_scaled_df = __get_std(sales_df)
         custs_scaled_df = __get_std(custs_df)
-        
+
         sales_unpv_df = sales_scaled_df.reset_index().melt(id_vars="store_id", value_name="std_sales", var_name="week_id")
-        custs_unpv_df = custs_scaled_df.reset_index().melt(id_vars="store_id", value_name="std_custs", var_name="week_id")        
+        custs_unpv_df = custs_scaled_df.reset_index().melt(id_vars="store_id", value_name="std_custs", var_name="week_id")
         comb_df = pd.merge(sales_unpv_df, custs_unpv_df, how="outer", on=["store_id", "week_id"])
         comb_df["comp_score"] = (comb_df["std_sales"] + comb_df["std_custs"])/2
-        
+
         return comb_df
-    
-    #--------------        
+
+    #--------------
     #---- Main ----
     #--------------
-    
+
     print("-"*80)
     wk_id_col_nm = _get_wk_id_col_nm(wk_type=wk_type)
     print(f"Week_id based on column {wk_id_col_nm}")
-    print(' Matching performance only "OFFLINE" \n ' + '-'*80 + '\n')
-    print("-"*80)
-    
+    print('Matching performance only "OFFLINE"')
+
     pre_st_wk  = get_lag_wk_id(wk_id=pre_en_wk, lag_num=13, inclusive=True)
-    # Test min week features with sales >= 3 wks
+
+    # Find level for matching : feature sku / (feature) brand / (feature) subclass
     trg_min_wk, txn_match_trg, ctl_min_wk, txn_match_ctl = _get_min_wk_sales(feat_sf)
-    
+
     if (trg_min_wk >= 3) & (ctl_min_wk >= 3):
         match_lvl = 'feature sku'
         txn_matching = txn_match_trg.union(txn_match_ctl)
@@ -1195,20 +1195,19 @@ def get_store_matching(txn: SparkDataFrame,
         trg_min_wk, txn_match_trg, ctl_min_wk, txn_match_ctl = _get_min_wk_sales(brand_df)
         if (trg_min_wk >= 3) & (ctl_min_wk >= 3):
             match_lvl = 'brand'
-            txn_matching = txn_match_trg.union(txn_match_ctl)   
+            txn_matching = txn_match_trg.union(txn_match_ctl)
         else:
             trg_min_wk, txn_match_trg, ctl_min_wk, txn_match_ctl = _get_min_wk_sales(sclass_df)
             match_lvl = 'subclass'
             txn_matching = txn_match_trg.union(txn_match_ctl)
-    
-    print("-"*80)
+
     print(f'This campaign will do matching at "{match_lvl.upper()}"\n')
     print("-"*80)
-    
+
     # Get composite score by store
     store_comp_score = _get_comp_score(txn_matching, wk_id_col_nm)
     store_comp_score_pv = store_comp_score.pivot(index="store_id", columns="week_id", values="comp_score").reset_index()
-    
+
     # get store_id, store_region_new, store_type, store_mech_set
     store_type = txn_matching.select(F.col("store_id").cast(StringType()), "store_region_new", "store_type", "store_mech_set").drop_duplicates().toPandas()
     region_list = store_type["store_region_new"].dropna().unique()
@@ -1217,21 +1216,25 @@ def get_store_matching(txn: SparkDataFrame,
     dist_dict = {}
     var_dict = {}
     cos_dict = {}
-    
+
     # Loop in each region
     for r in region_list:
-        print(r)
+        print(f"Region {r}")
         # List of store_id in those region for test, ctrl
-        test_store_id = store_type[(store_type["store_region_new"]==r) & (store_type["store_type"]=="test")]["store_id"]
-        ctrl_store_id = store_type[(store_type["store_region_new"]==r) & (store_type["store_type"]=="ctrl")]["store_id"]
-        
+        test_store_id = store_type[(store_type["store_region_new"]==r) & (store_type["store_type"]=="test")]
+        ctrl_store_id = store_type[(store_type["store_region_new"]==r) & (store_type["store_type"]=="ctrl")]
+
         # Store_id and score for test, ctrl
-        test_store_score = store_comp_score_pv[store_comp_score_pv["store_id"].isin(test_store_id)].reset_index(drop=True)
-        ctrl_store_score = store_comp_score_pv[store_comp_score_pv["store_id"].isin(ctrl_store_id)].reset_index(drop=True)
-        
+        test_store_score = store_comp_score_pv[store_comp_score_pv["store_id"].isin(test_store_id["store_id"])].reset_index(drop=True)
+        ctrl_store_score = store_comp_score_pv[store_comp_score_pv["store_id"].isin(ctrl_store_id["store_id"])].reset_index(drop=True)
+        print("List of test store details")
+        display(test_store_id)
         display(test_store_score)
-        display(ctrl_store_score)
         
+        print("List of ctrl store details")
+        display(ctrl_store_id)
+        display(ctrl_store_score)
+
         # Loop test store score, only region with test store
         if len(test_store_score) > 0:
             for i in range(len(test_store_score)):
@@ -1244,19 +1247,19 @@ def get_store_matching(txn: SparkDataFrame,
                 cos0 = -1
 
                 # finding its region & store_id
-                test_store_id = test_store_score.iloc[i].store_id
-                
+                test_store_id = test_store_score.iloc[i,:].store_id
+
                 # get value from that test store
-                test_i_score = test_store_score[i]
+                test_i_score = test_store_score.iloc[i,:]
 
                 # get index for reserved store
                 ctr_index = ctrl_store_score.index
 
                 # Loop ctrl store
                 for j in ctr_index:
-                    
-                    ctrl_i_score = ctrl_store_score[j]
-                    res_store_id = ctrl_store_score.iloc[j].store_id
+
+                    ctrl_i_score = ctrl_store_score.iloc[j,:]
+                    res_store_id = ctrl_store_score.iloc[j,:].store_id
 
             #-----------------------------------------------------------------------------
                     #finding min distance
@@ -1265,28 +1268,28 @@ def get_store_matching(txn: SparkDataFrame,
                         dist0 = dist
                         dist_dict[test_store_id] = [res_store_id, dist]
 
-            #-----------------------------------------------------------------------------            
+            #-----------------------------------------------------------------------------
                     #finding min var
                     var = stats.variance(np.abs(test_i_score - ctrl_i_score))
                     if var < var0:
                         var0 = var
                         var_dict[test_store_id] = [res_store_id, var]
 
-            #-----------------------------------------------------------------------------  
+            #-----------------------------------------------------------------------------
                     #finding highest cos
                     cos = cosine_similarity(test_i_score.reshape(1,-1), ctrl_i_score.reshape(1,-1))[0][0]
                     if cos > cos0:
                         cos0 = cos
                         cos_dict[test_store_id] = [res_store_id,cos]
-    
-    #---- create dataframe            
+
+    #---- create dataframe
     dist_df = pd.DataFrame(dist_dict,index=['ctr_store_dist','euc_dist']).T.reset_index().rename(columns={'index':'store_id'})
     var_df = pd.DataFrame(var_dict,index=['ctr_store_var','var']).T.reset_index().rename(columns={'index':'store_id'})
     cos_df = pd.DataFrame(cos_dict,index=['ctr_store_cos','cos']).T.reset_index().rename(columns={'index':'store_id'})
-    
+
     ## join to have ctr store by each method
     ## Add 'store_mech_set' to test_df -->  Pat 6 Sep 2022
-    
+
     matching_df = store_type.merge(dist_df[['store_id','ctr_store_dist']], on='store_id', how='left')\
                             .merge(var_df[['store_id','ctr_store_var']], on='store_id', how='left')\
                             .merge(cos_df[['store_id','ctr_store_cos']],on='store_id', how='left')
@@ -1295,12 +1298,12 @@ def get_store_matching(txn: SparkDataFrame,
     matching_df.ctr_store_dist = matching_df.ctr_store_dist.astype('int')
     matching_df.ctr_store_var = matching_df.ctr_store_var.astype('int')
     matching_df.ctr_store_cos = matching_df.ctr_store_cos.astype('int')
-    
+
     matching_df.rename(columns = {'store_region_new' : 'store_region'}, inplace = True)
-    
+
     print(' \n Result matching table show below \n')
     matching_df.display()
-    
+
     #----select control store using var method
     if matching_methodology == 'varience':
         ctr_store_list = list(set([s for s in matching_df.ctr_store_var]))
@@ -2618,18 +2621,18 @@ def get_cust_activated_prmzn(
              .drop_duplicates()
             )
         return out
-        
+
     def _get_activated_sales_prmzn(txn: SparkDataFrame
                                   ,shppr_actv: SparkDataFrame
                                   ,prd_scope_df : SparkDataFrame
                                   ,prd_scope_nm : str
                                   ,period_wk_col_nm: str
                                   ):
-        """ Get featured product's Sales values from activated customers (have seen media before buy product) 
+        """ Get featured product's Sales values from activated customers (have seen media before buy product)
             return sales values of activated customers
         """
         txn_dur       = txn.where ( (F.col(period_wk_col_nm) == 'cmp') & (txn.household_id.isNotNull()) )
-                                  
+
         cst_txn_dur   = txn_dur.join  ( prd_scope_df, txn_dur.upc_id == prd_scope_df.upc_id, 'left_semi')\
                                .join  ( shppr_actv,  txn_dur.household_id == shppr_actv.cust_id, 'inner')\
                                .select( txn_dur.date_id
@@ -2647,25 +2650,25 @@ def get_cust_activated_prmzn(
                                          .otherwise(F.lit(None))
                                          .alias('actv_qty')
                                       )
-       
+
         actv_sales_df     = cst_txn_dur.groupBy(cst_txn_dur.household_id)\
                                        .agg    ( F.max( cst_txn_dur.first_shp_date).alias('first_shp_date')
-                                                ,F.sum( cst_txn_dur.actv_sales).alias('actv_spend') 
-                                                ,F.sum( cst_txn_dur.actv_qty).alias('actv_qty') 
+                                                ,F.sum( cst_txn_dur.actv_sales).alias('actv_spend')
+                                                ,F.sum( cst_txn_dur.actv_qty).alias('actv_qty')
                                                )
-        
-        
+
+
         sum_actv_sales_df = actv_sales_df.agg( F.sum(F.lit(1)).alias(prd_scope_nm + '_activated_cust_cnt')
                                              , F.sum(actv_sales_df.actv_spend).alias(prd_scope_nm + '_actv_spend')
                                              , F.avg(actv_sales_df.actv_spend).alias(prd_scope_nm + '_avg_spc')
                                              , F.sum(actv_sales_df.actv_qty).alias(prd_scope_nm + '_actv_qty')
                                              , F.avg(actv_sales_df.actv_qty).alias(prd_scope_nm + '_avg_upc')
                                              )
-        
+
         return actv_sales_df, sum_actv_sales_df
-    
+
     ## End def
-    
+
     #---- Main
     print("-"*80)
     print("Customer PromoZone Exposed & Activated")
@@ -2689,16 +2692,16 @@ def get_cust_activated_prmzn(
                                                                             , prd_scope_nm = 'brand'
                                                                             , period_wk_col_nm = period_wk_col)
 
-    print('\n Total exposed and Feature Brand (in Category scope) shopper (Brand Activated) Display below' )    
+    print('\n Total exposed and Feature Brand (in Category scope) shopper (Brand Activated) Display below' )
     brand_activated_sum.display()
-    
+
     # Sku Activated
     cmp_sku_shppr = _get_shppr_prmzn(txn=txn, test_store_sf=target_str, period_wk_col_nm=period_wk_col, prd_scope_df=feat_sf)
     cmp_sku_activated = _get_activated_prmzn(exposed_cust=cmp_exposed, shppr_cust=cmp_sku_shppr)
 
     #nmbr_sku_activated = cmp_sku_activated.count()
     #print(f'Total exposed and Features SKU shopper (Features SKU Activated) : {nmbr_sku_activated:,d}')
-    
+
     sku_activated_info, sku_activated_sum   =  _get_activated_sales_prmzn( txn=txn
                                                                           , shppr_actv   = cmp_sku_activated
                                                                           , prd_scope_df = feat_sf
@@ -2706,9 +2709,9 @@ def get_cust_activated_prmzn(
                                                                           , period_wk_col_nm = period_wk_col)
 
     print('\n Total exposed and Feature SKU shopper (SKU Activated) Display below' )
-    
+
     sku_activated_sum.display()
-    
+
     #return cmp_brand_activated, cmp_sku_activated
     return brand_activated_info, sku_activated_info, brand_activated_sum, sku_activated_sum
 
@@ -3058,23 +3061,23 @@ def get_cust_cltv(txn: SparkDataFrame,
 
     #---- Load Purchase cycle, based on lv_svv_pcyc (Switching Level)
    # where_cond   = """ store_format_group == {} """.format(store_format)
-    
+
     if lv_svv_pcyc.lower() == 'class':
         pc_df    = spark.table(pcyc_table)\
                         .where(lower(F.col('store_format_group')) == store_format.lower())\
                         .join(sec_id_class_id_feature_product, ['section_id', 'class_id'])
 
     elif lv_svv_pcyc.lower() == 'subclass':
-      
+
         pc_df    = spark.table(pcyc_table)\
                         .where(lower(F.col('store_format_group')) == store_format.lower())\
                         .join(sec_id_class_id_subclass_id_feature_product, ['section_id', 'class_id', 'subclass_id'])
-   
-    
+
+
     ## convert to pandas
-    
+
     pc_table = _to_pandas(pc_df)
-        
+
     #---- Customer Survival Rate graph
     brand_csr_graph = brand_csr_df[[c for c in brand_csr.columns if 'CSR' in c]].T
     brand_csr_graph.columns = ['survival_rate']
