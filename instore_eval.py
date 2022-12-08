@@ -1220,6 +1220,7 @@ def get_store_matching(txn: SparkDataFrame,
     
     # Loop in each region
     for r in region_list:
+        print(r)
         # List of store_id in those region for test, ctrl
         test_store_id = store_type[(store_type["store_region_new"]==r) & (store_type["store_type"]=="test")]["store_id"]
         ctrl_store_id = store_type[(store_type["store_region_new"]==r) & (store_type["store_type"]=="ctrl")]["store_id"]
@@ -1227,52 +1228,56 @@ def get_store_matching(txn: SparkDataFrame,
         # Store_id and score for test, ctrl
         test_store_score = store_comp_score_pv[store_comp_score_pv["store_id"].isin(test_store_id)]
         ctrl_store_score = store_comp_score_pv[store_comp_score_pv["store_id"].isin(ctrl_store_id)]
-    
-        # Loop test store score
-        for i in range(len(test_store_score)):
+        
+        display(test_store_score)
+        display(ctrl_store_score)
+        
+        # Loop test store score, only region with test store
+        if len(test_store_score) > 0:
+            for i in range(len(test_store_score)):
 
-            #set standard euc_distance
-            dist0 = 10**9
-            #set standard var
-            var0 = 100
-            #set standard cosine
-            cos0 = -1
+                #set standard euc_distance
+                dist0 = 10**9
+                #set standard var
+                var0 = 100
+                #set standard cosine
+                cos0 = -1
 
-            # finding its region & store_id
-            test_store_id = test_store_score.iloc[i].store_id
-            
-            # get value from that test store
-            test_i_score = test_store_score[i]
-
-            # get index for reserved store
-            ctr_index = ctrl_store_score.index
-
-            # Loop ctrl store
-            for j in ctr_index:
+                # finding its region & store_id
+                test_store_id = test_store_score.iloc[i].store_id
                 
-                ctrl_i_score = ctrl_store_score[j]
-                res_store_id = ctrl_store_score.iloc[j].store_id
+                # get value from that test store
+                test_i_score = test_store_score[i]
 
-        #-----------------------------------------------------------------------------
-                #finding min distance
-                dist = distance.euclidean(test_i_score, ctrl_i_score)
-                if dist < dist0:
-                    dist0 = dist
-                    dist_dict[test_store_id] = [res_store_id, dist]
+                # get index for reserved store
+                ctr_index = ctrl_store_score.index
 
-        #-----------------------------------------------------------------------------            
-                #finding min var
-                var = stats.variance(np.abs(test_i_score - ctrl_i_score))
-                if var < var0:
-                    var0 = var
-                    var_dict[test_store_id] = [res_store_id, var]
+                # Loop ctrl store
+                for j in ctr_index:
+                    
+                    ctrl_i_score = ctrl_store_score[j]
+                    res_store_id = ctrl_store_score.iloc[j].store_id
 
-        #-----------------------------------------------------------------------------  
-                #finding highest cos
-                cos = cosine_similarity(test_i_score.reshape(1,-1), ctrl_i_score.reshape(1,-1))[0][0]
-                if cos > cos0:
-                    cos0 = cos
-                    cos_dict[test_store_id] = [res_store_id,cos]
+            #-----------------------------------------------------------------------------
+                    #finding min distance
+                    dist = distance.euclidean(test_i_score, ctrl_i_score)
+                    if dist < dist0:
+                        dist0 = dist
+                        dist_dict[test_store_id] = [res_store_id, dist]
+
+            #-----------------------------------------------------------------------------            
+                    #finding min var
+                    var = stats.variance(np.abs(test_i_score - ctrl_i_score))
+                    if var < var0:
+                        var0 = var
+                        var_dict[test_store_id] = [res_store_id, var]
+
+            #-----------------------------------------------------------------------------  
+                    #finding highest cos
+                    cos = cosine_similarity(test_i_score.reshape(1,-1), ctrl_i_score.reshape(1,-1))[0][0]
+                    if cos > cos0:
+                        cos0 = cos
+                        cos_dict[test_store_id] = [res_store_id,cos]
     
     #---- create dataframe            
     dist_df = pd.DataFrame(dist_dict,index=['ctr_store_dist','euc_dist']).T.reset_index().rename(columns={'index':'store_id'})
