@@ -1174,18 +1174,25 @@ def get_store_matching(txn: SparkDataFrame,
 
         return comb_df
     
-    def _get_pair_euc_min_score(test: PandasDataFrame,
-                                ctrl: PandasDataFrame):
-        """From test , ctrl calculate paired distance, keep lowest
+    def _get_pair_min_dist(test: PandasDataFrame,
+                           ctrl: PandasDataFrame,
+                           dist_nm: str):
+        """From test , ctrl calculate paired distance, keep lowest pair
+        The test , ctrl DataFrame must have 'store_id' as index     
+        Parameter
+        ----
+        dist_nm : 'euclidean' or 'cosine'
         """
-        from sklearn.metrics.pairwise import euclidean_distances
+        from sklearn.metrics import pairwise_distances
         
-        paired = euclidean_distances(test, ctrl)
+        data = pairwise_distances(test, ctrl, metric=dist_nm)
+        paired = pd.DataFrame(data=data, index=test.index, columns=ctrl.index)    
         paired.index = paired.index.set_names("test_store_id")
         paired.columns = paired.columns.set_names("ctrl_store_id")
         paired_nm = paired.unstack().reset_index()
-        paired_nm.columns = ["ctrl_store_id", "test_store_id", "score"]
-        min_paired = paired_nm.sort_values(["test_store_id", "score"], ascending=True).groupby(["test_store_id"]).head(1)
+        paired_nm.columns = ["ctrl_store_id", "test_store_id", dist_nm]
+        min_paired = paired_nm.sort_values(["test_store_id", dist_nm], ascending=True).groupby(["test_store_id"]).head(1)
+        
         return min_paired
     
     #--------------
