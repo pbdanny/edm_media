@@ -1220,10 +1220,15 @@ def get_store_matching(txn: SparkDataFrame,
     
     # Loop in each region
     for r in region_list:
-        test_store_score = store_comp_score_pv[(store_comp_score_pv["store_region_new"]==r) & (store_comp_score_pv["store_type"]=="test")]
-        ctrl_store_score = store_comp_score_pv[(store_comp_score_pv["store_region_new"]==r) & (store_comp_score_pv["store_type"]=="ctrl")]
+        # List of store_id in those region for test, ctrl
+        test_store_id = store_type[(store_type["store_region_new"]==r) & (store_type["store_type"]=="test")]["store_id"]
+        ctrl_store_id = store_type[(store_type["store_region_new"]==r) & (store_type["store_type"]=="ctrl")]["store_id"]
+        
+        # Store_id and score for test, ctrl
+        test_store_score = store_comp_score_pv[store_comp_score_pv["store_id"].isin(test_store_id)]
+        ctrl_store_score = store_comp_score_pv[store_comp_score_pv["store_id"].isin(ctrl_store_id)]
     
-        # Loop test store
+        # Loop test store score
         for i in range(len(test_store_score)):
 
             #set standard euc_distance
