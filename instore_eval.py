@@ -1211,7 +1211,7 @@ def get_store_matching(txn: SparkDataFrame,
     
     # get store_id, store_region_new, store_type, store_mech_set
     store_type = txn_matching.select(F.col("store_id").cast(StringType()), "store_region_new", "store_type", "store_mech_set").drop_duplicates().toPandas()
-    region_list = store_type["store_region_new"].unique()
+    region_list = store_type["store_region_new"].dropna().unique()
 
     # setup dict to collect info
     dist_dict = {}
@@ -1226,8 +1226,8 @@ def get_store_matching(txn: SparkDataFrame,
         ctrl_store_id = store_type[(store_type["store_region_new"]==r) & (store_type["store_type"]=="ctrl")]["store_id"]
         
         # Store_id and score for test, ctrl
-        test_store_score = store_comp_score_pv[store_comp_score_pv["store_id"].isin(test_store_id)]
-        ctrl_store_score = store_comp_score_pv[store_comp_score_pv["store_id"].isin(ctrl_store_id)]
+        test_store_score = store_comp_score_pv[store_comp_score_pv["store_id"].isin(test_store_id)].reset_index()
+        ctrl_store_score = store_comp_score_pv[store_comp_score_pv["store_id"].isin(ctrl_store_id)].reset_index()
         
         display(test_store_score)
         display(ctrl_store_score)
