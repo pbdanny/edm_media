@@ -1173,7 +1173,21 @@ def get_store_matching(txn: SparkDataFrame,
         comb_df["comp_score"] = (comb_df["std_sales"] + comb_df["std_custs"])/2
 
         return comb_df
-
+    
+    def _get_pair_euc_min_score(test: PandasDataFrame,
+                                ctrl: PandasDataFrame):
+        """From test , ctrl calculate paired distance, keep lowest
+        """
+        from sklearn.metrics.pairwise import euclidean_distances
+        
+        paired = euclidean_distances(test, ctrl)
+        paired.index = paired.index.set_names("test_store_id")
+        paired.columns = paired.columns.set_names("ctrl_store_id")
+        paired_nm = paired.unstack().reset_index()
+        paired_nm.columns = ["ctrl_store_id", "test_store_id", "score"]
+        min_paired = paired_nm.sort_values(["test_store_id", "score"], ascending=True).groupby(["test_store_id"]).head(1)
+        return min_paired
+    
     #--------------
     #---- Main ----
     #--------------
@@ -1289,7 +1303,7 @@ def get_store_matching(txn: SparkDataFrame,
     cos_df = pd.DataFrame(cos_dict,index=['ctr_store_cos','cos']).T.reset_index().rename(columns={'index':'store_id'})
 
     matching_w_kpi_df = (store_type
-                         .query("store_type = 'test'")
+                         .query("store_type == 'test'")
                          .merge(dist_df[['store_id','ctr_store_dist']], on='store_id', how='left')
                          .merge(var_df[['store_id','ctr_store_var']], on='store_id', how='left')
                          .merge(cos_df[['store_id','ctr_store_cos']], on='store_id', how='left')
@@ -1300,7 +1314,7 @@ def get_store_matching(txn: SparkDataFrame,
 
     matching_df.rename(columns = {'store_region_new' : 'store_region'}, inplace = True)
 
-    print(' \n Result matching table show below \n')
+    print('Result matching table show below')
     matching_df.display()
 
     #----select control store using var method
