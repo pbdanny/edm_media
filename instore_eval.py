@@ -1180,7 +1180,7 @@ def get_store_matching(txn: SparkDataFrame,
 
     print("-"*80)
     wk_id_col_nm = _get_wk_id_col_nm(wk_type=wk_type)
-    print(f"Week_id based on column {wk_id_col_nm}")
+    print(f"Week_id based on column '{wk_id_col_nm}'")
     print('Matching performance only "OFFLINE"')
 
     pre_st_wk  = get_lag_wk_id(wk_id=pre_en_wk, lag_num=13, inclusive=True)
@@ -1201,7 +1201,7 @@ def get_store_matching(txn: SparkDataFrame,
             match_lvl = 'subclass'
             txn_matching = txn_match_trg.union(txn_match_ctl)
 
-    print(f'This campaign will do matching at "{match_lvl.upper()}"\n')
+    print(f'This campaign will do matching at "{match_lvl.upper()}"')
     print("-"*80)
 
     # Get composite score by store
@@ -1277,10 +1277,11 @@ def get_store_matching(txn: SparkDataFrame,
 
             #-----------------------------------------------------------------------------
                     #finding highest cos
-                    cos = cosine_similarity(test_i_score.reshape(1,-1), ctrl_i_score.reshape(1,-1))[0][0]
+                    cos = cosine_similarity(test_i_score.to_numpy().reshape(1,-1), 
+                                            ctrl_i_score.to_numpy().reshape(1,-1))[0][0]
                     if cos > cos0:
                         cos0 = cos
-                        cos_dict[test_store_id] = [res_store_id,cos]
+                        cos_dict[test_store_id] = [res_store_id, cos]
 
     #---- create dataframe
     dist_df = pd.DataFrame(dist_dict,index=['ctr_store_dist','euc_dist']).T.reset_index().rename(columns={'index':'store_id'})
