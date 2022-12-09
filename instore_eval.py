@@ -1372,8 +1372,8 @@ def get_store_matching(txn: SparkDataFrame,
         ctrl_store_id = store_type[(store_type["store_region_new"]==r) & (store_type["store_type"]=="ctrl")]
 
         # Store_id and score for test, ctrl
-        test_store_score = store_comp_score_pv_id.index.isin(test_store_id["store_id"])
-        ctrl_store_score = store_comp_score_pv_id.index.isin(ctrl_store_id["store_id"])
+        test_store_score = store_comp_score_pv_id[store_comp_score_pv_id.index.isin(test_store_id["store_id"])]
+        ctrl_store_score = store_comp_score_pv_id[store_comp_score_pv_id.index.isin(ctrl_store_id["store_id"])]
 
         pair_min_euc = _get_pair_min_dist(test=test_store_score, ctrl=ctrl_store_score, dist_nm="euclidean")
         pair_min_cos = _get_pair_min_dist(test=test_store_score, ctrl=ctrl_store_score, dist_nm="cosine")
