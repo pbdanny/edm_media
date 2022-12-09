@@ -1222,8 +1222,8 @@ def get_store_matching(txn: SparkDataFrame,
         
         data = np.zeros( (test.shape[0], ctrl.shape[0]) )
         
-        for i, r in test_pv.reset_index(drop=True).iterrows():
-            for j, l in ctrl_pv.reset_index(drop=True).iterrows():
+        for i, r in test.reset_index(drop=True).iterrows():
+            for j, l in ctrl.reset_index(drop=True).iterrows():
                 data[i, j] = dist_func(r, l)
                 
         return __get_min_pair(data, test, ctrl, dist_nm)
