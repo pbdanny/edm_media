@@ -1281,14 +1281,6 @@ def get_store_matching(txn: SparkDataFrame,
         # Store_id and score for test, ctrl
         test_store_score = store_comp_score_pv[store_comp_score_pv["store_id"].isin(test_store_id["store_id"])].reset_index(drop=True)
         ctrl_store_score = store_comp_score_pv[store_comp_score_pv["store_id"].isin(ctrl_store_id["store_id"])].reset_index(drop=True)
-        
-        print("List of test store details")
-        test_store_id.display()
-        test_store_score.display()
-        
-        print("List of ctrl store details")
-        ctrl_store_id.display()
-        ctrl_store_score.display()
 
         # Loop test store score, only region with test store
         if len(test_store_score) > 0:
