@@ -1174,6 +1174,29 @@ def get_store_matching(txn: SparkDataFrame,
 
         return comb_df
     
+    def __var_abs_dist(x: pd.Series, y: pd.Series):
+        import numpy as np
+        var_abs = np.var(np.abs(x - y))
+        return var_abs
+
+    def __get_min_pair(data: np.ndarray, 
+                       test: pd.DataFrame, 
+                       ctrl: pd.DataFrame, 
+                       dist_nm: str):
+        
+        paired = pd.DataFrame(data=data, index=test.index, columns=ctrl.index)    
+        paired.index = paired.index.set_names("test_store_id")
+        paired.columns = paired.columns.set_names("ctrl_store_id")
+        # Turn wide format into long format with paired of ctrl - test store id
+        paired_nm = paired.unstack().reset_index()
+        # change score column name from 0 -> dist_nm
+        paired_nm_col = [c if c !=0 else dist_nm for c in paired_nm.columns]
+        paired_nm.columns = paired_nm_col
+        # Find lowest score of each test paired with ctrl
+        min_paired = paired_nm.sort_values(["test_store_id", dist_nm], ascending=True).groupby(["test_store_id"]).head(1)
+        
+        return min_paired
+            
     def _get_pair_min_dist(test: PandasDataFrame,
                            ctrl: PandasDataFrame,
                            dist_nm: str):
@@ -1186,14 +1209,24 @@ def get_store_matching(txn: SparkDataFrame,
         from sklearn.metrics import pairwise_distances
         
         data = pairwise_distances(test, ctrl, metric=dist_nm)
-        paired = pd.DataFrame(data=data, index=test.index, columns=ctrl.index)    
-        paired.index = paired.index.set_names("test_store_id")
-        paired.columns = paired.columns.set_names("ctrl_store_id")
-        paired_nm = paired.unstack().reset_index()
-        paired_nm.columns = ["ctrl_store_id", "test_store_id", dist_nm]
-        min_paired = paired_nm.sort_values(["test_store_id", dist_nm], ascending=True).groupby(["test_store_id"]).head(1)
         
-        return min_paired
+        return __get_min_pair(data, test, ctrl, dist_nm)
+        
+    def _get_pair_min_dist_func(test: PandasDataFrame,
+                                ctrl: PandasDataFrame,
+                                dist_nm: str,
+                                dist_func):
+        """From test , ctrl calculate paired distance, keep lowest
+        """
+        import numpy as np
+        
+        data = np.zeros( (test.shape[0], ctrl.shape[0]) )
+        
+        for i, r in test_pv.reset_index(drop=True).iterrows():
+            for j, l in ctrl_pv.reset_index(drop=True).iterrows():
+                data[i, j] = dist_func(r, l)
+                
+        return __get_min_pair(data, test, ctrl, dist_nm)
     
     #--------------
     #---- Main ----
@@ -1248,13 +1281,14 @@ def get_store_matching(txn: SparkDataFrame,
         # Store_id and score for test, ctrl
         test_store_score = store_comp_score_pv[store_comp_score_pv["store_id"].isin(test_store_id["store_id"])].reset_index(drop=True)
         ctrl_store_score = store_comp_score_pv[store_comp_score_pv["store_id"].isin(ctrl_store_id["store_id"])].reset_index(drop=True)
+        
         print("List of test store details")
-        display(test_store_id)
-        display(test_store_score)
+        test_store_id.display()
+        test_store_score.display()
         
         print("List of ctrl store details")
-        display(ctrl_store_id)
-        display(ctrl_store_score)
+        ctrl_store_id.display()
+        ctrl_store_score.display()
 
         # Loop test store score, only region with test store
         if len(test_store_score) > 0:
@@ -1323,7 +1357,40 @@ def get_store_matching(txn: SparkDataFrame,
 
     print('Result matching table show below')
     matching_df.display()
+    
+    #---- New part : store_id as index
+    store_comp_score_pv_id = store_comp_score_pv.set_index("store_id")
+    
+    euc_list = []
+    cos_list = []
+    var_list = []
+    
+    for r in region_list:
 
+        # List of store_id in those region for test, ctrl
+        test_store_id = store_type[(store_type["store_region_new"]==r) & (store_type["store_type"]=="test")]
+        ctrl_store_id = store_type[(store_type["store_region_new"]==r) & (store_type["store_type"]=="ctrl")]
+
+        # Store_id and score for test, ctrl
+        test_store_score = store_comp_score_pv_id[store_comp_score_pv_id["store_id"].isin(test_store_id["store_id"])]
+        ctrl_store_score = store_comp_score_pv_id[store_comp_score_pv_id["store_id"].isin(ctrl_store_id["store_id"])]
+
+        pair_min_euc = _get_pair_min_dist(test=test_store_score, ctrl=ctrl_store_score, dist_nm="euclidean")
+        pair_min_cos = _get_pair_min_dist(test=test_store_score, ctrl=ctrl_store_score, dist_nm="cosine")
+        pair_min_var = _get_pair_min_dist_func(test=test_store_score, ctrl=ctrl_store_score, dist_func=__var_abs_dist, dist_nm="var_abs")
+        
+        euc_list.append(pair_min_euc)
+        cos_list.append(pair_min_cos)
+        var_list.append(pair_min_var)
+        
+    all_euc = pd.concat(euc_list)
+    all_cos = pd.concat(cos_list)
+    all_var = pd.concat(var_list)
+    
+    all_euc.display()
+    all_cos.display()
+    all_var.display()
+    
     #----select control store using var method
     if matching_methodology == 'varience':
         ctr_store_list = list(set([s for s in matching_df.ctr_store_var]))
