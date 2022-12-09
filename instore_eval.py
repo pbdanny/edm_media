@@ -2793,20 +2793,24 @@ def get_cust_cltv(txn: SparkDataFrame,
     
     if lv_svv_pcyc.lower() == 'class':
         pc_df    = spark.table(pcyc_table)\
-                        .where(lower(F.col('store_format_group')) == store_format.lower())\
+                        .where(F.lower(F.col('store_format_group')) == store_format.lower())\
                         .join(sec_id_class_id_feature_product, ['section_id', 'class_id'])
 
     elif lv_svv_pcyc.lower() == 'subclass':
       
         pc_df    = spark.table(pcyc_table)\
-                        .where(lower(F.col('store_format_group')) == store_format.lower())\
+                        .where(F.lower(F.col('store_format_group')) == store_format.lower())\
                         .join(sec_id_class_id_subclass_id_feature_product, ['section_id', 'class_id', 'subclass_id'])
    
     
     ## convert to pandas
     
     pc_table = _to_pandas(pc_df)
-        
+    
+    print('Show purchase cycle table \n ')
+    print(pc_table)    
+    print('=' * 80)
+    
     #---- Customer Survival Rate graph
     brand_csr_graph = brand_csr_df[[c for c in brand_csr.columns if 'CSR' in c]].T
     brand_csr_graph.columns = ['survival_rate']
@@ -2829,11 +2833,13 @@ def get_cust_cltv(txn: SparkDataFrame,
     cc_pen = pc_table.cc_penetration[0]
     spc_per_day = brand_csr_df.spc_per_day[0]
 
+    print(' Store format = ' + store_format + '\n CC Pen of category = ' + str(cc_pen) + '\n')
+    
     #---- calculate CLTV
     dur_cp_value = total_uplift* float(one_time_ratio) *float(spc_onetime) + total_uplift*(1-one_time_ratio)*float(spc_multi)
     post_cp_value = total_uplift* float(auc) * float(spc_per_day)
     cltv = dur_cp_value+post_cp_value
-    epos_cltv = cltv/cc_pen
+    epos_cltv = cltv/float(cc_pen)
     print("EPOS CLTV: ", np.round(epos_cltv,2))
 
     #----- Break-even
