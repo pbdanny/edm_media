@@ -1359,7 +1359,7 @@ def get_store_matching(txn: SparkDataFrame,
     matching_df.display()
     
     #---- New part : store_id as index
-    store_comp_score_pv_id = store_comp_score_pv.set_index("store_id")
+    store_comp_score_pv_id = store_comp_score.pivot(index="store_id", columns="week_id", values="comp_score")
     
     euc_list = []
     cos_list = []
