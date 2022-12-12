@@ -2879,7 +2879,7 @@ def get_cust_cltv(txn: SparkDataFrame,
     breakeven_df2.display()
 
     #create epos value
-    breakeven_df2['epos_acc_sales'] = breakeven_df2['acc_sales']/cc_pen.astype('float')
+    breakeven_df2['epos_acc_sales'] = breakeven_df2['acc_sales']/float(cc_pen)
     breakeven_df2 = breakeven_df2.reset_index()
     breakeven_df2.round(2)
 
