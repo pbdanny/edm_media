@@ -1427,13 +1427,15 @@ def get_store_matching(txn: SparkDataFrame,
     all_dist = pd.concat([all_euc, all_cos, all_var])
     all_dist.display()
     
+    # Set outlier score threshold
+    OUTLIER_SCORE_THRESHOLD = 3.0
     #----select control store using var method
     if matching_methodology == 'varience':
-        flag_outlier = _flag_outlier_mad(all_var)
+        flag_outlier = _flag_outlier_mad(all_var, outlier_score_threshold=OUTLIER_SCORE_THRESHOLD)
     elif matching_methodology == 'euclidean':    
-        flag_outlier = _flag_outlier_mad(all_euc)
+        flag_outlier = _flag_outlier_mad(all_euc, outlier_score_threshold=OUTLIER_SCORE_THRESHOLD)
     elif matching_methodology == 'cosine_distance':
-        flag_outlier = _flag_outlier_mad(all_cos)
+        flag_outlier = _flag_outlier_mad(all_cos, outlier_score_threshold=OUTLIER_SCORE_THRESHOLD)
     else:
         print('Matching metodology not in scope list : varience, euclidean, cosine_distance')
         return None
