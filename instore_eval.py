@@ -1196,7 +1196,7 @@ def get_store_matching(txn: SparkDataFrame,
         paired_nm["dist_measure"] = dist_nm
         paired_nm = paired_nm.loc[:, ["test_store_id", "ctrl_store_id", "dist_measure", "value"]]
         # Find lowest score of each test paired with ctrl
-        min_paired = paired_nm.sort_values(["test_store_id", dist_nm], ascending=True).groupby(["test_store_id"]).head(1)
+        min_paired = paired_nm.sort_values(["test_store_id", "value"], ascending=True).groupby(["test_store_id"]).head(1)
         
         return min_paired
             
