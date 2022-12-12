@@ -1280,7 +1280,7 @@ def get_store_matching(txn: SparkDataFrame,
     print("-"*80)
     wk_id_col_nm = _get_wk_id_col_nm(wk_type=wk_type)
     print(f"Week_id based on column '{wk_id_col_nm}'")
-    print('Matching performance only "OFFLINE"')
+    print('Matching performance only "OFFLINE" channel')
 
     pre_st_wk  = get_lag_wk_id(wk_id=pre_en_wk, lag_num=13, inclusive=True)
 
@@ -1301,6 +1301,7 @@ def get_store_matching(txn: SparkDataFrame,
             txn_matching = txn_match_trg.union(txn_match_ctl)
 
     print(f'This campaign will do matching at "{match_lvl.upper()}"')
+    print(f'Matching method "{matching_methodology.upper()}"')
     print("-"*80)
 
     # Get composite score by store
@@ -1388,7 +1389,7 @@ def get_store_matching(txn: SparkDataFrame,
                          )
     matching_w_kpi_df.display()
     
-    matching_df = matching_w_kpi_df[["store_id", "ctr_store_dist", "ctr_store_var", "ctr_store_cos"]]
+    matching_df = matching_w_kpi_df.loc[:, ["store_id", "ctr_store_dist", "ctr_store_var", "ctr_store_cos"]]
 
     matching_df.rename(columns = {'store_region_new' : 'store_region'}, inplace = True)
 
@@ -1425,6 +1426,8 @@ def get_store_matching(txn: SparkDataFrame,
     all_var = pd.concat(var_list)
     
     all_dist = pd.concat([all_euc, all_cos, all_var])
+    
+    print("All pair and matching method")
     all_dist.display()
     
     # Set outlier score threshold
@@ -1440,12 +1443,14 @@ def get_store_matching(txn: SparkDataFrame,
         print('Matching metodology not in scope list : varience, euclidean, cosine_distance')
         return None
     
+    print("-"*80)
     no_outlier = flag_outlier[~flag_outlier["flag_outlier"]]
     print("Pair plot matched store")
     __plt_pair(no_outlier, store_comp_score=store_comp_score)
     
+    print("-"*80)
+    print("Pair plot bad match store")
     outlier = flag_outlier[flag_outlier["flag_outlier"]]
-    print("Pair plot matched store")
     __plt_pair(outlier, store_comp_score=store_comp_score)
     
     ctr_store_list = list(set([s for s in no_outlier.ctrl_store_id]))
