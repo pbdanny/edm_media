@@ -1081,7 +1081,7 @@ def get_store_matching(txn: SparkDataFrame,
         Customer picked reserved store list, for finding store matching -> control store
 
     matching_methodology: str, default 'varience'
-        'variance', 'euclidean', 'cosine_similarity'
+        'variance', 'euclidean', 'cosine_distance'
     """
     from pyspark.sql import functions as F
     from pyspark.sql.types import StringType
@@ -1189,9 +1189,12 @@ def get_store_matching(txn: SparkDataFrame,
         paired.columns = paired.columns.set_names("ctrl_store_id")
         # Turn wide format into long format with paired of ctrl - test store id
         paired_nm = paired.unstack().reset_index()
-        # change score column name from 0 -> dist_nm
-        paired_nm_col = [c if c !=0 else dist_nm for c in paired_nm.columns]
+        # change unpivot column name 0 -> "value", rename
+        paired_nm_col = [c if c !=0 else "value" for c in paired_nm.columns]
         paired_nm.columns = paired_nm_col
+        # Add distance measure into column, sort column
+        paired_nm["dist_measure"] = dist_nm
+        paired_nm = paired_nm.loc[:, ["test_store_id", "ctrl_store_id", "dist_measure", "value"]]
         # Find lowest score of each test paired with ctrl
         min_paired = paired_nm.sort_values(["test_store_id", dist_nm], ascending=True).groupby(["test_store_id"]).head(1)
         
@@ -1379,9 +1382,8 @@ def get_store_matching(txn: SparkDataFrame,
     all_cos = pd.concat(cos_list)
     all_var = pd.concat(var_list)
     
-    all_euc.display()
-    all_cos.display()
-    all_var.display()
+    all_dist = pd.concat[all_euc, all_cos, all_var]
+    all_dist.display()
     
     #----select control store using var method
     if matching_methodology == 'varience':
@@ -1390,11 +1392,11 @@ def get_store_matching(txn: SparkDataFrame,
     elif matching_methodology == 'euclidean':
         ctr_store_list = list(set([s for s in matching_df.ctr_store_dist]))
         return ctr_store_list, matching_df
-    elif matching_methodology == 'cosine_similarity':
+    elif matching_methodology == 'cosine_distance':
         ctr_store_list = list(set([s for s in matching_df.ctr_store_cos]))
         return ctr_store_list, matching_df
     else:
-        print('Matching metodology not in scope list : varience, euclidean, cosine_similarity')
+        print('Matching metodology not in scope list : varience, euclidean, cosine_distance')
         return None
 
 def get_customer_uplift(txn: SparkDataFrame,
