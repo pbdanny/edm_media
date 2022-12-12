@@ -19,47 +19,97 @@ resrv_store_sf = spark.read.csv("dbfs:/FileStore/media/campaign_eval/00_std_inpu
 
 # COMMAND ----------
 
-def _get_std_score(txn: SparkDataFrame,
-                   wk_id_col_nm: str):
-        """Calculate weekly kpi by store_id
+def _get_comp_score(txn: SparkDataFrame,
+                    wk_id_col_nm: str):
+    """Calculate weekly kpi by store_id
+    """
+    def __get_std(df: PandasDataFrame) -> PandasDataFrame:
         """
-        from pyspark.sql.types import StringType
-        
-        def __get_std(df):
-            
-            from sklearn.preprocessing import StandardScaler, MinMaxScaler
-            
-            scalar = MinMaxScaler() # StandardScaler()
-            
-            scaled = scalar.fit_transform(df)
-            scaled_df = pd.DataFrame(data=scaled, index=df.index, columns=df.columns)
-            
-            return scaled_df
-        
-        txn = txn.withColumn("store_id", F.col("store_id").cast(StringType()))
-        
-        sales = txn.groupBy("store_id").pivot(wk_id_col_nm).agg(F.sum('net_spend_amt').alias('sales')).fillna(0)
-        custs = txn.groupBy("store_id").pivot(wk_id_col_nm).agg(F.count_distinct('household_id').alias('custs')).fillna(0)
-        
-        sales_df = to_pandas(sales).astype({'store_id':str}).set_index("store_id")
-        custs_df = to_pandas(custs).astype({'store_id':str}).set_index("store_id")
-        
-        sales_scaled_df = __get_std(sales_df)
-        custs_scaled_df = __get_std(custs_df)
-        
-        sales_unpv_df = sales_scaled_df.reset_index().melt(id_vars="store_id", value_name="std_sales", var_name="week_id")
-        custs_unpv_df = custs_scaled_df.reset_index().melt(id_vars="store_id", value_name="std_custs", var_name="week_id")        
-        comb_df = pd.merge(sales_unpv_df, custs_unpv_df, how="outer", on=["store_id", "week_id"])
-        comb_df["comp_score"] = (comb_df["std_sales"] + comb_df["std_custs"])/2
-        
-        return comb_df
+        """
+        from sklearn.preprocessing import StandardScaler, MinMaxScaler
+
+        scalar = MinMaxScaler() # StandardScaler()
+
+        scaled = scalar.fit_transform(df)
+        scaled_df = pd.DataFrame(data=scaled, index=df.index, columns=df.columns)
+
+        return scaled_df
+
+    txn = txn.withColumn("store_id", F.col("store_id").cast(StringType()))
+
+    sales = txn.groupBy("store_id").pivot(wk_id_col_nm).agg(F.sum('net_spend_amt').alias('sales')).fillna(0)
+    custs = txn.groupBy("store_id").pivot(wk_id_col_nm).agg(F.count_distinct('household_id').alias('custs')).fillna(0)
+
+    sales_df = to_pandas(sales).astype({'store_id':str}).set_index("store_id")
+    custs_df = to_pandas(custs).astype({'store_id':str}).set_index("store_id")
+
+    sales_scaled_df = __get_std(sales_df)
+    custs_scaled_df = __get_std(custs_df)
+
+    sales_unpv_df = sales_scaled_df.reset_index().melt(id_vars="store_id", value_name="std_sales", var_name="week_id")
+    custs_unpv_df = custs_scaled_df.reset_index().melt(id_vars="store_id", value_name="std_custs", var_name="week_id")
+    comb_df = pd.merge(sales_unpv_df, custs_unpv_df, how="outer", on=["store_id", "week_id"])
+    comb_df["comp_score"] = (comb_df["std_sales"] + comb_df["std_custs"])/2
+
+    return comb_df
+
+def __var_abs_dist(x: pd.Series, y: pd.Series):
+    import numpy as np
+    var_abs = np.var(np.abs(x - y))
+    return var_abs
+
+def __get_min_pair(data: np.ndarray, 
+                   test: pd.DataFrame, 
+                   ctrl: pd.DataFrame, 
+                   dist_nm: str):
+
+    paired = pd.DataFrame(data=data, index=test.index, columns=ctrl.index)    
+    paired.index = paired.index.set_names("test_store_id")
+    paired.columns = paired.columns.set_names("ctrl_store_id")
+    # Turn wide format into long format with paired of ctrl - test store id
+    paired_nm = paired.unstack().reset_index()
+    # change score column name from 0 -> dist_nm
+    paired_nm_col = [c if c !=0 else dist_nm for c in paired_nm.columns]
+    paired_nm.columns = paired_nm_col
+    # Find lowest score of each test paired with ctrl
+    min_paired = paired_nm.sort_values(["test_store_id", dist_nm], ascending=True).groupby(["test_store_id"]).head(1)
+
+    return min_paired
+
+def _get_pair_min_dist(test: PandasDataFrame,
+                       ctrl: PandasDataFrame,
+                       dist_nm: str):
+    """From test , ctrl calculate paired distance, keep lowest pair
+    The test , ctrl DataFrame must have 'store_id' as index     
+    Parameter
+    ----
+    dist_nm : 'euclidean' or 'cosine'
+    """
+    from sklearn.metrics import pairwise_distances
+
+    data = pairwise_distances(test, ctrl, metric=dist_nm)
+
+    return __get_min_pair(data, test, ctrl, dist_nm)
+
+def _get_pair_min_dist_func(test: PandasDataFrame,
+                            ctrl: PandasDataFrame,
+                            dist_nm: str,
+                            dist_func):
+    """From test , ctrl calculate paired distance, keep lowest
+    """
+    import numpy as np
+
+    data = np.zeros( (test.shape[0], ctrl.shape[0]) )
+
+    for i, r in test_pv.reset_index(drop=True).iterrows():
+        for j, l in ctrl_pv.reset_index(drop=True).iterrows():
+            data[i, j] = dist_func(r, l)
+
+    return __get_min_pair(data, test, ctrl, dist_nm)
 
 # COMMAND ----------
 
 cr = _get_std_score(txn.join(feat_sf, "upc_id", "leftsemi"), wk_id_col_nm)
-
-# COMMAND ----------
-
 cr_pv = cr.pivot(index="store_id", columns="week_id", values="comp_score")
 
 # COMMAND ----------
@@ -73,22 +123,92 @@ ctrl_pv = cr_pv[cr_pv.index.isin(["1110", "1111"])]
 
 # COMMAND ----------
 
-def _get_pair_min_dist(test: PandasDataFrame,
-                       ctrl: PandasDataFrame,
-                       dist_nm: str):
-    """From test , ctrl calculate paired distance, keep lowest
-    """
-    from sklearn.metrics import pairwise_distances
+store_comp_stoore_pv_id = cr.pivot(index="store_id", columns="week_id", values="comp_score")
 
-    data = pairwise_distances(test, ctrl, metric=dist_nm)
-    paired = pd.DataFrame(data=data, index=test.index, columns=ctrl.index)    
-    paired.index = paired.index.set_names("test_store_id")
-    paired.columns = paired.columns.set_names("ctrl_store_id")
-    paired_nm = paired.unstack().reset_index()
-    paired_nm.columns = ["ctrl_store_id", "test_store_id", dist_nm]
-    min_paired = paired_nm.sort_values(["test_store_id", dist_nm], ascending=True).groupby(["test_store_id"]).head(1)
+# COMMAND ----------
 
-    return min_paired
+store_comp_stoore_pv_id
+
+# COMMAND ----------
+
+pair_min_euc = _get_pair_min_dist(test=test_pv, ctrl=ctrl_pv, dist_nm="euclidean")
+
+
+# COMMAND ----------
+
+pair_min_euc
+
+# COMMAND ----------
+
+store_comp_score_pv_id = store_comp_score.pivot(index="store_id", columns="week_id", values="comp_score")
+
+euc_list = []
+cos_list = []
+var_list = []
+
+for r in region_list:
+
+    # List of store_id in those region for test, ctrl
+    test_store_id = store_type[(store_type["store_region_new"]==r) & (store_type["store_type"]=="test")]
+    ctrl_store_id = store_type[(store_type["store_region_new"]==r) & (store_type["store_type"]=="ctrl")]
+
+    # Store_id and score for test, ctrl
+    test_store_score = store_comp_score_pv_id[store_comp_score_pv_id["store_id"].isin(test_store_id["store_id"])]
+    ctrl_store_score = store_comp_score_pv_id[store_comp_score_pv_id["store_id"].isin(ctrl_store_id["store_id"])]
+    
+    test_store_score = test_pv = cr_pv[cr_pv.index.isin(["1101", "1102", "1104", "1105"])]
+    ctrl_pv = cr_pv[cr_pv.index.isin(["1110", "1111"])]
+
+    pair_min_euc = _get_pair_min_dist(test=test_store_score, ctrl=ctrl_store_score, dist_nm="euclidean")
+    pair_min_cos = _get_pair_min_dist(test=test_store_score, ctrl=ctrl_store_score, dist_nm="cosine")
+    pair_min_var = _get_pair_min_dist_func(test=test_store_score, ctrl=ctrl_store_score, dist_func=__var_abs_dist, dist_nm="var_abs")
+
+    euc_list.append(pair_min_euc)
+    cos_list.append(pair_min_cos)
+    var_list.append(pair_min_var)
+
+all_euc = pd.concat(euc_list)
+all_cos = pd.concat(cos_list)
+all_var = pd.concat(var_list)
+
+all_euc.display()
+all_cos.display()
+all_var.display()
+
+
+# COMMAND ----------
+
+var_abs
+
+# COMMAND ----------
+
+e = _get_pair_min_dist(test_pv, ctrl_pv, dist_nm="cosine")
+
+# COMMAND ----------
+
+pd.concat([var_abs, e])
+
+# COMMAND ----------
+
+def _var_abs_dist(x: pd.Series, y: pd.Series):
+    import numpy as np
+    var_abs = np.var(np.abs(x - y))
+    return var_abs
+
+o = np.zeros( (test_pv.shape[0], ctrl_pv.shape[0]) )
+
+for i, r  in test_pv.reset_index(drop=True).iterrows():
+    for j, l in ctrl_pv.reset_index(drop=True).iterrows():
+        val = _var_abs_dist(r, l)
+        o[i, j] = val        
+
+# COMMAND ----------
+
+o
+
+# COMMAND ----------
+
+_var_abs_dist(test_pv.iloc[0,:], ctrl_pv.iloc[0,:])
 
 # COMMAND ----------
 
