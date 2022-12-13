@@ -1227,7 +1227,7 @@ elif wk_type == 'promo_wk' :
                                                                 ,sel_sku  = feat_list
                                                                 ,test_store_sf = trg_str_df
                                                                 ,reserved_store_sf = u_ctl_str_df
-                                                                ,matching_methodology = 'varience')
+                                                                ,matching_methodology = 'euclidean')
 ## end if
     
 ## Export to csv file
