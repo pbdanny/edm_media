@@ -19,6 +19,8 @@ resrv_store_sf = spark.read.csv("dbfs:/FileStore/media/campaign_eval/00_std_inpu
 
 # COMMAND ----------
 
+from pyspark.sql.types import StringType
+
 def _get_comp_score(txn: SparkDataFrame,
                     wk_id_col_nm: str):
     """Calculate weekly kpi by store_id
@@ -66,13 +68,13 @@ def __get_min_pair(data: np.ndarray,
     paired = pd.DataFrame(data=data, index=test.index, columns=ctrl.index)    
     paired.index = paired.index.set_names("test_store_id")
     paired.columns = paired.columns.set_names("ctrl_store_id")
-    # Turn wide format into long format with paired of ctrl - test store id
-    paired_nm = paired.unstack().reset_index()
-    # change score column name from 0 -> dist_nm
-    paired_nm_col = [c if c !=0 else dist_nm for c in paired_nm.columns]
-    paired_nm.columns = paired_nm_col
+    # Turn wide format into long format with paired of ctrl - test store id, rename column 0 - > value
+    paired_nm = paired.unstack().reset_index().rename(columns={0:"value"})
+    # Add distance measure into column, sort column
+    paired_nm["dist_measure"] = dist_nm
+    paired_nm = paired_nm.loc[:, ["test_store_id", "ctrl_store_id", "dist_measure", "value"]]
     # Find lowest score of each test paired with ctrl
-    min_paired = paired_nm.sort_values(["test_store_id", dist_nm], ascending=True).groupby(["test_store_id"]).head(1)
+    min_paired = paired_nm.sort_values(["test_store_id", "value"], ascending=True).groupby(["test_store_id"]).head(1)
 
     return min_paired
 
@@ -109,297 +111,91 @@ def _get_pair_min_dist_func(test: PandasDataFrame,
 
 # COMMAND ----------
 
-cr = _get_std_score(txn.join(feat_sf, "upc_id", "leftsemi"), wk_id_col_nm)
-cr_pv = cr.pivot(index="store_id", columns="week_id", values="comp_score")
+store_comp_score = _get_comp_score(txn.join(feat_sf, "upc_id", "leftsemi"), wk_id_col_nm)
+store_comp_score_pv_id = store_comp_score.pivot(index="store_id", columns="week_id", values="comp_score")
 
 # COMMAND ----------
 
-cr_pv
+store_comp_score
 
 # COMMAND ----------
 
-test_pv = cr_pv[cr_pv.index.isin(["1101", "1102", "1104", "1105"])]
-ctrl_pv = cr_pv[cr_pv.index.isin(["1110", "1111"])]
+store_comp_score_pv_id
 
 # COMMAND ----------
 
-store_comp_stoore_pv_id = cr.pivot(index="store_id", columns="week_id", values="comp_score")
-
-# COMMAND ----------
-
-store_comp_stoore_pv_id
+test_pv = store_comp_store_pv_id[store_comp_store_pv_id.index.isin(["1101", "1102", "1104", "1105"])]
+ctrl_pv = store_comp_store_pv_id[store_comp_store_pv_id.index.isin(["1110", "1111"])]
 
 # COMMAND ----------
 
 pair_min_euc = _get_pair_min_dist(test=test_pv, ctrl=ctrl_pv, dist_nm="euclidean")
-
-
-# COMMAND ----------
-
-pair_min_euc
+pair_min_cos = _get_pair_min_dist(test=test_pv, ctrl=ctrl_pv, dist_nm="cosine")
 
 # COMMAND ----------
 
-store_comp_score_pv_id = store_comp_score.pivot(index="store_id", columns="week_id", values="comp_score")
-
-euc_list = []
-cos_list = []
-var_list = []
-
-for r in region_list:
-
-    # List of store_id in those region for test, ctrl
-    test_store_id = store_type[(store_type["store_region_new"]==r) & (store_type["store_type"]=="test")]
-    ctrl_store_id = store_type[(store_type["store_region_new"]==r) & (store_type["store_type"]=="ctrl")]
-
-    # Store_id and score for test, ctrl
-    test_store_score = store_comp_score_pv_id[store_comp_score_pv_id["store_id"].isin(test_store_id["store_id"])]
-    ctrl_store_score = store_comp_score_pv_id[store_comp_score_pv_id["store_id"].isin(ctrl_store_id["store_id"])]
-    
-    test_store_score = test_pv = cr_pv[cr_pv.index.isin(["1101", "1102", "1104", "1105"])]
-    ctrl_pv = cr_pv[cr_pv.index.isin(["1110", "1111"])]
-
-    pair_min_euc = _get_pair_min_dist(test=test_store_score, ctrl=ctrl_store_score, dist_nm="euclidean")
-    pair_min_cos = _get_pair_min_dist(test=test_store_score, ctrl=ctrl_store_score, dist_nm="cosine")
-    pair_min_var = _get_pair_min_dist_func(test=test_store_score, ctrl=ctrl_store_score, dist_func=__var_abs_dist, dist_nm="var_abs")
-
-    euc_list.append(pair_min_euc)
-    cos_list.append(pair_min_cos)
-    var_list.append(pair_min_var)
-
-all_euc = pd.concat(euc_list)
-all_cos = pd.concat(cos_list)
-all_var = pd.concat(var_list)
-
-all_euc.display()
-all_cos.display()
-all_var.display()
-
+all_dist = pd.concat([pair_min_euc, pair_min_cos])
 
 # COMMAND ----------
 
-var_abs
+all_dist.display()
 
 # COMMAND ----------
 
-e = _get_pair_min_dist(test_pv, ctrl_pv, dist_nm="cosine")
+def mad(df: PandasDataFrame, 
+        outlier_score_threshold: float = 3.0):
+    """Flag outlier with MAD, outlier score
+    """
+    flag = \
+    (df
+     .assign(median = lambda x : x["value"].median())
+     .assign(abs_deviation = lambda x : np.abs(x["value"] - x["median"]) )
+     .assign(mad = lambda x : 1.4826 * np.median( x["abs_deviation"] ) ) 
+     .assign(outlier_score = lambda x : x["abs_deviation"]/x["mad"])
+     .assign(flag_outlier = lambda x : np.where(x["outlier_score"]>=outlier_score_threshold, True, False))
+    )
+    return flag
 
 # COMMAND ----------
 
-pd.concat([var_abs, e])
+flag_out = mad(pair_min_euc, outlier_score_threshold=0.7)
 
 # COMMAND ----------
 
-def _var_abs_dist(x: pd.Series, y: pd.Series):
-    import numpy as np
-    var_abs = np.var(np.abs(x - y))
-    return var_abs
-
-o = np.zeros( (test_pv.shape[0], ctrl_pv.shape[0]) )
-
-for i, r  in test_pv.reset_index(drop=True).iterrows():
-    for j, l in ctrl_pv.reset_index(drop=True).iterrows():
-        val = _var_abs_dist(r, l)
-        o[i, j] = val        
+no_outlier = flag_out[~flag_out["flag_outlier"]]
 
 # COMMAND ----------
 
-o
+outlier = flag_out[flag_out["flag_outlier"]]
 
 # COMMAND ----------
 
-_var_abs_dist(test_pv.iloc[0,:], ctrl_pv.iloc[0,:])
+outlier
 
 # COMMAND ----------
 
-e = _get_pair_min_dist(test_pv, ctrl_pv, dist_nm="cosine")
+def __plt_pair(pair: PandasDataFrame,
+               store_comp_score: PandasDataFrame):
+    """Comparison plot each pair of test-ctrl score
+    """
+    from matplotlib import pyplot as plt
+
+    for i, row in pair.iterrows():
+        test_score = store_comp_score[store_comp_score["store_id"]==row["test_store_id"]].loc[:,["week_id", "comp_score"]]
+        ctrl_score = store_comp_score[store_comp_score["store_id"]==row["ctrl_store_id"]].loc[:,["week_id", "comp_score"]]
+        fig, ax = plt.subplots()
+        test_score.plot(ax=ax, x="week_id", y="comp_score", label=f'Test Store : {row["test_store_id"]}')
+        ctrl_score.plot(ax=ax, x="week_id", y="comp_score", label=f'Ctrl Store : {row["ctrl_store_id"]}')
+        plt.show()
+    return None
 
 # COMMAND ----------
 
-e
+__plt_pair(outlier, store_comp_score)
 
 # COMMAND ----------
 
-c = _get_pair_min_score(test_pv, ctrl_pv, dist="cos_dist")
-
-# COMMAND ----------
-
-c
-
-# COMMAND ----------
-
-from sklearn.metrics.pairwise import paired_euclidean_distances, euclidean_distances
-
-# COMMAND ----------
-
-from sklearn.metrics.pairwise import cosine_distances
-
-# COMMAND ----------
-
-test_pv
-
-# COMMAND ----------
-
-ctrl_pv
-
-# COMMAND ----------
-
-x = euclidean_distances(test_pv, ctrl_pv)
-x_df = pd.DataFrame(data = x, index=test_pv.index, columns=ctrl_pv.index)
-
-# COMMAND ----------
-
-x_df
-
-# COMMAND ----------
-
-from sklearn.metrics import pairwise_distances
-
-pairwise_distances(test_pv, ctrl_pv, metric="")
-
-# COMMAND ----------
-
-x = cosine_distances(test_pv, ctrl_pv)
-x_df = pd.DataFrame(data = x, index=test_pv.index, columns=ctrl_pv.index)
-
-# COMMAND ----------
-
-x_df.index = x_df.index.set_names("test_store_id")
-x_df.columns = x_df.columns.set_names("ctrl_store_id")
-
-# COMMAND ----------
-
-x_df_pair = x_df.unstack().reset_index()
-x_df_pair.columns = ["ctrl_store_id", "test_store_id", "score"]
-
-# COMMAND ----------
-
-x_df_pair
-
-# COMMAND ----------
-
-x_df_pair.sort_values(["test_store_id", "score"], ascending=True).groupby(["test_store_id"]).head(1)
-
-# COMMAND ----------
-
-paired_euclidean_distances(test_pv, test_pv)
-
-# COMMAND ----------
-
-
-
-for i, test_row in test_pv.iterrows():
-    for j, ctrl_row in ctrl_pv.iterrows():
-        print(i, "-", j)
-        print(test_row[1:])
-        print(ctrl_row[1:])
-
-# COMMAND ----------
-
-ctrl_pv.shape
-
-# COMMAND ----------
-
-test_pv
-
-# COMMAND ----------
-
-for i,  in cr_pv.iterrows():
-    print(i)
-    print(row[1:])
-
-# COMMAND ----------
-
-
-
-# COMMAND ----------
-
-    from sklearn.metrics.pairwise import cosine_similarity
-
-# COMMAND ----------
-
-i1 = cr_pv[cr_pv["store_id"].isin(["1101", "1102"])].iloc[0, 1:]
-i2 = cr_pv[cr_pv["store_id"].isin(["1101", "1102"])].iloc[1, 1:]
-
-# COMMAND ----------
-
-np.var(np.abs(i1 - i2))
-
-# COMMAND ----------
-
-from statistics import variance
-variance(np.abs(i1-i2))
-
-# COMMAND ----------
-
-from scipy.spatial import distance
-
-distance.euclidean(i1, i2)
-
-# COMMAND ----------
-
-from sklearn.metrics.pairwise import cosine_similarity, cosine_distances
-cosine_similarity(i1, i2)
-
-# COMMAND ----------
-
-distance.cosine(i1, i2)
-
-# COMMAND ----------
-
-cosine_distances(i1.to_numpy().reshape(1, -1), i2.to_numpy().reshape(1, -1))
-
-# COMMAND ----------
-
-cosine_similarity(i1.to_numpy().reshape(1, -1), i2.to_numpy().reshape(1, -1))
-
-# COMMAND ----------
-
-i1.to_numpy().reshape(1, -1)
-
-# COMMAND ----------
-
-import seaborn as sns
-sns.kdeplot(data=cr, x="comp_score", hue="week_id")
-# cr[["comp_score"]].plot(kind="kde")
-
-# COMMAND ----------
-
-cr
-
-# COMMAND ----------
-
-cr.pivot(columns="week_id", values="comp_score").reset_index()
-
-# COMMAND ----------
-
-cr_pv = cr.pivot(index="store_id", columns="week_id", values="comp_score").reset_index()
-
-# COMMAND ----------
-
-cr_pv
-
-# COMMAND ----------
-
-import numpy as np
-from sklearn.metrics import pairwise_distances
-from sklearn.metrics.pairwise import paired_euclidean_distances
-X = pd.DataFrame(np.array([[2, 3]]), columns=["x", "y"])
-Y = pd.DataFrame(np.array([[1, 0]]), columns=["x", "y"])
-
-# COMMAND ----------
-
-paired_euclidean_distances(X, Y)
-
-# COMMAND ----------
-
-X = pd.DataFrame({"store_id":[1, 2, 3],
-                 "wk1":[1.2, 3.3, 4.3],
-                 "wk2":[2.2, 1.3, 2.3]})
-
-# COMMAND ----------
-
-pd.merge(cr_pv, cr_pv, how="cross")
+__plt_pair(no_outlier, store_comp_score)
 
 # COMMAND ----------
 
