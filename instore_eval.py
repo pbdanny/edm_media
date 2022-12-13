@@ -1462,10 +1462,8 @@ def get_store_matching(txn: SparkDataFrame,
     
     # If specific projoect path, save composite score, outlier score to 'output'
     if dbfs_project_path != "":
-        df = to_pandas(store_comp_score)
-        pandas_to_csv_filestore(df, "store_matching_composite_score.csv", prefix=os.path.join(dbfs_project_path, 'output'))
-        df = to_pandas(flag_outlier)
-        pandas_to_csv_filestore(df, "store_matching_flag_outlier.csv", prefix=os.path.join(dbfs_project_path, 'output'))
+        pandas_to_csv_filestore(store_comp_score, "store_matching_composite_score.csv", prefix=os.path.join(dbfs_project_path, 'output'))
+        pandas_to_csv_filestore(flag_outlier, "store_matching_flag_outlier.csv", prefix=os.path.join(dbfs_project_path, 'output'))
     
     return ctr_store_list, matching_df
     
