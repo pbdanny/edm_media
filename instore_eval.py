@@ -1311,6 +1311,8 @@ def get_store_matching(txn: SparkDataFrame,
 
     # Get composite score by store
     store_comp_score = _get_comp_score(txn_matching, wk_id_col_nm)
+    store_comp_score_pv = store_comp_score.pivot(index="store_id", columns="week_id", values="comp_score").reset_index()
+    
     # get store_id, store_region_new, store_type, store_mech_set
     store_type = txn_matching.select(F.col("store_id").cast(StringType()), "store_region_new", "store_type", "store_mech_set").drop_duplicates().toPandas()
     region_list = store_type["store_region_new"].dropna().unique()
