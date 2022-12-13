@@ -21,7 +21,7 @@ spark = SparkSession.builder.appName("media_eval").getOrCreate()
 dbutils = DBUtils(spark)
 
 sys.path.append(os.path.abspath("/Workspace/Repos/thanakrit.boonquarmdee@lotuss.com/edm_util"))
-from edm_helper import get_lag_wk_id, to_pandas
+from edm_helper import get_lag_wk_id, to_pandas, pandas_to_csv_filestore
 
 def print_dev(func):
     @functools.wraps(func)
@@ -1054,7 +1054,8 @@ def get_store_matching(txn: SparkDataFrame,
                        sclass_df: SparkDataFrame,
                        test_store_sf: SparkDataFrame,
                        reserved_store_sf: SparkDataFrame,
-                       matching_methodology: str = 'varience') -> List:
+                       matching_methodology: str = 'varience',
+                       dbfs_project_path: str = "") -> List:
     """
     Parameters
     ----------
@@ -1082,6 +1083,10 @@ def get_store_matching(txn: SparkDataFrame,
 
     matching_methodology: str, default 'varience'
         'variance', 'euclidean', 'cosine_distance'
+    
+    dbfs_project_path: str, default = ''
+        project path = os.path.join(eval_path_fl, cmp_month, cmp_nm)
+    
     """
     from pyspark.sql import functions as F
     from pyspark.sql.types import StringType
@@ -1306,8 +1311,6 @@ def get_store_matching(txn: SparkDataFrame,
 
     # Get composite score by store
     store_comp_score = _get_comp_score(txn_matching, wk_id_col_nm)
-    store_comp_score_pv = store_comp_score.pivot(index="store_id", columns="week_id", values="comp_score").reset_index()
-
     # get store_id, store_region_new, store_type, store_mech_set
     store_type = txn_matching.select(F.col("store_id").cast(StringType()), "store_region_new", "store_type", "store_mech_set").drop_duplicates().toPandas()
     region_list = store_type["store_region_new"].dropna().unique()
@@ -1387,15 +1390,12 @@ def get_store_matching(txn: SparkDataFrame,
                          .merge(var_df[['store_id','ctr_store_var']], on='store_id', how='left')
                          .merge(cos_df[['store_id','ctr_store_cos']], on='store_id', how='left')
                          )
-    matching_w_kpi_df.display()
-    
-    matching_df = matching_w_kpi_df.loc[:, ["store_id", "ctr_store_dist", "ctr_store_var", "ctr_store_cos"]]
 
+    print('Result matching and kpi')
+    matching_w_kpi_df.display()
+    matching_df = matching_w_kpi_df.loc[:, ["store_id", "ctr_store_dist", "ctr_store_var", "ctr_store_cos"]]
     matching_df.rename(columns = {'store_region_new' : 'store_region'}, inplace = True)
 
-    print('Result matching table show below')
-    matching_df.display()
-    
     #---- New part : store_id as index
     store_comp_score_pv_id = store_comp_score.pivot(index="store_id", columns="week_id", values="comp_score")
     
@@ -1427,7 +1427,7 @@ def get_store_matching(txn: SparkDataFrame,
     
     all_dist = pd.concat([all_euc, all_cos, all_var])
     
-    print("All pair and matching method")
+    print("All pairs matching - all distance method")
     all_dist.display()
     
     # Set outlier score threshold
@@ -1457,6 +1457,13 @@ def get_store_matching(txn: SparkDataFrame,
     
     # Backward compatibility : rename column to ["store_id", "ctr_store_var"]
     matching_df = no_outlier.rename(columns={"test_store_id":"store_id", "ctrl_store_id":"ctrl_store_var"})
+    
+    # If specific projoect path, save composite score, outlier score to 'output'
+    if dbfs_project_path != "":
+        df = to_pandas(store_comp_score)
+        pandas_to_csv_filestore(df, "store_matching_composite_score.csv", prefix=os.path.join(dbfs_project_path, 'output'))
+        df = to_pandas(flag_outlier)
+        pandas_to_csv_filestore(df, "store_matching_flag_outlier.csv", prefix=os.path.join(dbfs_project_path, 'output'))
     
     return ctr_store_list, matching_df
     
