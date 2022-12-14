@@ -199,4 +199,94 @@ __plt_pair(no_outlier, store_comp_score)
 
 # COMMAND ----------
 
+def find_mid_rank(num_max: int, fraction: float):
+    """Calculate mid rank base on fraction x num_max in each group
+    Return ArrayType(IntegerType()) of list in mid rank"""
+
+    import math
+    
+    if (num_max <= 19):
+        num_mid = 1
+    else:
+        num_mid = math.floor(num_max*fraction)
+        if num_mid == 0:
+            num_mid = 1
+        
+    pos_mid = math.floor(num_max/2.0)
+    
+    # create list of [1, -1, 2, -2, 3, -3]
+    idx_alternate = [y for x in range(1, num_mid) for y in (x,-x)]
+    # add 0 at start list
+    idx_alternate.insert(0, 0)
+    idx_alternate_num_mid = idx_alternate[:num_mid]
+    
+    list_mid = [pos_mid+i for i in idx_alternate_num_mid]
+    list_mid.sort()
+    
+#     return num_mid, pos_mid, list_mid
+    return list_mid
+
+# COMMAND ----------
+
+find_mid_rank(2, 0.1)
+
+# COMMAND ----------
+
+import math
+
+math.floor(2*0.1)
+range(1,0)
+
+# COMMAND ----------
+
+
+
+# COMMAND ----------
+
+def find_mid_rank(num_max: int, fraction: float):
+    """Calculate mid rank base on fraction x num_max in each group
+    Return ArrayType(IntegerType()) of list in mid rank"""
+
+    import math
+    
+    if (num_max <= 19):
+        num_mid = 1
+    else:
+        num_mid = math.floor(num_max*fraction)
+        
+    pos_mid = math.floor(num_max/2.0)
+    
+    # create list of [1, -1, 2, -2, 3, -3]
+    idx_alternate = [y for x in range(1, num_mid) for y in (x,-x)]
+    # add 0 at start list
+    idx_alternate.insert(0, 0)
+    idx_alternate_num_mid = idx_alternate[:num_mid]
+    
+    list_mid = [pos_mid+i for i in idx_alternate_num_mid]
+    list_mid.sort()
+    
+#     return num_mid, pos_mid, list_mid
+    return list_mid
+
+# COMMAND ----------
+
+for i in range(1, 30):
+    print(i,",", find_mid_rank(i, 0.1))
+
+# COMMAND ----------
+
+num_max = 3
+pos_mid = math.floor(num_max/2.0)+1
+
+# COMMAND ----------
+
+pos_mid
+
+# COMMAND ----------
+
+list_mid = [pos_mid+i for i in idx_alternate_num_mid]
+list_mid
+
+# COMMAND ----------
+
 
