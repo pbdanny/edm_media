@@ -373,6 +373,13 @@ else:
     print('\n Campaign ' + str(cmp_nm) + ' do not need control store. \n')
 ## end if
 
+# COMMAND ----------
+"""
+TEST Part
+----
+Divert to new method control store list
+"""
+in_ctl_file = "dbfs:/FileStore/media/reserved_store/reserved_store_HDE_20221030.csv"
 
 # COMMAND ----------
 
