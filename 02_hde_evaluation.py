@@ -1218,29 +1218,29 @@ if eval_type == 'std':
 # COMMAND ----------
 
 ## call new matching auto select product level to do matching
-if wk_type == 'fis_wk' :
+# if wk_type == 'fis_wk' :
     
-    ctr_store_list, store_matching_df = get_store_matching_at( txn_all
-                                                              ,pre_en_wk =pre_en_wk
-                                                              ,brand_df  = brand_df
-                                                              ,sel_sku   = feat_list
-                                                              ,test_store_sf = trg_str_df
-                                                              ,reserved_store_sf=u_ctl_str_df
-                                                              ,matching_methodology='varience')
-elif wk_type == 'promo_wk' :
-    ctr_store_list, store_matching_df = get_store_matching_promo_at( txn_all
-                                                                ,pre_en_promowk = pre_en_promo_wk
-                                                                ,brand_df = brand_df
-                                                                ,sel_sku  = feat_list
-                                                                ,test_store_sf = trg_str_df
-                                                                ,reserved_store_sf = u_ctl_str_df
-                                                                ,matching_methodology = 'euclidean')
+#     ctr_store_list, store_matching_df = get_store_matching_at( txn_all
+#                                                               ,pre_en_wk =pre_en_wk
+#                                                               ,brand_df  = brand_df
+#                                                               ,sel_sku   = feat_list
+#                                                               ,test_store_sf = trg_str_df
+#                                                               ,reserved_store_sf=u_ctl_str_df
+#                                                               ,matching_methodology='varience')
+# elif wk_type == 'promo_wk' :
+#     ctr_store_list, store_matching_df = get_store_matching_promo_at( txn_all
+#                                                                 ,pre_en_promowk = pre_en_promo_wk
+#                                                                 ,brand_df = brand_df
+#                                                                 ,sel_sku  = feat_list
+#                                                                 ,test_store_sf = trg_str_df
+#                                                                 ,reserved_store_sf = u_ctl_str_df
+#                                                                 ,matching_methodology = 'euclidean')
 ## end if
     
 ## Export to csv file
-pandas_to_csv_filestore(store_matching_df, 'store_matching.csv', prefix= os.path.join(dbfs_project_path, 'output'))
+# pandas_to_csv_filestore(store_matching_df, 'store_matching.csv', prefix= os.path.join(dbfs_project_path, 'output'))
 
-print('-'*80 + '\n Store Matching information Show below \n' + '-'*80)
+# print('-'*80 + '\n Store Matching information Show below \n' + '-'*80)
 
 # COMMAND ----------
 ctr_store_list, store_matching_df = get_store_matching(txn=txn_all,
