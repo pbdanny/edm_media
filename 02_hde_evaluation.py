@@ -1251,7 +1251,7 @@ ctr_store_list, store_matching_df = get_store_matching(txn=txn_all,
                                                        sclass_df=sclass_df,
                                                        test_store_sf=trg_str_df,
                                                        reserved_store_sf=u_ctl_str_df,
-                                                       matching_methodology="variance",
+                                                       matching_methodology="varience",
                                                        dbfs_project_path=dbfs_project_path)
 
 pandas_to_csv_filestore(store_matching_df, 'store_matching_var.csv', prefix= os.path.join(dbfs_project_path, 'output'))

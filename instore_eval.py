@@ -1082,11 +1082,11 @@ def get_store_matching(txn: SparkDataFrame,
         Customer picked reserved store list, for finding store matching -> control store
 
     matching_methodology: str, default 'varience'
-        'variance', 'euclidean', 'cosine_distance'
-    
+        'varience', 'euclidean', 'cosine_distance'
+
     dbfs_project_path: str, default = ''
         project path = os.path.join(eval_path_fl, cmp_month, cmp_nm)
-    
+
     """
     from pyspark.sql import functions as F
     from pyspark.sql.types import StringType
@@ -1178,46 +1178,46 @@ def get_store_matching(txn: SparkDataFrame,
         comb_df["comp_score"] = (comb_df["std_sales"] + comb_df["std_custs"])/2
 
         return comb_df
-    
+
     def __var_abs_dist(x: pd.Series, y: pd.Series):
         import numpy as np
         var_abs = np.var(np.abs(x - y))
         return var_abs
 
-    def __get_min_pair(data: np.ndarray, 
-                       test: pd.DataFrame, 
-                       ctrl: pd.DataFrame, 
+    def __get_min_pair(data: np.ndarray,
+                       test: pd.DataFrame,
+                       ctrl: pd.DataFrame,
                        dist_nm: str):
-        
-        paired = pd.DataFrame(data=data, index=test.index, columns=ctrl.index)    
+
+        paired = pd.DataFrame(data=data, index=test.index, columns=ctrl.index)
         paired.index = paired.index.set_names("test_store_id")
         paired.columns = paired.columns.set_names("ctrl_store_id")
         # Turn wide format into long format with paired of ctrl - test store id, rename column 0 -> value
         paired_nm = paired.unstack().reset_index().rename(columns={0:"value"})
-        
+
         # Add distance measure into column, sort column
         paired_nm["dist_measure"] = dist_nm
         paired_nm = paired_nm.loc[:, ["test_store_id", "ctrl_store_id", "dist_measure", "value"]]
         # Find lowest score of each test paired with ctrl
         min_paired = paired_nm.sort_values(["test_store_id", "value"], ascending=True).groupby(["test_store_id"]).head(1)
-        
+
         return min_paired
-            
+
     def _get_pair_min_dist(test: PandasDataFrame,
                            ctrl: PandasDataFrame,
                            dist_nm: str):
         """From test , ctrl calculate paired distance, keep lowest pair
-        The test , ctrl DataFrame must have 'store_id' as index     
+        The test , ctrl DataFrame must have 'store_id' as index
         Parameter
         ----
         dist_nm : 'euclidean' or 'cosine'
         """
         from sklearn.metrics import pairwise_distances
-        
+
         data = pairwise_distances(test, ctrl, metric=dist_nm)
-        
+
         return __get_min_pair(data, test, ctrl, dist_nm)
-        
+
     def _get_pair_min_dist_func(test: PandasDataFrame,
                                 ctrl: PandasDataFrame,
                                 dist_nm: str,
@@ -1225,43 +1225,43 @@ def get_store_matching(txn: SparkDataFrame,
         """From test , ctrl calculate paired distance, keep lowest
         """
         import numpy as np
-        
+
         data = np.zeros( (test.shape[0], ctrl.shape[0]) )
-        
+
         for i, r in test.reset_index(drop=True).iterrows():
             for j, l in ctrl.reset_index(drop=True).iterrows():
                 data[i, j] = dist_func(r, l)
-                
+
         return __get_min_pair(data, test, ctrl, dist_nm)
-    
-    def _flag_outlier_mad(df: PandasDataFrame, 
+
+    def _flag_outlier_mad(df: PandasDataFrame,
                           outlier_score_threshold: float = 3.0):
         """Flag outlier with MAD method
         Parameter
         ----
         df:
             Pandas data frame with column "value"
-        
+
         outlier_score_threshold:
             threshold = 3.0
-        
+
         Return
         ----
         : PandasDataFrame
-            with column "flag_outlier" 
-            
+            with column "flag_outlier"
+
         """
         flag = \
         (df
          .assign(median = lambda x : x["value"].median())
          .assign(abs_deviation = lambda x : np.abs(x["value"] - x["median"]) )
-         .assign(mad = lambda x : 1.4826 * np.median( x["abs_deviation"] ) ) 
+         .assign(mad = lambda x : 1.4826 * np.median( x["abs_deviation"] ) )
          .assign(outlier_score = lambda x : x["abs_deviation"]/x["mad"])
          .assign(flag_outlier = lambda x : np.where(x["outlier_score"]>=outlier_score_threshold, True, False))
         )
-        
+
         return flag
-    
+
     def __plt_pair(pair: PandasDataFrame,
                    store_comp_score: PandasDataFrame):
         """Comparison plot each pair of test-ctrl score
@@ -1275,9 +1275,9 @@ def get_store_matching(txn: SparkDataFrame,
             test_score.plot(ax=ax, x="week_id", y="comp_score", label=f'Test Store : {row["test_store_id"]}')
             ctrl_score.plot(ax=ax, x="week_id", y="comp_score", label=f'Ctrl Store : {row["ctrl_store_id"]}')
             plt.show()
-            
+
         return None
-    
+
     #--------------
     #---- Main ----
     #--------------
@@ -1312,7 +1312,7 @@ def get_store_matching(txn: SparkDataFrame,
     # Get composite score by store
     store_comp_score = _get_comp_score(txn_matching, wk_id_col_nm)
     store_comp_score_pv = store_comp_score.pivot(index="store_id", columns="week_id", values="comp_score").reset_index()
-    
+
     # get store_id, store_region_new, store_type, store_mech_set
     store_type = txn_matching.select(F.col("store_id").cast(StringType()), "store_region_new", "store_type", "store_mech_set").drop_duplicates().toPandas()
     region_list = store_type["store_region_new"].dropna().unique()
@@ -1375,7 +1375,7 @@ def get_store_matching(txn: SparkDataFrame,
 
             #-----------------------------------------------------------------------------
                     #finding highest cos
-                    cos = cosine_similarity(test_i_score.to_numpy().reshape(1,-1), 
+                    cos = cosine_similarity(test_i_score.to_numpy().reshape(1,-1),
                                             ctrl_i_score.to_numpy().reshape(1,-1))[0][0]
                     if cos > cos0:
                         cos0 = cos
@@ -1400,11 +1400,11 @@ def get_store_matching(txn: SparkDataFrame,
 
     #---- New part : store_id as index
     store_comp_score_pv_id = store_comp_score.pivot(index="store_id", columns="week_id", values="comp_score")
-    
+
     euc_list = []
     cos_list = []
     var_list = []
-    
+
     for r in region_list:
 
         # List of store_id in those region for test, ctrl
@@ -1418,55 +1418,55 @@ def get_store_matching(txn: SparkDataFrame,
         pair_min_euc = _get_pair_min_dist(test=test_store_score, ctrl=ctrl_store_score, dist_nm="euclidean")
         pair_min_cos = _get_pair_min_dist(test=test_store_score, ctrl=ctrl_store_score, dist_nm="cosine")
         pair_min_var = _get_pair_min_dist_func(test=test_store_score, ctrl=ctrl_store_score, dist_func=__var_abs_dist, dist_nm="var_abs")
-        
+
         euc_list.append(pair_min_euc)
         cos_list.append(pair_min_cos)
         var_list.append(pair_min_var)
-        
+
     all_euc = pd.concat(euc_list)
     all_cos = pd.concat(cos_list)
     all_var = pd.concat(var_list)
-    
+
     all_dist = pd.concat([all_euc, all_cos, all_var])
-    
+
     print("All pairs matching - all distance method")
     all_dist.display()
-    
+
     # Set outlier score threshold
     OUTLIER_SCORE_THRESHOLD = 3.0
     #----select control store using var method
     if matching_methodology == 'varience':
         flag_outlier = _flag_outlier_mad(all_var, outlier_score_threshold=OUTLIER_SCORE_THRESHOLD)
-    elif matching_methodology == 'euclidean':    
+    elif matching_methodology == 'euclidean':
         flag_outlier = _flag_outlier_mad(all_euc, outlier_score_threshold=OUTLIER_SCORE_THRESHOLD)
     elif matching_methodology == 'cosine_distance':
         flag_outlier = _flag_outlier_mad(all_cos, outlier_score_threshold=OUTLIER_SCORE_THRESHOLD)
     else:
-        print('Matching metodology not in scope list : varience, euclidean, cosine_distance')
+        print('Matching methodology not in scope list : varience, euclidean, cosine_distance')
         return None
-    
+
     print("-"*80)
     no_outlier = flag_outlier[~flag_outlier["flag_outlier"]]
     print("Pair plot matched store")
     __plt_pair(no_outlier, store_comp_score=store_comp_score)
-    
+
     print("-"*80)
     print("Pair plot bad match store")
     outlier = flag_outlier[flag_outlier["flag_outlier"]]
     __plt_pair(outlier, store_comp_score=store_comp_score)
-    
+
     ctr_store_list = list(set([s for s in no_outlier.ctrl_store_id]))
-    
+
     # Backward compatibility : rename column to ["store_id", "ctr_store_var"]
     matching_df = no_outlier.rename(columns={"test_store_id":"store_id", "ctrl_store_id":"ctrl_store_var"})
-    
+
     # If specific projoect path, save composite score, outlier score to 'output'
     if dbfs_project_path != "":
         pandas_to_csv_filestore(store_comp_score, "store_matching_composite_score.csv", prefix=os.path.join(dbfs_project_path, 'output'))
         pandas_to_csv_filestore(flag_outlier, "store_matching_flag_outlier.csv", prefix=os.path.join(dbfs_project_path, 'output'))
-    
+
     return ctr_store_list, matching_df
-    
+
 def get_customer_uplift(txn: SparkDataFrame,
                        cp_start_date: str,
                        cp_end_date: str,
@@ -3250,7 +3250,7 @@ def get_cust_cltv(txn: SparkDataFrame,
     spc_per_day = brand_csr_df.spc_per_day[0]
 
     print(' Store format = ' + store_format + '\n CC Pen of category = ' + str(cc_pen) + '\n')
-    
+
     #---- calculate CLTV
     dur_cp_value = total_uplift* float(one_time_ratio) *float(spc_onetime) + total_uplift*(1-one_time_ratio)*float(spc_multi)
     post_cp_value = total_uplift* float(auc) * float(spc_per_day)
