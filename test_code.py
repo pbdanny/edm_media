@@ -19,6 +19,26 @@ resrv_store_sf = spark.read.csv("dbfs:/FileStore/media/campaign_eval/00_std_inpu
 
 # COMMAND ----------
 
+resrv_store_new_sf = spark.read.csv("dbfs:/FileStore/media/reserved_store/reserved_store_HDE_20221030.csv", header=True, inferSchema=True)
+
+# COMMAND ----------
+
+(spark.read.csv("dbfs:/FileStore/media/reserved_store/reserved_store_HDE_20221030.csv", header=True, inferSchema=True)
+ .where(F.col("class_code").isin(["13_77_166_1", "13_77_166_2"]))
+).display()
+
+# COMMAND ----------
+
+spark.table(TBL_STORE).select("region")
+
+# COMMAND ----------
+
+(spark.read.csv("dbfs:/FileStore/media/reserved_store/reserved_store_HDE_20221030_full_details.csv", header=True, inferSchema=True)
+ .where(F.col("class_code").isin(["13_77_166_1"]))
+).display()
+
+# COMMAND ----------
+
 from pyspark.sql.types import StringType
 
 def _get_comp_score(txn: SparkDataFrame,
