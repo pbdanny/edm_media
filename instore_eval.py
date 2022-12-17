@@ -1418,6 +1418,7 @@ def get_store_matching(txn: SparkDataFrame,
     __plt_pair(no_outlier, store_comp_score=store_comp_score)
 
     print("-"*80)
+    print(f"Outlier score threshold : {OUTLIER_SCORE_THRESHOLD}")
     print("Details of bad match pair(s)")
     outlier = flag_outlier[flag_outlier["flag_outlier"]]
     (outlier
