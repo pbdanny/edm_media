@@ -77,7 +77,7 @@ import pathlib
 sys.path.append(os.path.abspath("/Workspace/Repos/thanakrit.boonquarmdee@lotuss.com/edm_media"))
 
 from instore_eval import get_cust_activated, get_cust_movement, get_cust_brand_switching_and_penetration, get_cust_sku_switching, get_profile_truprice, get_customer_uplift, get_cust_activated_prmzn, check_combine_region, get_cust_cltv, get_cust_brand_switching_and_penetration_multi
-from instore_eval import get_store_matching
+from instore_eval import get_store_matching, get_store_matching_across_region
 
 # COMMAND ----------
 
@@ -1286,6 +1286,50 @@ ctr_store_list, store_matching_df = get_store_matching(txn=txn_all,
 
 pandas_to_csv_filestore(store_matching_df, 'store_matching_euc.csv', prefix= os.path.join(dbfs_project_path, 'output'))
 
+
+# COMMAND ----------
+ctr_store_list, store_matching_df = get_store_matching_across_region(txn=txn_all,
+                                                       pre_en_wk=pre_en_wk,
+                                                       wk_type="fis_week",
+                                                       feat_sf=feat_df,
+                                                       brand_df=brand_df,
+                                                       sclass_df=sclass_df,
+                                                       test_store_sf=trg_str_df,
+                                                       reserved_store_sf=u_ctl_str_df,
+                                                       matching_methodology="varience",
+                                                       dbfs_project_path=dbfs_project_path)
+
+pandas_to_csv_filestore(store_matching_df, 'store_matching_var_across_region.csv', prefix= os.path.join(dbfs_project_path, 'output'))
+
+# COMMAND ----------
+
+ctr_store_list, store_matching_df = get_store_matching_across_region(txn=txn_all,
+                                                       pre_en_wk=pre_en_wk,
+                                                       wk_type="fis_week",
+                                                       feat_sf=feat_df,
+                                                       brand_df=brand_df,
+                                                       sclass_df=sclass_df,
+                                                       test_store_sf=trg_str_df,
+                                                       reserved_store_sf=u_ctl_str_df,
+                                                       matching_methodology="cosine_distance",
+                                                       dbfs_project_path=dbfs_project_path)
+
+pandas_to_csv_filestore(store_matching_df, 'store_matching_cos_across_region.csv', prefix= os.path.join(dbfs_project_path, 'output'))
+
+# COMMAND ----------
+
+ctr_store_list, store_matching_df = get_store_matching_across_region(txn=txn_all,
+                                                       pre_en_wk=pre_en_wk,
+                                                       wk_type="fis_week",
+                                                       feat_sf=feat_df,
+                                                       brand_df=brand_df,
+                                                       sclass_df=sclass_df,
+                                                       test_store_sf=trg_str_df,
+                                                       reserved_store_sf=u_ctl_str_df,
+                                                       matching_methodology="euclidean",
+                                                       dbfs_project_path=dbfs_project_path)
+
+pandas_to_csv_filestore(store_matching_df, 'store_matching_euc_across_region.csv', prefix= os.path.join(dbfs_project_path, 'output'))
 
 # COMMAND ----------
 
