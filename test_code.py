@@ -41,16 +41,17 @@ db
 
 # COMMAND ----------
 
-def get_store_matching(txn: SparkDataFrame,
-                       pre_en_wk: int,
-                       wk_type: str,
-                       feat_sf: SparkDataFrame,
-                       brand_df: SparkDataFrame,
-                       sclass_df: SparkDataFrame,
-                       test_store_sf: SparkDataFrame,
-                       reserved_store_sf: SparkDataFrame,
-                       matching_methodology: str = 'varience',
-                       dbfs_project_path: str = "") -> List:
+def get_store_matching_across_region(
+        txn: SparkDataFrame,
+        pre_en_wk: int,
+        wk_type: str,
+        feat_sf: SparkDataFrame,
+        brand_df: SparkDataFrame,
+        sclass_df: SparkDataFrame,
+        test_store_sf: SparkDataFrame,
+        reserved_store_sf: SparkDataFrame,
+        matching_methodology: str = 'varience',
+        dbfs_project_path: str = "") -> List:
     """
     Parameters
     ----------
@@ -145,15 +146,15 @@ def get_store_matching(txn: SparkDataFrame,
         """Calculate weekly avg composite score by store_id
         Composite score = (normalized sales + normalize customer) / 2
         Normalize = MinMaxScalar, normalized each week separately
-        
+
         Parameter
         ----
         txn : SparkDataFrame
             transaction of product level (feature sku, feature brand, subclass) for score calculation.
-            
+
         wk_id_col_nm : str
             Name of week column (week_id / promo_week_id) to calculate weekly kpi.
-            
+
         """
         def __get_std(df: PandasDataFrame) -> PandasDataFrame:
             from sklearn.preprocessing import StandardScaler, MinMaxScaler
@@ -196,7 +197,7 @@ def get_store_matching(txn: SparkDataFrame,
                        dist_nm: str):
         """Converted paired distance ndarray, row = test store x column = control store
         into PandasDataFrame and find min paired
-        
+
         Parameter
         ----
         data : np.ndarray
@@ -228,7 +229,7 @@ def get_store_matching(txn: SparkDataFrame,
                            dist_nm: str):
         """From test , ctrl calculate paired distance, keep lowest pair
         The test , ctrl DataFrame must have 'store_id' as index
-        
+
         Parameter
         ----
         dist_nm : 'euclidean' or 'cosine'
@@ -245,15 +246,15 @@ def get_store_matching(txn: SparkDataFrame,
                                 dist_func):
         """From test , ctrl calculate paired distance of custom distance function, keep lowest pair
         The test , ctrl DataFrame must have 'store_id' as index
-        
+
         Parameter
         ----
         dist_nm : str
-            
+
         dist_func : object
-            custom distance function 
+            custom distance function
         """
-        
+
         import numpy as np
 
         data = np.zeros( (test.shape[0], ctrl.shape[0]) )
@@ -282,7 +283,7 @@ def get_store_matching(txn: SparkDataFrame,
 
         """
         NORMAL_DISTRIBUTION_CONSTANT = 1.4826
-        
+
         flag = \
         (df
          .assign(median = lambda x : x["value"].median())
@@ -356,42 +357,40 @@ def get_store_matching(txn: SparkDataFrame,
     cos_list = []
     var_list = []
 
-    for r in region_list:
+    # List of store_id in those region for test, ctrl
+    test_store_id = store_type[(store_type["store_type"]=="test")]
+    ctrl_store_id = store_type[(store_type["store_type"]=="ctrl")]
 
-        # List of store_id in those region for test, ctrl
-        test_store_id = store_type[(store_type["store_region_new"]==r) & (store_type["store_type"]=="test")]
-        ctrl_store_id = store_type[(store_type["store_region_new"]==r) & (store_type["store_type"]=="ctrl")]
+    # Store_id and score for test, ctrl
+    test_store_score = store_comp_score_pv_id[store_comp_score_pv_id.index.isin(test_store_id["store_id"])]
+    ctrl_store_score = store_comp_score_pv_id[store_comp_score_pv_id.index.isin(ctrl_store_id["store_id"])]
 
-        # Store_id and score for test, ctrl
-        test_store_score = store_comp_score_pv_id[store_comp_score_pv_id.index.isin(test_store_id["store_id"])]
-        ctrl_store_score = store_comp_score_pv_id[store_comp_score_pv_id.index.isin(ctrl_store_id["store_id"])]
+    pair_min_euc = _get_pair_min_dist(test=test_store_score, ctrl=ctrl_store_score, dist_nm="euclidean")
+    pair_min_cos = _get_pair_min_dist(test=test_store_score, ctrl=ctrl_store_score, dist_nm="cosine")
+    pair_min_var = _get_pair_min_dist_func(test=test_store_score, ctrl=ctrl_store_score, dist_func=__var_abs_dist, dist_nm="var_abs")
 
-        pair_min_euc = _get_pair_min_dist(test=test_store_score, ctrl=ctrl_store_score, dist_nm="euclidean")
-        pair_min_cos = _get_pair_min_dist(test=test_store_score, ctrl=ctrl_store_score, dist_nm="cosine")
-        pair_min_var = _get_pair_min_dist_func(test=test_store_score, ctrl=ctrl_store_score, dist_func=__var_abs_dist, dist_nm="var_abs")
-
-        euc_list.append(pair_min_euc)
-        cos_list.append(pair_min_cos)
-        var_list.append(pair_min_var)
+    euc_list.append(pair_min_euc)
+    cos_list.append(pair_min_cos)
+    var_list.append(pair_min_var)
 
     all_euc = pd.concat(euc_list)
     all_cos = pd.concat(cos_list)
     all_var = pd.concat(var_list)
-    
+
     all_dist_no_region = pd.concat([all_euc, all_cos, all_var])
-    
+
     # Map store region
     str_region = txn_matching.select(F.col("store_id").cast(StringType()), "store_region_new").drop_duplicates().toPandas()
     test_str_region = str_region.rename(columns={"store_id":"test_store_id", "store_region_new":"test_store_region"})
     ctrl_str_region = str_region.rename(columns={"store_id":"ctrl_store_id", "store_region_new":"ctrl_store_region"})
     all_dist = all_dist_no_region.merge(test_str_region, on="test_store_id", how="left").merge(ctrl_str_region, on="ctrl_store_id", how="left")
-    
+
     print("All pairs matching - all distance method")
     all_dist.display()
     print("Summary all distance method value")
     all_dist.groupby(["dist_measure"])["value"].agg(["count", np.mean, np.std]).reset_index().display()
     all_dist.groupby(["dist_measure", "test_store_region"])["value"].agg(["count", np.mean, np.std]).reset_index().display()
-    
+
     # Set outlier score threshold
     OUTLIER_SCORE_THRESHOLD = 3.0
     #----select control store using var method
@@ -408,7 +407,7 @@ def get_store_matching(txn: SparkDataFrame,
     print("-"*80)
     no_outlier = flag_outlier[~flag_outlier["flag_outlier"]]
     print(f"Number of paired test-ctrl after remove bad match : {no_outlier.shape[0]}")
-    
+
     print("Pair plot matched store")
     __plt_pair(no_outlier, store_comp_score=store_comp_score)
 
@@ -420,7 +419,7 @@ def get_store_matching(txn: SparkDataFrame,
      .merge(test_str_region, on="test_store_id", how="left")
      .merge(ctrl_str_region, on="ctrl_store_id", how="left")
     ).display()
-    
+
     print("Pair plot bad match store")
     __plt_pair(outlier, store_comp_score=store_comp_score)
 
@@ -440,13 +439,10 @@ def get_store_matching(txn: SparkDataFrame,
 
     return ctr_store_list, matching_df
 
-# COMMAND ----------
-
-store_matching_df.shape[0]
 
 # COMMAND ----------
 
-ctr_store_list, store_matching_df = get_store_matching(txn=txn_all,
+ctr_store_list, store_matching_df = get_store_matching_across_region(txn=txn_all,
                                                        pre_en_wk=pre_en_wk,
                                                        wk_type="fis_week",
                                                        feat_sf=feat_sf,
