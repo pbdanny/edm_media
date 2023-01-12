@@ -9,6 +9,11 @@ from scipy.stats import expon
 import pandas as pd
 import numpy as np
 
+from datetime import datetime
+from scipy.stats import expon
+
+spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
+
 # COMMAND ----------
 
 """
@@ -39,7 +44,7 @@ hh_shp_pre = (hh_shp_date
 
 hh_shp_date_diff = hh_shp_pre.where(F.col("day_diff").isNotNull())
 
-hh_hsop
+hh_shp_date_diff = hh_shp_date_diff.checkpoint()
 
 # COMMAND ----------
 
@@ -128,30 +133,12 @@ def get_smooth_purchase_cyc(sf):
 
     return out  
 
-# COMMAND ----------
-
-hh_smth_prchs_cyc = get_smooth_purchase_cyc(hh_shp_date_diff)
-
-# COMMAND ----------
-
-hh_smth_prchs_cyc.display()
-
-# COMMAND ----------
-
-"""
-Probability of next purchase fall into campaign period
-----
-Assume the next purchase event follow Exponentail distribution
-"""
-from datetime import datetime
-from scipy.stats import expon
-
 @udf("float")
 def get_prob_next_purchase(purchase_cycle_day: float,
                            day_last_to_cmp_str: float,
                            day_last_to_cmp_end: float):
-    """Get probability of next purchase
-    will happened in campaign period
+    """Probability of next purchase fall into campaign period
+    Assume the next purchase event follow Exponentail distribution
     """
     from scipy.stats import expon
     
@@ -164,48 +151,63 @@ def get_prob_next_purchase(purchase_cycle_day: float,
 # COMMAND ----------
 
 """
-Extended probability of next N purchases fall into campaign period
-----
-For short purchase cycle, then then next purchase still not reach campaign start date
-Assume that customer keep buying until purchase fall into campaing period
-Assume each purchase cycle are independent, then overall propability = P(event_1)*P(event_2)*P(event_3)*...
+Main
 """
-cmp_str_date_id = datetime.strptime("2022-08-01", "%Y-%m-%d")
-cmp_period_day = 14
+def get_prop_purchase_in_cmp_period(hh_shp_date_diff: SparkDataFrame, 
+                                    cmp_str_date: str,
+                                    cmp_period: int):
+    """Extended probability of next N purchases fall into campaign period
+    For short purchase cycle, then then next purchase still not reach campaign start date
+    Assume that customer keep buying until purchase fall into campaing period
+    Assume each purchase cycle are independent, then overall propability = P(event_1)*P(event_2)*P(event_3)*...
+    
+    Param
+    ----
+    hh_shp_date_diff
+        Dataframe for calculate next purchase, run from step 1
+    cmp_str_date
+        campaign start date, "YYYY-MM-DD"
+    cmp_period
+        Number of campaign period id days
+    """
 
-last_purchase_cyc = \
-(hh_shp_date_diff
- .groupBy("household_id")
- .agg(F.max("date_id").alias("last_purchase_date_id"))
- .join(hh_smth_prchs_cyc, "household_id", "outer")
-)
+    cmp_str_date_id = datetime.strptime(cmp_str_date, "%Y-%m-%d")
+    cmp_period_day = cmp_period
 
-nxt_purchase = \
-(last_purchase_cyc
- .withColumn("day_last_prchs_to_cmp_str", F.datediff(F.lit(cmp_str_date_id) , F.col("last_purchase_date_id")))
- # number of purchase until next purchase fall into campaign
- .withColumn("num_rolling_purchase_before_cmp_str", F.expr(" int(floor(day_last_prchs_to_cmp_str / smth_prchs_cyc)) "))
- # prop of each rolling purchase
- .withColumn("prop_rolling_purchase", get_prob_next_purchase(F.col("smth_prchs_cyc"), F.lit(0.0), F.col("smth_prchs_cyc")))
- # last rolling purchase that the next will be in the campaign period
- .withColumn("rolling_purchase_before_cmp_str_date", F.expr(" date_add(last_purchase_date_id, int(floor(day_last_prchs_to_cmp_str / smth_prchs_cyc) * smth_prchs_cyc)) "))
- # Calculate 
- .withColumn("day_til_cmp_str", F.datediff(F.lit(cmp_str_date_id) , F.col("rolling_purchase_before_cmp_str_date")))
- .withColumn("day_til_cmp_end", F.col("day_til_cmp_str")+cmp_period_day)
- # all prop of N rolling purchase
- .withColumn("prop_prior_cmp", F.when(F.col("num_rolling_purchase_before_cmp_str")==0, F.lit(1.0) ).otherwise(F.pow(F.col("prop_rolling_purchase"), F.col("num_rolling_purchase_before_cmp_str"))))
- # last prob that purchase fall into campaign
- .withColumn("prop_pre_cmp", get_prob_next_purchase(F.col("smth_prchs_cyc"), F.col("day_til_cmp_str"), F.col("day_til_cmp_end")))
- # Final prop = all rolling prop x last prop 
- .withColumn("prop", F.col("prop_prior_cmp")*F.col("prop_pre_cmp"))
-#  .withColumn("day_til_cmp_end_2", F.col("day_last_prchs_to_cmp_str")+cmp_period_day)
-#  .withColumn("prop_2", get_prob_next_purchase(F.col("smth_prchs_cyc"), F.col("day_last_prchs_to_cmp_str"), F.col("day_til_cmp_end_2")))
-)
+    last_purchase_cyc = \
+    (hh_shp_date_diff
+     .groupBy("household_id")
+     .agg(F.max("date_id").alias("last_purchase_date_id"))
+     .join(hh_smth_prchs_cyc, "household_id", "outer")
+    )
+
+    nxt_purchase = \
+    (last_purchase_cyc
+     .withColumn("cmp_str_date_id", F.lit(cmp_str_date_id).cast("date"))
+     .withColumn("day_last_prchs_to_cmp_str", F.datediff(F.col("cmp_str_date_id") , F.col("last_purchase_date_id")))
+     # number of purchase until next purchase fall into campaign
+     .withColumn("num_rolling_purchase_before_cmp_str", F.expr(" int(floor(day_last_prchs_to_cmp_str / smth_prchs_cyc)) "))
+     # prop of each rolling purchase
+     .withColumn("prop_rolling_purchase", get_prob_next_purchase(F.col("smth_prchs_cyc"), F.lit(0.0), F.col("smth_prchs_cyc")))
+     # last rolling purchase that the next will be in the campaign period
+     .withColumn("rolling_purchase_before_cmp_str_date", F.expr(" date_add(last_purchase_date_id, int(floor(day_last_prchs_to_cmp_str / smth_prchs_cyc) * smth_prchs_cyc)) "))
+     # Calculate 
+     .withColumn("day_til_cmp_str", F.datediff(F.lit(cmp_str_date_id) , F.col("rolling_purchase_before_cmp_str_date")))
+     .withColumn("day_til_cmp_end", F.col("day_til_cmp_str")+cmp_period_day)
+     # all prop of N rolling purchase
+     .withColumn("prop_prior_cmp", F.when(F.col("num_rolling_purchase_before_cmp_str")==0, F.lit(1.0) ).otherwise(F.pow(F.col("prop_rolling_purchase"), F.col("num_rolling_purchase_before_cmp_str"))))
+     # last prob that purchase fall into campaign <- Optimistic propbability not take rolling shoping into account
+     .withColumn("prop_pre_cmp", get_prob_next_purchase(F.col("smth_prchs_cyc"), F.col("day_til_cmp_str"), F.col("day_til_cmp_end")))
+     # Final prop = all rolling prop x last prop <- Presimistic propbability take 
+     .withColumn("prop", F.col("prop_prior_cmp")*F.col("prop_pre_cmp"))
+    #  .withColumn("day_til_cmp_end_2", F.col("day_last_prchs_to_cmp_str")+cmp_period_day)
+    #  .withColumn("prop_2", get_prob_next_purchase(F.col("smth_prchs_cyc"), F.col("day_last_prchs_to_cmp_str"), F.col("day_til_cmp_end_2")))
+     .select("household_id", "last_purchase_date_id", F.col("smth_prchs_cyc").alias("predicted_purchase_cycle"), "cmp_str_date_id", "prop")
+    )
+    
+    return nxt_purchase
+
 
 # COMMAND ----------
 
-nxt_purchase.display()
-
-# COMMAND ----------
-
-
+get_prop_purchase_in_cmp_period(hh_shp_date_diff, "2022-12-31", 14).display()
