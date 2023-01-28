@@ -1448,24 +1448,25 @@ def get_store_matching(txn: SparkDataFrame,
 @print_dev
 def get_store_matching_across_region(
         txn: SparkDataFrame,
-        pre_en_wk: int,
         wk_type: str,
+        pre_en_wk: int,
         feat_sf: SparkDataFrame,
         brand_df: SparkDataFrame,
         sclass_df: SparkDataFrame,
         test_store_sf: SparkDataFrame,
         reserved_store_sf: SparkDataFrame,
-        matching_methodology: str = 'varience',
+        matching_methodology: str = 'cosine_distance',
+        bad_match_threshold: float = 2.5,
         dbfs_project_path: str = "") -> List:
     """
     Parameters
     ----------
     txn: SparkDataFrame
 
-    pre_en_wk: End pre_period week --> yyyymm
-        Pre period end week
-
     wk_type: "fis_week" or "promo_week"
+
+    pre_en_wk: End of pre_period week id in format yyyyww
+        Support fis_week / promo_week
 
     feat_sf: SparkDataFrame
         Features upc_id
@@ -1482,8 +1483,11 @@ def get_store_matching_across_region(
     reserved_store_sf: SparkDataFrame
         Customer picked reserved store list, for finding store matching -> control store
 
-    matching_methodology: str, default 'varience'
+    matching_methodology: str, default 'cosine_distance'
         'varience', 'euclidean', 'cosine_distance'
+
+    bad_match_threshold: float, default = 2.5
+        Threshold value for `bad match` store, threshod baed on MAD methodology to identify outlier
 
     dbfs_project_path: str, default = ''
         project path = os.path.join(eval_path_fl, cmp_month, cmp_nm)
@@ -1671,7 +1675,7 @@ def get_store_matching_across_region(
         return __get_min_pair(data, test, ctrl, dist_nm)
 
     def _flag_outlier_mad(df: PandasDataFrame,
-                          outlier_score_threshold: float = 3.0):
+                          outlier_score_threshold: float):
         """Flag outlier with MAD method
         Parameter
         ----
@@ -1790,14 +1794,14 @@ def get_store_matching_across_region(
     ctrl_str_region = str_region.rename(columns={"store_id":"ctrl_store_id", "store_region_new":"ctrl_store_region"})
     all_dist = all_dist_no_region.merge(test_str_region, on="test_store_id", how="left").merge(ctrl_str_region, on="ctrl_store_id", how="left")
 
-    print("All pairs matching - all distance method")
+    print("All distance method - matching result")
     all_dist.display()
-    print("Summary all distance method value")
-    all_dist.groupby(["dist_measure"])["value"].agg(["count", np.mean, np.std]).reset_index().display()
-    all_dist.groupby(["dist_measure", "test_store_region"])["value"].agg(["count", np.mean, np.std]).reset_index().display()
+    # print("Summary all distance method value")
+    # all_dist.groupby(["dist_measure"])["value"].agg(["count", np.mean, np.std]).reset_index().display()
+    # all_dist.groupby(["dist_measure", "test_store_region"])["value"].agg(["count", np.mean, np.std]).reset_index().display()
 
     # Set outlier score threshold
-    OUTLIER_SCORE_THRESHOLD = 3.0
+    OUTLIER_SCORE_THRESHOLD = bad_match_threshold
     #----select control store using var method
     if matching_methodology == 'varience':
         flag_outlier = _flag_outlier_mad(all_var, outlier_score_threshold=OUTLIER_SCORE_THRESHOLD)
@@ -1813,8 +1817,8 @@ def get_store_matching_across_region(
     no_outlier = flag_outlier[~flag_outlier["flag_outlier"]]
     print(f"Number of paired test-ctrl after remove bad match : {no_outlier.shape[0]}")
 
-    print("Pair plot matched store")
-    __plt_pair(no_outlier, store_comp_score=store_comp_score)
+    # print("Pair plot matched store")
+    # __plt_pair(no_outlier, store_comp_score=store_comp_score)
 
     print("-"*80)
     print(f"Outlier score threshold : {OUTLIER_SCORE_THRESHOLD}")
@@ -1825,11 +1829,13 @@ def get_store_matching_across_region(
      .merge(ctrl_str_region, on="ctrl_store_id", how="left")
     ).display()
 
-    print("Pair plot bad match store")
-    __plt_pair(outlier, store_comp_score=store_comp_score)
+    # print("Pair plot bad match store")
+    #__plt_pair(outlier, store_comp_score=store_comp_score)
 
+    # Create control store list from matching result & remove bad match
     ctr_store_list = list(set([s for s in no_outlier.ctrl_store_id]))
 
+    # Create matched test-ctrl store id & remove bad match pairs
     # Backward compatibility : rename column to ["store_id", "ctr_store_var"]
     matching_df = (no_outlier
                    .merge(test_str_region, on="test_store_id", how="left")
@@ -1840,7 +1846,7 @@ def get_store_matching_across_region(
     # If specific projoect path, save composite score, outlier score to 'output'
     if dbfs_project_path != "":
         pandas_to_csv_filestore(store_comp_score, "store_matching_composite_score.csv", prefix=os.path.join(dbfs_project_path, 'output'))
-        pandas_to_csv_filestore(flag_outlier, "store_matching_flag_outlier.csv", prefix=os.path.join(dbfs_project_path, 'output'))
+        pandas_to_csv_filestore(flag_outlier, "store_matching_before_rm_outlier.csv", prefix=os.path.join(dbfs_project_path, 'output'))
 
     return ctr_store_list, matching_df
 
