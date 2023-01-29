@@ -1794,15 +1794,15 @@ def get_store_matching_across_region(
     ctrl_str_region = str_region.rename(columns={"store_id":"ctrl_store_id", "store_region_new":"ctrl_store_region"})
     all_dist = all_dist_no_region.merge(test_str_region, on="test_store_id", how="left").merge(ctrl_str_region, on="ctrl_store_id", how="left")
 
-    print("All distance method - matching result")
-    all_dist.display()
+    # print("All distance method - matching result")
+    # all_dist.display()
     # print("Summary all distance method value")
     # all_dist.groupby(["dist_measure"])["value"].agg(["count", np.mean, np.std]).reset_index().display()
     # all_dist.groupby(["dist_measure", "test_store_region"])["value"].agg(["count", np.mean, np.std]).reset_index().display()
 
-    # Set outlier score threshold
+    #---- Set outlier score threshold
     OUTLIER_SCORE_THRESHOLD = bad_match_threshold
-    #----select control store using var method
+    #---- Select control store from distance method + remove outlier
     if matching_methodology == 'varience':
         flag_outlier = _flag_outlier_mad(all_var, outlier_score_threshold=OUTLIER_SCORE_THRESHOLD)
     elif matching_methodology == 'euclidean':
@@ -1814,8 +1814,13 @@ def get_store_matching_across_region(
         return None
 
     print("-"*80)
+    print(f"Paired test-ctrl before remove bad match")
+    flag_outlier.display()
+
+    print("-"*80)
     no_outlier = flag_outlier[~flag_outlier["flag_outlier"]]
     print(f"Number of paired test-ctrl after remove bad match : {no_outlier.shape[0]}")
+    # no_outlier.display()
 
     # print("Pair plot matched store")
     # __plt_pair(no_outlier, store_comp_score=store_comp_score)
@@ -1836,7 +1841,7 @@ def get_store_matching_across_region(
     ctr_store_list = list(set([s for s in no_outlier.ctrl_store_id]))
 
     # Create matched test-ctrl store id & remove bad match pairs
-    # Backward compatibility : rename column to ["store_id", "ctr_store_var"]
+    # Backward compatibility : rename `test_store_id` -> `store_id` and `ctrl_store_id` -> `ctr_store_var`
     matching_df = (no_outlier
                    .merge(test_str_region, on="test_store_id", how="left")
                    .merge(ctrl_str_region, on="ctrl_store_id", how="left")
@@ -1846,6 +1851,7 @@ def get_store_matching_across_region(
     # If specific projoect path, save composite score, outlier score to 'output'
     if dbfs_project_path != "":
         pandas_to_csv_filestore(store_comp_score, "store_matching_composite_score.csv", prefix=os.path.join(dbfs_project_path, 'output'))
+        pandas_to_csv_filestore(all_dist, "store_matching_all_distance_before_rm_outlier.csv", prefix=os.path.join(dbfs_project_path, 'output'))
         pandas_to_csv_filestore(flag_outlier, "store_matching_before_rm_outlier.csv", prefix=os.path.join(dbfs_project_path, 'output'))
 
     return ctr_store_list, matching_df
