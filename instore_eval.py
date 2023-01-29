@@ -1840,7 +1840,7 @@ def get_store_matching_across_region(
     matching_df = (no_outlier
                    .merge(test_str_region, on="test_store_id", how="left")
                    .merge(ctrl_str_region, on="ctrl_store_id", how="left")
-                   .rename(columns={"test_store_id":"store_id", "ctrl_store_id":"ctrl_store_var"})
+                   .rename(columns={"test_store_id":"store_id", "ctrl_store_id":"ctr_store_var"})
                   )
 
     # If specific projoect path, save composite score, outlier score to 'output'
