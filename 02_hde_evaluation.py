@@ -1304,22 +1304,22 @@ pandas_to_csv_filestore(store_matching_df, 'store_matching.csv', prefix= os.path
 
 # COMMAND ----------
 
-if wk_type == 'fis_wk' :
-    combined_kpi, kpi_df, df_pv = cust_kpi( txn_all
-                                           ,store_fmt=store_fmt
-                                           ,test_store_sf=trg_str_df
-                                           ,ctr_store_list=ctr_store_list
-                                           ,feat_list=feat_list)
-elif wk_type == 'promo_wk':
-    combined_kpi, kpi_df, df_pv = cust_kpi_promo_wk( txn_all
-                                                    ,store_fmt=store_fmt
-                                                    ,test_store_sf=trg_str_df
-                                                    ,ctr_store_list=ctr_store_list
-                                                    ,feat_list=feat_list)
+# if wk_type == 'fis_wk' :
+#     combined_kpi, kpi_df, df_pv = cust_kpi( txn_all
+#                                            ,store_fmt=store_fmt
+#                                            ,test_store_sf=trg_str_df
+#                                            ,ctr_store_list=ctr_store_list
+#                                            ,feat_list=feat_list)
+# elif wk_type == 'promo_wk':
+#     combined_kpi, kpi_df, df_pv = cust_kpi_promo_wk( txn_all
+#                                                     ,store_fmt=store_fmt
+#                                                     ,test_store_sf=trg_str_df
+#                                                     ,ctr_store_list=ctr_store_list
+#                                                     ,feat_list=feat_list)
 ## end if
 
-pandas_to_csv_filestore(kpi_df, 'kpi_test_ctrl_pre_dur.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
-pandas_to_csv_filestore(df_pv, 'customer_share_test_ctrl_pre_dur.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
+# pandas_to_csv_filestore(kpi_df, 'kpi_test_ctrl_pre_dur.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
+# pandas_to_csv_filestore(df_pv, 'customer_share_test_ctrl_pre_dur.csv', prefix=os.path.join(eval_path_fl, cmp_month, cmp_nm, 'result'))
 
 # COMMAND ----------
 
@@ -1581,7 +1581,7 @@ if wk_type == 'promo_wk' :
     sku_promowk_t              = sku_promowk_g.T.reset_index()
     hdr                        = sku_promowk_t.iloc[0]  ## get header from first row
     sku_promowk_uplift         = sku_promowk_t[1:]      ## get data start from row 1 (row 0 is header)
-    sku_promowk_uplift.columns = hdr                    ## set header to df
+    sku_promowk_uplift.columns = hdr                    ## set header to dfWe emphasize that the would be very hard to prove in terms of matrices. By translating all of the statements into statements about linear transformations, they become much more transparent. For example, consider the projection matrix we found in this . Just by looking at the matrix it is not at all obvious that when you square the matrix you get the same matrix back.
 
     #sku_wk_uplift.display()
 
