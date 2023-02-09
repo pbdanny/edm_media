@@ -155,7 +155,7 @@ def get_cust_activated(txn: SparkDataFrame,
                               ) -> str:
         """Column name for period week identification
         """
-        if wk_type in ["promo_week"]:
+        if wk_type in ["promo_week", "promo_wk"]:
             period_wk_col_nm = "period_promo_wk"
         elif wk_type in ["promozone"]:
             period_wk_col_nm = "period_promo_mv_wk"
@@ -358,7 +358,7 @@ def get_cust_movement(txn: SparkDataFrame,
                               ) -> str:
         """Column name for period week identification
         """
-        if wk_type in ["promo_week"]:
+        if wk_type in ["promo_week", "promo_wk"]:
             period_wk_col_nm = "period_promo_wk"
         elif wk_type in ["promozone"]:
             period_wk_col_nm = "period_promo_mv_wk"
@@ -559,7 +559,7 @@ def get_cust_brand_switching_and_penetration(
                               ) -> str:
         """Column name for period week identification
         """
-        if wk_type in ["promo_week"]:
+        if wk_type in ["promo_week", "promo_wk"]:
             period_wk_col_nm = "period_promo_wk"
         elif wk_type in ["promozone"]:
             period_wk_col_nm = "period_promo_mv_wk"
@@ -757,7 +757,7 @@ def get_cust_brand_switching_and_penetration_multi(
                               ) -> str:
         """Column name for period week identification
         """
-        if wk_type in ["promo_week"]:
+        if wk_type in ["promo_week", "promo_wk"]:
             period_wk_col_nm = "period_promo_wk"
         elif wk_type in ["promozone"]:
             period_wk_col_nm = "period_promo_mv_wk"
@@ -848,7 +848,7 @@ def get_cust_sku_switching(
                               ) -> str:
         """Column name for period week identification
         """
-        if wk_type in ["promo_week"]:
+        if wk_type in ["promo_week", "promo_wk"]:
             period_wk_col_nm = "period_promo_wk"
         elif wk_type in ["promozone"]:
             period_wk_col_nm = "period_promo_mv_wk"
@@ -929,7 +929,7 @@ def get_profile_truprice(txn: SparkDataFrame,
                               ) -> str:
         """Column name for period week identification
         """
-        if wk_type in ["promo_week"]:
+        if wk_type in ["promo_week", "promo_wk"]:
             period_wk_col_nm = "period_promo_wk"
         elif wk_type in ["promozone"]:
             period_wk_col_nm = "period_promo_mv_wk"
@@ -1102,7 +1102,7 @@ def get_store_matching(txn: SparkDataFrame,
                               ) -> str:
         """Column name for period week identification
         """
-        if wk_type in ["promo_week"]:
+        if wk_type in ["promo_week", "promo_wk"]:
             wk_id_col_nm = "promoweek_id"
         elif wk_type in ["promozone"]:
             wk_id_col_nm = "promoweek_id"
@@ -1507,7 +1507,7 @@ def get_store_matching_across_region(
                               ) -> str:
         """Column name for period week identification
         """
-        if wk_type in ["promo_week"]:
+        if wk_type in ["promo_week", "promo_wk"]:
             wk_id_col_nm = "promoweek_id"
         elif wk_type in ["promozone"]:
             wk_id_col_nm = "promoweek_id"
@@ -1789,7 +1789,8 @@ def get_store_matching_across_region(
     all_dist_no_region = pd.concat([all_euc, all_cos, all_var])
 
     # Map store region
-    str_region = txn_matching.select(F.col("store_id").cast(StringType()), "store_region_new").drop_duplicates().toPandas()
+    #str_region = txn_matching.select(F.col("store_id").cast(StringType()), "store_region_new").drop_duplicates().toPandas()
+    str_region = txn_matching.select(F.col("store_id").cast(StringType()), "store_region_new", F.col("store_mech_set")).drop_duplicates().toPandas()  ### --  Add 'store_mech_set' back to dataframe  -- Pat 8 FEb 2023
     test_str_region = str_region.rename(columns={"store_id":"test_store_id", "store_region_new":"test_store_region"})
     ctrl_str_region = str_region.rename(columns={"store_id":"ctrl_store_id", "store_region_new":"ctrl_store_region"})
     all_dist = all_dist_no_region.merge(test_str_region, on="test_store_id", how="left").merge(ctrl_str_region, on="ctrl_store_id", how="left")
@@ -1845,7 +1846,8 @@ def get_store_matching_across_region(
     matching_df = (no_outlier
                    .merge(test_str_region, on="test_store_id", how="left")
                    .merge(ctrl_str_region, on="ctrl_store_id", how="left")
-                   .rename(columns={"test_store_id":"store_id", "ctrl_store_id":"ctr_store_var"})
+                   #.rename(columns={"test_store_id":"store_id", "ctrl_store_id":"ctr_store_var"})
+                   .rename(columns={"test_store_id":"store_id", "ctrl_store_id":"ctr_store_cos"})
                   )
 
     # If specific projoect path, save composite score, outlier score to 'output'
@@ -1877,7 +1879,7 @@ def get_customer_uplift(txn: SparkDataFrame,
                               ) -> str:
         """Column name for period week identification
         """
-        if wk_type in ["promo_week"]:
+        if wk_type in ["promo_week", "promo_wk"]:
             period_wk_col_nm = "period_promo_wk"
         elif wk_type in ["promozone"]:
             period_wk_col_nm = "period_promo_mv_wk"
@@ -2152,7 +2154,7 @@ def get_customer_uplift_by_mech(txn: SparkDataFrame,
                               ) -> str:
         """Column name for period week identification
         """
-        if wk_type in ["promo_week"]:
+        if wk_type in ["promo_week", "promo_wk"]:
             period_wk_col_nm = "period_promo_wk"
         elif wk_type in ["promozone"]:
             period_wk_col_nm = "period_promo_mv_wk"
@@ -2480,7 +2482,7 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
                              ) -> str:
        """Column name for period week identification
        """
-       if wk_type in ["promo_week"]:
+       if wk_type in ["promo_week", "promo_wk"]:
            period_wk_col_nm = "period_promo_wk"
        elif wk_type in ["promozone"]:
            period_wk_col_nm = "period_promo_mv_wk"
@@ -3082,7 +3084,7 @@ def get_cust_activated_prmzn(
                               ) -> str:
         """Column name for period week identification
         """
-        if wk_type in ["promo_week"]:
+        if wk_type in ["promo_week", "promo_wk"]:
             period_wk_col_nm = "period_promo_wk"
         elif wk_type in ["promozone"]:
             period_wk_col_nm = "period_promo_mv_wk"
@@ -3285,7 +3287,7 @@ def get_cust_cltv(txn: SparkDataFrame,
                               ) -> str:
         """Column name for period week identification
         """
-        if wk_type in ["promo_week"]:
+        if wk_type in ["promo_week", "promo_wk"]:
             period_wk_col_nm = "period_promo_wk"
         elif wk_type in ["promozone"]:
             period_wk_col_nm = "period_promo_mv_wk"
@@ -3776,7 +3778,7 @@ def _get_cust_brnd_swtchng_pntrtn(
                               ) -> str:
         """Column name for period week identification
         """
-        if wk_type in ["promo_week"]:
+        if wk_type in ["promo_week", "promo_wk"]:
             period_wk_col_nm = "period_promo_wk"
         elif wk_type in ["promozone"]:
             period_wk_col_nm = "period_promo_mv_wk"
