@@ -1789,7 +1789,8 @@ def get_store_matching_across_region(
     all_dist_no_region = pd.concat([all_euc, all_cos, all_var])
 
     # Map store region
-    str_region = txn_matching.select(F.col("store_id").cast(StringType()), "store_region_new").drop_duplicates().toPandas()
+    #str_region = txn_matching.select(F.col("store_id").cast(StringType()), "store_region_new").drop_duplicates().toPandas()
+    str_region = txn_matching.select(F.col("store_id").cast(StringType()), "store_region_new", F.col("store_mech_set")).drop_duplicates().toPandas()  ### --  Add 'store_mech_set' back to dataframe  -- Pat 8 FEb 2023
     test_str_region = str_region.rename(columns={"store_id":"test_store_id", "store_region_new":"test_store_region"})
     ctrl_str_region = str_region.rename(columns={"store_id":"ctrl_store_id", "store_region_new":"ctrl_store_region"})
     all_dist = all_dist_no_region.merge(test_str_region, on="test_store_id", how="left").merge(ctrl_str_region, on="ctrl_store_id", how="left")
@@ -1845,7 +1846,8 @@ def get_store_matching_across_region(
     matching_df = (no_outlier
                    .merge(test_str_region, on="test_store_id", how="left")
                    .merge(ctrl_str_region, on="ctrl_store_id", how="left")
-                   .rename(columns={"test_store_id":"store_id", "ctrl_store_id":"ctr_store_var"})
+                   #.rename(columns={"test_store_id":"store_id", "ctrl_store_id":"ctr_store_var"})
+                   .rename(columns={"test_store_id":"store_id", "ctrl_store_id":"ctr_store_cos"})
                   )
 
     # If specific projoect path, save composite score, outlier score to 'output'
