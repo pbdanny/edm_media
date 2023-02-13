@@ -10,8 +10,30 @@ Python-Version: 3.8
 Utils function for Media Evaluation solution
 """
 from typing import List
+from pandas import DataFrame as PandasDataFrame
+import os
 
 from pyspark.sql import DataFrame as SparkDataFrame
+
+def change_path_type(
+        path_name: str,
+        path_type: str = "file"
+    ) -> str:
+    """
+    Change path type from / to spark api or os files api
+    Param
+    ----
+    path_name:
+        path name
+    path_type:
+        type of path "spark", "file"
+    """
+    path_type = path_type.lower()
+    if path_type == "spark":
+        out = os.path.join('dbfs:/', path_name[6:])
+    else:
+        out = os.path.join('/dbfs/', path_name[6:])
+    return out
 
 def get_period_wk_col_nm(
         wk_type: str
