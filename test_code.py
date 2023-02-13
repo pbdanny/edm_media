@@ -1,4 +1,35 @@
 # Databricks notebook source
+v = locals()
+
+# COMMAND ----------
+
+for k, v in v.items():
+    if isinstance(v, PandasDataFrame):
+        print(k)
+        display(v)
+
+# COMMAND ----------
+
+df = pd.DataFrame({"a":[2,3]})
+
+# COMMAND ----------
+
+from typing import List
+import pandas as pd
+from pandas import DataFrame as PandasDataFrame
+
+# COMMAND ----------
+
+type(x[0])
+
+# COMMAND ----------
+
+for i in x:
+    if isinstance(i, PandasDataFrame):
+        print(i)
+
+# COMMAND ----------
+
 # MAGIC %run /Users/thanakrit.boonquarmdee@lotuss.com/utils/std_import
 
 # COMMAND ----------
