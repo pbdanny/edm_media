@@ -1830,10 +1830,13 @@ def get_store_matching_across_region(
     print(f"Outlier score threshold : {OUTLIER_SCORE_THRESHOLD}")
     print("Details of bad match pair(s)")
     outlier = flag_outlier[flag_outlier["flag_outlier"]]
-    (outlier
-     .merge(test_str_region, on="test_store_id", how="left")
-     .merge(ctrl_str_region, on="ctrl_store_id", how="left")
-    ).display()
+    if outlier.count() > 0:
+        (outlier
+        .merge(test_str_region, on="test_store_id", how="left")
+        .merge(ctrl_str_region, on="ctrl_store_id", how="left")
+        ).display()
+    else:
+        print("No outlier (no bad match)")
 
     # print("Pair plot bad match store")
     #__plt_pair(outlier, store_comp_score=store_comp_score)
