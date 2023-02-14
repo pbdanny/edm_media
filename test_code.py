@@ -1,5 +1,64 @@
 # Databricks notebook source
-v = locals()
+import os
+import sys
+from pathlib import Path
+
+sys.path.append(os.path.abspath("/Workspace/Repos/thanakrit.boonquarmdee@lotuss.com/edm_media_dev"))
+
+# COMMAND ----------
+
+m = 
+
+# COMMAND ----------
+
+class DBPath(Path):
+    def __init__(self,
+                 in_path: str) -> None:
+        super.__init__(in_path)
+        self._base_path = in_path
+    
+    def show(self):
+        print(self._base_path)
+
+# COMMAND ----------
+
+DBPath("dbfs:/FileStore/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_hde_than_2023_01.csv")
+
+# COMMAND ----------
+
+m = Path("dbfs:/FileStore/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_hde_than_2023_01.csv")
+
+# COMMAND ----------
+
+type(m)
+
+# COMMAND ----------
+
+m = DBPath("dbfs:/FileStore/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_hde_than_2023_01.csv")
+
+# COMMAND ----------
+
+mp = Path("dbfs:/FileStore/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_hde_than_2023_01.csv")
+
+# COMMAND ----------
+
+mp.parts
+
+# COMMAND ----------
+
+np = Path("/dbfs/FileStore/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_hde_than_2023_01.csv")
+
+# COMMAND ----------
+
+np.parts
+
+# COMMAND ----------
+
+from instore_eval import load_config
+
+# COMMAND ----------
+
+load_config.change_path_type("dbfs:/FileStore/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_hde_than_2023_01.csv", "file")
 
 # COMMAND ----------
 
