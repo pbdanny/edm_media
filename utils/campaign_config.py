@@ -1,4 +1,8 @@
 import pprint
+from ast import literal_eval
+from typing import List
+from datetime import datetime, timedelta
+
 
 from pyspark.sql import functions as F
 from pyspark.sql import DataFrame as SparkDataFrame
@@ -48,7 +52,12 @@ class CampaignParams:
             raise ValueError(f"Campaign input have only '{self.all_cmp_max_row}' rows, request {cmp_row_no} is not available")
         else:
             self.row_no = cmp_row_no
-            self.params = self.all_cmp_df.iloc[self.row_no - 1].replace(np.nan, None).to_dict()
+            self.params = (self.all_cmp_df
+                           .iloc[self.row_no - 1]
+                           .applymap(lambda x : x.strip() if type(x)==str else x)
+                           .replace(np.nan, None)
+                           .replace('', None)
+                           ).to_dict()
             self.output_path = config_file.cmp_output/self.params["cmp_month"]/self.params["cmp_nm"]
             self.std_input_path = config_file.cmp_output.parent/"00_std_inputs"
         pass
@@ -68,6 +77,7 @@ class CampaignEval(CampaignParams):
         self.store_fmt = self.params["store_fmt"]
         self.wk_type = self.params["wk_type"]
         
+        self.cmp_nm = self.params["cmp_nm"]
         self.cmp_start = self.params["cmp_start"]
         self.cmp_end = self.params["cmp_end"]
         self.media_fee = self.params["media_fee"]
@@ -95,59 +105,63 @@ class CampaignEval(CampaignParams):
         self.cmp_en_wk = period_cal.wk_of_year_ls(self.cmp_end)
         self.cmp_st_promo_wk = period_cal.wk_of_year_promo_ls(self.cmp_start)
         self.cmp_en_promo_wk = period_cal.wk_of_year_promo_ls(self.cmp_end)
-        if ((str(gap_start_date).lower() == 'nan') | (str(gap_start_date).strip() == '')) & ((str(gap_end_date).lower == 'nan') | (str(gap_end_date).strip() == '')):
-            print('No Gap Week for campaign :' + str(cmp_nm))
-            gap_flag    = False
-            chk_pre_wk  = cmp_st_wk
-            chk_pre_dt  = cmp_start
-        elif( (not ((str(gap_start_date).lower() == 'nan') | (str(gap_start_date).strip() == ''))) & 
-              (not ((str(gap_end_date).lower() == 'nan')   | (str(gap_end_date).strip() == ''))) ):    
-            print('\n Campaign ' + str(cmp_nm) + ' has gap period between : ' + str(gap_start_date) + ' and ' + str(gap_end_date) + '\n')
+        self.gap_start_date = self.params["gap_start_date"]
+        self.gap_end_date = self.params["gap_end_date"]
+        
+        if ( self.gap_start_date is None ) & ( self.gap_end_date is None ):
+            print(f'No Gap Week for campaign : {self.cmp_nm}')
+            self.gap_flag    = False
+            self.chk_pre_wk  = self.cmp_st_wk
+            self.chk_pre_dt  = self.cmp_start
+            
+        elif ( self.gap_start_date is not None ) & ( self.gap_end_date is not None ):    
+            print(f'\n Campaign {self.cmp_nm} has gap period between : {self.gap_start_date} and {self.gap_end_date} \n')
+            
             ## fis_week
-            gap_st_wk   = wk_of_year_ls(gap_start_date)
-            gap_en_wk   = wk_of_year_ls(gap_end_date)
+            self.gap_st_wk   = period_cal.wk_of_year_ls(self.gap_start_date)
+            self.gap_en_wk   = period_cal.wk_of_year_ls(self.gap_end_date)
 
             ## promo
-            gap_st_promo_wk  = wk_of_year_promo_ls(gap_start_date)
-            gap_en_promo_wk  = wk_of_year_promo_ls(gap_end_date)
+            self.gap_st_promo_wk  = period_cal.wk_of_year_promo_ls(self.gap_start_date)
+            self.gap_en_promo_wk  = period_cal.wk_of_year_promo_ls(self.gap_end_date)
 
-            gap_flag         = True    
+            self.gap_flag         = True    
 
-            chk_pre_dt       = gap_start_date
-            chk_pre_wk       = gap_st_wk
-            chk_pre_promo_wk = gap_st_promo_wk
+            self.chk_pre_dt       = self.gap_start_date
+            self.chk_pre_wk       = self.gap_st_wk
+            self.chk_pre_promo_wk = self.gap_st_promo_wk
 
         else:
-            print(' Incorrect gap period. Please recheck - Code will skip !! \n')
-            print(' Received Gap = ' + str(gap_start_date) + " and " + str(gap_end_date))
+            print('Incorrect gap period. Please recheck - Code will skip !! \n')
+            print(f'Received Gap = {self.gap_start_date} + " and " + {self.gap_end_date}')
             raise Exception("Incorrect Gap period value please recheck !!")
         ## end if   
 
-        pre_en_date = (datetime.strptime(chk_pre_dt, '%Y-%m-%d') + timedelta(days=-1)).strftime('%Y-%m-%d')
-        pre_en_wk   = wk_of_year_ls(pre_en_date)
-        pre_st_wk   = week_cal(pre_en_wk, -12)                       ## get 12 week away from end week -> inclusive pre_en_wk = 13 weeks
-        pre_st_date = f_date_of_wk(pre_st_wk).strftime('%Y-%m-%d')   ## get first date of start week to get full week data
+        self.pre_en_date = (datetime.strptime(self.chk_pre_dt, '%Y-%m-%d') + timedelta(days=-1)).strftime('%Y-%m-%d')
+        self.pre_en_wk   = period_cal.wk_of_year_ls(self.pre_en_date)
+        self.pre_st_wk   = period_cal.week_cal(self.pre_en_wk, -12)                       ## get 12 week away from end week -> inclusive pre_en_wk = 13 weeks
+        self.pre_st_date = period_cal.f_date_of_wk(self.pre_st_wk).strftime('%Y-%m-%d')   ## get first date of start week to get full week data
         ## promo week
-        pre_en_promo_wk = wk_of_year_promo_ls(pre_en_date)
-        pre_st_promo_wk = promo_week_cal(pre_en_promo_wk, -12)   
+        self.pre_en_promo_wk = period_cal.wk_of_year_promo_ls(self.pre_en_date)
+        self.pre_st_promo_wk = period_cal.promo_week_cal(self.pre_en_promo_wk, -12)   
 
-        ppp_en_wk       = week_cal(pre_st_wk, -1)
-        ppp_st_wk       = week_cal(ppp_en_wk, -12)
+        self.ppp_en_wk       = period_cal.week_cal(self.pre_st_wk, -1)
+        self.ppp_st_wk       = period_cal.week_cal(self.ppp_en_wk, -12)
         ##promo week
-        ppp_en_promo_wk = promo_week_cal(pre_st_promo_wk, -1)
-        ppp_st_promo_wk = promo_week_cal(ppp_en_promo_wk, -12)
+        self.ppp_en_promo_wk = period_cal.promo_week_cal(self.pre_st_promo_wk, -1)
+        self.ppp_st_promo_wk = period_cal.promo_week_cal(self.ppp_en_promo_wk, -12)
 
-        ppp_st_date = f_date_of_wk(ppp_en_wk).strftime('%Y-%m-%d')
-        ppp_en_date = f_date_of_wk(ppp_st_wk).strftime('%Y-%m-%d')
+        self.ppp_st_date = period_cal.f_date_of_wk(self.ppp_en_wk).strftime('%Y-%m-%d')
+        self.ppp_en_date = period_cal.f_date_of_wk(self.ppp_st_wk).strftime('%Y-%m-%d')
 
         ## Add setup week type parameter
 
-        if wk_type == 'fis_wk':
-            wk_tp     = 'fiswk'
-            week_type = 'fis_week'    
-        elif wk_type == 'promo_wk':
-            wk_tp     = 'promowk'
-            week_type = 'promo_week'    
+        if self.params["wk_type"] == 'fis_wk':
+            self.wk_tp     = 'fiswk'
+            self.week_type = 'fis_week'    
+        elif self.params["wk_type"] == 'promo_wk':
+            self.wk_tp     = 'promowk'
+            self.week_type = 'promo_week'    
     
     def load_store(self):
         
@@ -202,21 +216,21 @@ class CampaignEval(CampaignParams):
     
     def load_aisle(self):
         
-        def _convert_cross_cate_cd_to_list():
-            if self.params["cross_cate_cd"] is not None:
-                self.cross_cate_cd = self.params["cross_cate_cd"]
-                if self.cross_cate_cd.find("[") != -1:
-                    return literal_eval(self.cross_cate_cd)
-                elif self.cross_cate_cd.find(",") != -1:
-                    return str.split(self.cross_cate_cd)
+        def _convert_param_to_list(param_name: str) -> List:
+            if self.params[param_name] is not None:
+                param = self.params["cross_cate_cd"]
+                if param.find("[") != -1:
+                    return literal_eval(param)
+                elif param.find(",") != -1:
+                    return str.split(param)
                 else:
-                    return [self.cross_cate_cd]
+                    return [param]
             else:
                 return []
                     
         self.load_prod()
         prd_dim_c = spark.table("tdm.v_prod_dim_c")
-        self.cross_cate_cd_list = _convert_cross_cate_cd_to_list()
+        self.cross_cate_cd_list = _convert_param_to_list("cross_cate_cd")
         aisle_master = spark.read.csv( self.adjacency_file.spark_api(), header=True, inferSchema=True)
         if not self.cross_cate_cd_list:
             feat_subclass = prd_dim_c.join(self.feat_sku, "upc_id", "inner").select("subclass_code").drop_duplicates()
