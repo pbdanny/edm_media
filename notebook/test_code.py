@@ -15,11 +15,15 @@ conf.display_details()
 
 # COMMAND ----------
 
+conf.cmp_config_df.applymap(lambda x : x.strip() if type(x)==str else x)
+
+# COMMAND ----------
+
 cmp = CampaignEval(conf, cmp_row_no=1)
 
 # COMMAND ----------
 
-import os
+timport os
 import sys
 from pathlib import Path
 import pandas as pd
