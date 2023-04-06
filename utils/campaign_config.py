@@ -3,7 +3,7 @@ from ast import literal_eval
 from typing import List
 from datetime import datetime, timedelta
 
-
+from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql import DataFrame as SparkDataFrame
 
@@ -72,7 +72,9 @@ class CampaignParams:
 class CampaignEval(CampaignParams):
     
     def __init__(self, config_file, cmp_row_no):
+        
         super().__init__(config_file, cmp_row_no)
+        self.spark = SparkSession.builder.appName("campaingEval").getOrCreate()
 
         self.store_fmt = self.params["store_fmt"]
         self.wk_type = self.params["wk_type"]
@@ -166,7 +168,7 @@ class CampaignEval(CampaignParams):
     def load_store(self):
         
         def _get_rest_store(str_fmt: str, target_store: SparkDataFrame):
-            store_dim_c = spark.table("tdm.v_store_dim_c")
+            store_dim_c = self.spark.table("tdm.v_store_dim_c")
             if str_fmt in ["hde", "hyper"]:
                 target_format = store_dim_c.where(F.col("format_id").isin([1, 2, 3]))
             elif str_fmt in ["talad", "super"]:
@@ -177,16 +179,16 @@ class CampaignEval(CampaignParams):
                 target_format = store_dim_c.where(F.col("format_id").isin([1,2,3,4,5]))
             return target_format.join(target_store, "store_id", "leftanti").select("store_id").drop_duplicates()
         
-        self.target_store = spark.read.csv( (self.target_store_file).spark_api(), header=True, inferSchema=True)
+        self.target_store = self.spark.read.csv( (self.target_store_file).spark_api(), header=True, inferSchema=True)
         
         try:
-            _ctrl_store_from_custom_file = spark.read.csv( (self.custom_ctrl_store_file).spark_api(), header=True, inferSchema=True)
+            _ctrl_store_from_custom_file = self.spark.read.csv( (self.custom_ctrl_store_file).spark_api(), header=True, inferSchema=True)
             self.params["reserved_store_type"] = "Custom control store file"
             self.ctrl_store = _ctrl_store_from_custom_file
             
         except Exception as e:
             if self.params["resrv_store_class"] is not None:
-                _ctrl_store_from_class = (spark.read.csv( (self.resrv_store_file).spark_api(), header=True, inferSchema=True)
+                _ctrl_store_from_class = (self.spark.read.csv( (self.resrv_store_file).spark_api(), header=True, inferSchema=True)
                                           .where(F.col("class_code")==self.params["resrv_store_class"])
                                           .select("store_id")
                                          )
@@ -200,8 +202,8 @@ class CampaignEval(CampaignParams):
         pass
                                                                                    
     def load_prod(self):
-        self.feat_sku = spark.read.csv( (self.sku_file).spark_api(), header=True, inferSchema=True).withColumnRenamed("feature", "upc_id")
-        prd_dim_c = spark.table("tdm.v_prod_dim_c")
+        self.feat_sku = self.spark.read.csv( (self.sku_file).spark_api(), header=True, inferSchema=True).withColumnRenamed("feature", "upc_id")
+        prd_dim_c = self.spark.table("tdm.v_prod_dim_c")
         feat_subclass = prd_dim_c.join(self.feat_sku, "upc_id", "inner").select("subclass_code").drop_duplicates()
         feat_class = prd_dim_c.join(self.feat_sku, "upc_id", "inner").select("class_code").drop_duplicates()
         self.feat_subclass_sku = prd_dim_c.join(feat_subclass, "subclass_code").select("upc_id").drop_duplicates()
@@ -229,16 +231,16 @@ class CampaignEval(CampaignParams):
                 return []
                     
         self.load_prod()
-        prd_dim_c = spark.table("tdm.v_prod_dim_c")
+        prd_dim_c = self.spark.table("tdm.v_prod_dim_c")
         self.cross_cate_cd_list = _convert_param_to_list("cross_cate_cd")
-        aisle_master = spark.read.csv( self.adjacency_file.spark_api(), header=True, inferSchema=True)
+        aisle_master = self.spark.read.csv( self.adjacency_file.spark_api(), header=True, inferSchema=True)
         if not self.cross_cate_cd_list:
             feat_subclass = prd_dim_c.join(self.feat_sku, "upc_id", "inner").select("subclass_code").drop_duplicates()
             aisle_group = aisle_master.join(feat_subclass, "subclass_code", "inner").select("group").drop_duplicates()
             aisle_subclass = aisle_master.join(aisle_group, "group", "inner").select("subclass_code").drop_duplicates()
             self.aisle_sku = prd_dim_c.join(aisle_subclass, "subclass_code", "inner").select("upc_id").drop_duplicates()
         else:
-            x_subclass = spark.createDataFrame(pd.DataFrame(data=self.cross_cate_cd_list, columns=["subclass_code"])).drop_duplicates()
+            x_subclass = self.spark.createDataFrame(pd.DataFrame(data=self.cross_cate_cd_list, columns=["subclass_code"])).drop_duplicates()
             aisle_group = aisle_master.join(x_subclass, "subclass_code", "inner").select("group").drop_duplicates()
             aisle_subclass = aisle_master.join(aisle_group, "group", "inner").select("subclass_code").drop_duplicates()
             self.aisle_sku = prd_dim_c.join(aisle_subclass, "subclass_code", "inner").select("upc_id").drop_duplicates()
@@ -246,7 +248,7 @@ class CampaignEval(CampaignParams):
     
     def load_txn(self):
         try:
-            self.txn = spark.table(f"tdm_seg.media_campaign_eval_txn_data_{self.params['cmp_id'].lower()}")
+            self.txn = self.spark.table(f"tdm_seg.media_campaign_eval_txn_data_{self.params['cmp_id'].lower()}")
         except Exception as e:
             logger.logger("No snapped transaction")
         pass
