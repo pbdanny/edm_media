@@ -1,100 +1,331 @@
 # Databricks notebook source
 import os
 import sys
+sys.path.append(os.path.abspath("/Workspace/Repos/thanakrit.boonquarmdee@lotuss.com/edm_util"))
+
+# COMMAND ----------
+
+from utils import period_cal
+from utils.campaign_config import CampaignConfigFile, CampaignEval
+
+# COMMAND ----------
+
+conf = CampaignConfigFile("dbfs:/FileStore/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_hde_than_makro.csv")
+conf.display_details()
+
+# COMMAND ----------
+
+cmp = CampaignEval(conf, cmp_row_no=1)
+
+# COMMAND ----------
+
+import os
+import sys
 from pathlib import Path
-
-sys.path.append(os.path.abspath("/Workspace/Repos/thanakrit.boonquarmdee@lotuss.com/edm_media_dev"))
-
-# COMMAND ----------
-
-m = 
-
-# COMMAND ----------
-
-class DBPath(Path):
-    def __init__(self,
-                 in_path: str) -> None:
-        super.__init__(in_path)
-        self._base_path = in_path
-    
-    def show(self):
-        print(self._base_path)
-
-# COMMAND ----------
-
-DBPath("dbfs:/FileStore/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_hde_than_2023_01.csv")
-
-# COMMAND ----------
-
-m = Path("dbfs:/FileStore/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_hde_than_2023_01.csv")
-
-# COMMAND ----------
-
-type(m)
-
-# COMMAND ----------
-
-m = DBPath("dbfs:/FileStore/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_hde_than_2023_01.csv")
-
-# COMMAND ----------
-
-mp = Path("dbfs:/FileStore/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_hde_than_2023_01.csv")
-
-# COMMAND ----------
-
-mp.parts
-
-# COMMAND ----------
-
-np = Path("/dbfs/FileStore/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_hde_than_2023_01.csv")
-
-# COMMAND ----------
-
-np.parts
-
-# COMMAND ----------
-
-from instore_eval import load_config
-
-# COMMAND ----------
-
-load_config.change_path_type("dbfs:/FileStore/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_hde_than_2023_01.csv", "file")
-
-# COMMAND ----------
-
-for k, v in v.items():
-    if isinstance(v, PandasDataFrame):
-        print(k)
-        display(v)
-
-# COMMAND ----------
-
-df = pd.DataFrame({"a":[2,3]})
-
-# COMMAND ----------
-
-from typing import List
 import pandas as pd
-from pandas import DataFrame as PandasDataFrame
-
-# COMMAND ----------
-
-type(x[0])
-
-# COMMAND ----------
-
-for i in x:
-    if isinstance(i, PandasDataFrame):
-        print(i)
-
-# COMMAND ----------
-
-# MAGIC %run /Users/thanakrit.boonquarmdee@lotuss.com/utils/std_import
-
-# COMMAND ----------
+from ast import literal_eval
 
 sys.path.append(os.path.abspath("/Workspace/Repos/thanakrit.boonquarmdee@lotuss.com/edm_util"))
-from edm_helper import get_lag_wk_id, to_pandas
+
+# COMMAND ----------
+
+from utils import load_config
+from utils import logger
+from utils import period_cal
+
+# COMMAND ----------
+
+import pprint
+
+from pathlib import Path as _Path_, _windows_flavour, _posix_flavour
+import os
+
+from pyspark.sql import functions as F
+from pyspark.sql import DataFrame as SparkDataFrame
+
+import pandas as pd
+import numpy as np
+
+class DBPath(_Path_):
+    
+    _flavour = _windows_flavour if os.name == 'nt' else _posix_flavour
+    
+    def __init__(self, input_file):
+        super().__init__()
+        pass
+        
+    def __repr__(self):
+        return f"DBPath class : {self.as_posix()}"
+    
+    def file_api(self):
+        rm_first_5_str = str(self.as_posix())[5:]
+        return str("/dbfs"+rm_first_5_str)
+    
+    def spark_api(self):
+        rm_first_5_str = str(self.as_posix())[5:]
+        return str("dbfs:"+rm_first_5_str)
+    
+class CampaignConfigFile:
+    
+    def __init__(self, source_file):
+        self.source_config_file = source_file
+        self.cmp_config_file = DBPath(source_file)
+        self.cmp_config_file_name = self.cmp_config_file.name
+        self.cmp_config_df = pd.read_csv(self.cmp_config_file.file_api())
+        self.cmp_config_df.insert(loc=0, column='row_num', value=self.cmp_config_df.index + 1)
+        self.total_rows = self.cmp_config_df.shape[0]
+        self.cmp_inputs_files = self.cmp_config_file.parent/"inputs_files"
+        self.cmp_output = self.cmp_config_file.parents[1]
+        pass
+        
+    def __repr__(self):
+        return f"CampaignConfigFile class, source file = '{self.source_config_file}'"
+    
+    def display_details(self):
+        display(self.cmp_config_df)
+        pass
+      
+    def search_details(self, 
+                       column: str,
+                       search_key: str):
+        return self.cmp_config_df[self.cmp_config_df[column].str.contains(search_key)]
+    
+class CampaignParams:
+    
+    def __init__(self, config_file, cmp_row_no):
+        self.cmp_config_file = config_file.cmp_config_file
+        self.all_cmp_df = config_file.cmp_config_df
+        self.all_cmp_max_row = config_file.total_rows
+        self.cmp_inputs_files = config_file.cmp_inputs_files
+        
+        if cmp_row_no > self.all_cmp_max_row:
+            raise ValueError(f"Campaign input have only '{self.all_cmp_max_row}' rows, request {cmp_row_no} is not available")
+        elif cmp_row_no < 0:
+            raise ValueError(f"Campaign input have only '{self.all_cmp_max_row}' rows, request {cmp_row_no} is not available")
+        else:
+            self.row_no = cmp_row_no
+            self.params = self.all_cmp_df.iloc[self.row_no - 1].replace(np.nan, None).to_dict()
+            self.output_path = config_file.cmp_output/self.params["cmp_month"]/self.params["cmp_nm"]
+            self.std_input_path = config_file.cmp_output.parent/"00_std_inputs"
+        pass
+            
+    def __repr__(self):
+        return f"CampaignParams class, config file : '{self.cmp_input_file}'\nRow number : {self.row_no}"
+    
+    def display_details(self):
+        pprint.pp(self.params)
+        pass
+    
+class CampaignEval(CampaignParams):
+    
+    def __init__(self, config_file, cmp_row_no):
+        super().__init__(config_file, cmp_row_no)
+
+        self.store_fmt = self.params["store_fmt"]
+        self.wk_type = self.params["wk_type"]
+        
+        self.cmp_start = self.params["cmp_start"]
+        self.cmp_end = self.params["cmp_end"]
+        self.media_fee = self.params["media_fee"]
+        
+        self.sku_file = self.cmp_inputs_files/f"upc_list_{self.params['cmp_id']}.csv"
+        self.target_store_file = self.cmp_inputs_files/f"target_store_{self.params['cmp_id']}.csv"
+         
+        self.resrv_store_file = self.std_input_path/f"{self.params['resrv_store_file']}"
+        self.use_reserved_store = bool(self.params["use_reserved_store"])
+        
+        self.custom_ctrl_store_file = self.cmp_inputs_files/f"control_store_{self.params['cmp_id']}.csv"
+        
+        self.adjacency_file = self.std_input_path/f"{self.params['adjacency_file']}"
+        self.svv_table = self.params["svv_table"]
+        self.purchase_cyc_table = self.params["purchase_cyc_table"]
+        
+        self.load_period()
+        pass
+        
+    def __repr__(self):
+        return f"CampaignEval class \nConfig file : '{self.cmp_config_file}'\nRow number : {self.row_no}"
+    
+    def load_period(self):         
+        self.cmp_st_wk = period_cal.wk_of_year_ls(self.cmp_start)
+        self.cmp_en_wk = period_cal.wk_of_year_ls(self.cmp_end)
+        self.cmp_st_promo_wk = period_cal.wk_of_year_promo_ls(self.cmp_start)
+        self.cmp_en_promo_wk = period_cal.wk_of_year_promo_ls(self.cmp_end)
+                if ((str(gap_start_date).lower() == 'nan') | (str(gap_start_date).strip() == '')) & ((str(gap_end_date).lower == 'nan') | (str(gap_end_date).strip() == '')):
+            print('No Gap Week for campaign :' + str(cmp_nm))
+            gap_flag    = False
+            chk_pre_wk  = cmp_st_wk
+            chk_pre_dt  = cmp_start
+        elif( (not ((str(gap_start_date).lower() == 'nan') | (str(gap_start_date).strip() == ''))) & 
+              (not ((str(gap_end_date).lower() == 'nan')   | (str(gap_end_date).strip() == ''))) ):    
+            print('\n Campaign ' + str(cmp_nm) + ' has gap period between : ' + str(gap_start_date) + ' and ' + str(gap_end_date) + '\n')
+            ## fis_week
+            gap_st_wk   = wk_of_year_ls(gap_start_date)
+            gap_en_wk   = wk_of_year_ls(gap_end_date)
+
+            ## promo
+            gap_st_promo_wk  = wk_of_year_promo_ls(gap_start_date)
+            gap_en_promo_wk  = wk_of_year_promo_ls(gap_end_date)
+
+            gap_flag         = True    
+
+            chk_pre_dt       = gap_start_date
+            chk_pre_wk       = gap_st_wk
+            chk_pre_promo_wk = gap_st_promo_wk
+
+        else:
+            print(' Incorrect gap period. Please recheck - Code will skip !! \n')
+            print(' Received Gap = ' + str(gap_start_date) + " and " + str(gap_end_date))
+            raise Exception("Incorrect Gap period value please recheck !!")
+        ## end if   
+
+        pre_en_date = (datetime.strptime(chk_pre_dt, '%Y-%m-%d') + timedelta(days=-1)).strftime('%Y-%m-%d')
+        pre_en_wk   = wk_of_year_ls(pre_en_date)
+        pre_st_wk   = week_cal(pre_en_wk, -12)                       ## get 12 week away from end week -> inclusive pre_en_wk = 13 weeks
+        pre_st_date = f_date_of_wk(pre_st_wk).strftime('%Y-%m-%d')   ## get first date of start week to get full week data
+        ## promo week
+        pre_en_promo_wk = wk_of_year_promo_ls(pre_en_date)
+        pre_st_promo_wk = promo_week_cal(pre_en_promo_wk, -12)   
+
+        ppp_en_wk       = week_cal(pre_st_wk, -1)
+        ppp_st_wk       = week_cal(ppp_en_wk, -12)
+        ##promo week
+        ppp_en_promo_wk = promo_week_cal(pre_st_promo_wk, -1)
+        ppp_st_promo_wk = promo_week_cal(ppp_en_promo_wk, -12)
+
+        ppp_st_date = f_date_of_wk(ppp_en_wk).strftime('%Y-%m-%d')
+        ppp_en_date = f_date_of_wk(ppp_st_wk).strftime('%Y-%m-%d')
+
+        ## Add setup week type parameter
+
+        if wk_type == 'fis_wk':
+            wk_tp     = 'fiswk'
+            week_type = 'fis_week'    
+        elif wk_type == 'promo_wk':
+            wk_tp     = 'promowk'
+            week_type = 'promo_week'    
+    
+    def load_store(self):
+        
+        def _get_rest_store(str_fmt: str, target_store: SparkDataFrame):
+            store_dim_c = spark.table("tdm.v_store_dim_c")
+            if str_fmt in ["hde", "hyper"]:
+                target_format = store_dim_c.where(F.col("format_id").isin([1, 2, 3]))
+            elif str_fmt in ["talad", "super"]:
+                target_format = store_dim_c.where(F.col("format_id").isin([4]))
+            elif str_fmt in ["gofresh", "mini_super"]:
+                target_format = store_dim_c.where(F.col("format_id").isin([5]))
+            else:
+                target_format = store_dim_c.where(F.col("format_id").isin([1,2,3,4,5]))
+            return target_format.join(target_store, "store_id", "leftanti").select("store_id").drop_duplicates()
+        
+        self.target_store = spark.read.csv( (self.target_store_file).spark_api(), header=True, inferSchema=True)
+        
+        try:
+            _ctrl_store_from_custom_file = spark.read.csv( (self.custom_ctrl_store_file).spark_api(), header=True, inferSchema=True)
+            self.params["reserved_store_type"] = "Custom control store file"
+            self.ctrl_store = _ctrl_store_from_custom_file
+            
+        except Exception as e:
+            if self.params["resrv_store_class"] is not None:
+                _ctrl_store_from_class = (spark.read.csv( (self.resrv_store_file).spark_api(), header=True, inferSchema=True)
+                                          .where(F.col("class_code")==self.params["resrv_store_class"])
+                                          .select("store_id")
+                                         )
+                self.params["reserved_store_type"] = "Reserved store class"
+                self.ctrl_store = _ctrl_store_from_class
+
+            else:
+                _ctrl_store_rest = _get_rest_store(self.params["store_fmt"], self.target_store)
+                self.params["reserved_store_type"] = "Rest"
+                self.ctrl_store = _ctrl_store_rest
+        pass
+                                                                                   
+    def load_prod(self):
+        self.feat_sku = spark.read.csv( (self.sku_file).spark_api(), header=True, inferSchema=True).withColumnRenamed("feature", "upc_id")
+        prd_dim_c = spark.table("tdm.v_prod_dim_c")
+        feat_subclass = prd_dim_c.join(self.feat_sku, "upc_id", "inner").select("subclass_code").drop_duplicates()
+        feat_class = prd_dim_c.join(self.feat_sku, "upc_id", "inner").select("class_code").drop_duplicates()
+        self.feat_subclass_sku = prd_dim_c.join(feat_subclass, "subclass_code").select("upc_id").drop_duplicates()
+        self.feat_class_sku = prd_dim_c.join(feat_class, "class_code").select("upc_id").drop_duplicates()
+        if self.params["cate_lvl"].lower() in ["class"]:
+            self.feat_cate_sku = self.feat_class_sku
+        elif self.params["cate_lvl"].lower() in ["subclass"]:
+            self.feat_cate_sku = self.feat_class_sku
+        else:
+            self.feat_cate_sku = None
+        pass
+    
+    def load_aisle(self):
+        
+        def _convert_cross_cate_cd_to_list():
+            if self.params["cross_cate_cd"] is not None:
+                self.cross_cate_cd = self.params["cross_cate_cd"]
+                if self.cross_cate_cd.find("[") != -1:
+                    return literal_eval(self.cross_cate_cd)
+                elif self.cross_cate_cd.find(",") != -1:
+                    return str.split(self.cross_cate_cd)
+                else:
+                    return [self.cross_cate_cd]
+            else:
+                return []
+                    
+        self.load_prod()
+        prd_dim_c = spark.table("tdm.v_prod_dim_c")
+        self.cross_cate_cd_list = _convert_cross_cate_cd_to_list()
+        aisle_master = spark.read.csv( self.adjacency_file.spark_api(), header=True, inferSchema=True)
+        if not self.cross_cate_cd_list:
+            feat_subclass = prd_dim_c.join(self.feat_sku, "upc_id", "inner").select("subclass_code").drop_duplicates()
+            aisle_group = aisle_master.join(feat_subclass, "subclass_code", "inner").select("group").drop_duplicates()
+            aisle_subclass = aisle_master.join(aisle_group, "group", "inner").select("subclass_code").drop_duplicates()
+            self.aisle_sku = prd_dim_c.join(aisle_subclass, "subclass_code", "inner").select("upc_id").drop_duplicates()
+        else:
+            x_subclass = spark.createDataFrame(pd.DataFrame(data=self.cross_cate_cd_list, columns=["subclass_code"])).drop_duplicates()
+            aisle_group = aisle_master.join(x_subclass, "subclass_code", "inner").select("group").drop_duplicates()
+            aisle_subclass = aisle_master.join(aisle_group, "group", "inner").select("subclass_code").drop_duplicates()
+            self.aisle_sku = prd_dim_c.join(aisle_subclass, "subclass_code", "inner").select("upc_id").drop_duplicates()
+        pass
+    
+    def load_txn(self):
+        try:
+            self.txn = spark.table(f"tdm_seg.media_campaign_eval_txn_data_{self.params['cmp_id'].lower()}")
+        except Exception as e:
+            logger.logger("No snapped transaction")
+        pass
+
+# COMMAND ----------
+
+conf = CampaignConfigFile("dbfs:/FileStore/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_hde_than_makro.csv")
+conf.display_details()
+
+# COMMAND ----------
+
+cmp = CampaignEval(conf, cmp_row_no=1)
+
+# COMMAND ----------
+
+cmp.display_details()
+
+# COMMAND ----------
+
+cmp
+
+# COMMAND ----------
+
+cmp.cmp_st_promo_wk
+
+# COMMAND ----------
+
+(txn_offline
+ .join(cmp.feat_class_sku, "upc_id", "inner")
+ .join(test_ctrl_str, "store_id", "inner")
+ .groupBy("store_type","store_id", "week_id")
+ .agg(F.sum("net_spend_amt").alias("sales"),
+      F.sum("unit").alias("units"),
+      F.count_distinct("transaction_uid").alias("visits"),
+      ( F.sum("net_spend_amt")/F.sum("unit") ).alias("ppu")
+     )
+).display()
 
 # COMMAND ----------
 

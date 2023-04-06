@@ -9,11 +9,14 @@ Python-Version: 3.8
 ---
 Utils function for Media Evaluation solution
 """
+
 from typing import List
 from pandas import DataFrame as PandasDataFrame
 import os
 
 from pyspark.sql import DataFrame as SparkDataFrame
+
+from .logger import logger
 
 def change_path_type(
         path_name: str,
