@@ -90,7 +90,7 @@ class CampaignEval(CampaignParams):
         super().__init__(config_file, cmp_row_no)
         self.spark = SparkSession.builder.appName("campaingEval").getOrCreate()
 
-        self.store_fmt = self.params["store_fmt"]
+        self.store_fmt = self.params["store_fmt"].lower()
         self.wk_type = self.params["wk_type"]
         
         self.cmp_nm = self.params["cmp_nm"]
@@ -216,7 +216,7 @@ class CampaignEval(CampaignParams):
                 self.ctrl_store = _ctrl_store_from_class
 
             else:
-                _ctrl_store_rest = _get_rest_store(self.params["store_fmt"], self.target_store)
+                _ctrl_store_rest = _get_rest_store(self.store_fmt, self.target_store)
                 self.params["reserved_store_type"] = "Rest"
                 self.ctrl_store = _ctrl_store_rest
         pass
@@ -260,3 +260,18 @@ class CampaignEval(CampaignParams):
         except Exception as e:
             logger.logger("No snapped transaction")
         pass
+    
+    def get_exposure(self, exposure_type:str):
+        VISIT_EXPOSURE_MULTIPLIER_LKP = {"hde":2.2, "hyper":2.2, "talad":1.5, "super":1.5, "gofresh":1.0, "mini_super":1.0}
+        if exposure_type == "store_lv":
+            self.params["exposure_type"] = "store_lv"    
+            txn_store = None
+            # (self.txn
+            #              .join(self.target_store("store_id"), "inner")
+            #              .where(F.col("date_id").between())
+            # )
+            return exposure
+        elif exposure_type == "aisle_lv":
+            self.params["exposure_type"] = "aisle_lv"
+            exposure = None
+            return exposure
