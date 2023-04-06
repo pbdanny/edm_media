@@ -72,6 +72,19 @@ class CampaignParams:
     
 class CampaignEval(CampaignParams):
     
+    def convert_param_to_list(self, 
+                              param_name: str) -> List:
+        if self.params[param_name] is not None:
+            param = self.params["cross_cate_cd"]
+            if param.find("[") != -1:
+                return literal_eval(param)
+            elif param.find(",") != -1:
+                return str.split(param)
+            else:
+                return [param]
+        else:
+            return []
+    
     def __init__(self, config_file, cmp_row_no):
         
         super().__init__(config_file, cmp_row_no)
@@ -98,6 +111,11 @@ class CampaignEval(CampaignParams):
         self.purchase_cyc_table = self.params["purchase_cyc_table"]
         
         self.load_period()
+        self.load_store()
+        self.load_prod()
+        self.load_aisle()
+        self.load_txn()
+        
         pass
         
     def __repr__(self):
@@ -219,22 +237,10 @@ class CampaignEval(CampaignParams):
         pass
     
     def load_aisle(self):
-        
-        def _convert_param_to_list(param_name: str) -> List:
-            if self.params[param_name] is not None:
-                param = self.params["cross_cate_cd"]
-                if param.find("[") != -1:
-                    return literal_eval(param)
-                elif param.find(",") != -1:
-                    return str.split(param)
-                else:
-                    return [param]
-            else:
-                return []
                     
         self.load_prod()
         prd_dim_c = self.spark.table("tdm.v_prod_dim_c")
-        self.cross_cate_cd_list = _convert_param_to_list("cross_cate_cd")
+        self.cross_cate_cd_list = self.convert_param_to_list("cross_cate_cd")
         aisle_master = self.spark.read.csv( self.adjacency_file.spark_api(), header=True, inferSchema=True)
         if not self.cross_cate_cd_list:
             feat_subclass = prd_dim_c.join(self.feat_sku, "upc_id", "inner").select("subclass_code").drop_duplicates()
