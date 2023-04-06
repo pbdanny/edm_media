@@ -53,8 +53,8 @@ class CampaignParams:
         else:
             self.row_no = cmp_row_no
             self.params = (self.all_cmp_df
-                           .iloc[self.row_no - 1]
                            .applymap(lambda x : x.strip() if type(x)==str else x)
+                           .iloc[self.row_no - 1]
                            .replace(np.nan, None)
                            .replace('', None)
                            ).to_dict()
