@@ -12,6 +12,7 @@ import numpy as np
 
 from utils import period_cal
 from utils.DBPath import DBPath
+from utils import logger
 
 class CampaignConfigFile:
     
@@ -136,20 +137,21 @@ class CampaignEval(CampaignParams):
         else:
             print('Incorrect gap period. Please recheck - Code will skip !! \n')
             print(f'Received Gap = {self.gap_start_date} + " and " + {self.gap_end_date}')
-            raise Exception("Incorrect Gap period value please recheck !!")
-        ## end if   
+            raise Exception("Incorrect Gap period value please recheck !!")   
 
         self.pre_en_date = (datetime.strptime(self.chk_pre_dt, '%Y-%m-%d') + timedelta(days=-1)).strftime('%Y-%m-%d')
         self.pre_en_wk   = period_cal.wk_of_year_ls(self.pre_en_date)
         self.pre_st_wk   = period_cal.week_cal(self.pre_en_wk, -12)                       ## get 12 week away from end week -> inclusive pre_en_wk = 13 weeks
         self.pre_st_date = period_cal.f_date_of_wk(self.pre_st_wk).strftime('%Y-%m-%d')   ## get first date of start week to get full week data
+        
         ## promo week
         self.pre_en_promo_wk = period_cal.wk_of_year_promo_ls(self.pre_en_date)
         self.pre_st_promo_wk = period_cal.promo_week_cal(self.pre_en_promo_wk, -12)   
 
         self.ppp_en_wk       = period_cal.week_cal(self.pre_st_wk, -1)
         self.ppp_st_wk       = period_cal.week_cal(self.ppp_en_wk, -12)
-        ##promo week
+        
+        ## promo week
         self.ppp_en_promo_wk = period_cal.promo_week_cal(self.pre_st_promo_wk, -1)
         self.ppp_st_promo_wk = period_cal.promo_week_cal(self.ppp_en_promo_wk, -12)
 
