@@ -112,7 +112,8 @@ class CampaignEval(CampaignParams):
         self.purchase_cyc_table = self.params["purchase_cyc_table"]
         
         self.load_period()
-        self.load_store()
+        self.load_target_store()
+        self.load_control_store()
         self.load_prod()
         self.load_aisle()
         self.load_txn()
