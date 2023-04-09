@@ -9,6 +9,7 @@ from pyspark.sql import DataFrame as SparkDataFrame
 
 import pandas as pd
 import numpy as np
+from pathlib import Path
 
 from utils import period_cal
 from utils.DBPath import DBPath
@@ -132,8 +133,8 @@ class CampaignEval(CampaignParams):
         if ( self.gap_start_date is None ) & ( self.gap_end_date is None ):
             print(f'No Gap Week for campaign : {self.cmp_nm}')
             self.gap_flag    = False
-            self.chk_pre_wk  = self.cmp_st_wk
-            self.chk_pre_dt  = self.cmp_start
+            chk_pre_dt  = self.cmp_start
+            chk_pre_wk  = self.cmp_st_wk
             
         elif ( self.gap_start_date is not None ) & ( self.gap_end_date is not None ):    
             print(f'\n Campaign {self.cmp_nm} has gap period between : {self.gap_start_date} and {self.gap_end_date} \n')
@@ -148,16 +149,16 @@ class CampaignEval(CampaignParams):
 
             self.gap_flag         = True    
 
-            self.chk_pre_dt       = self.gap_start_date
-            self.chk_pre_wk       = self.gap_st_wk
-            self.chk_pre_promo_wk = self.gap_st_promo_wk
+            chk_pre_dt       = self.gap_start_date
+            chk_pre_wk       = self.gap_st_wk
+            chk_pre_promo_wk = self.gap_st_promo_wk
 
         else:
             print('Incorrect gap period. Please recheck - Code will skip !! \n')
             print(f'Received Gap = {self.gap_start_date} + " and " + {self.gap_end_date}')
             raise Exception("Incorrect Gap period value please recheck !!")   
 
-        self.pre_en_date = (datetime.strptime(self.chk_pre_dt, '%Y-%m-%d') + timedelta(days=-1)).strftime('%Y-%m-%d')
+        self.pre_en_date = (datetime.strptime(chk_pre_dt, '%Y-%m-%d') + timedelta(days=-1)).strftime('%Y-%m-%d')
         self.pre_en_wk   = period_cal.wk_of_year_ls(self.pre_en_date)
         self.pre_st_wk   = period_cal.week_cal(self.pre_en_wk, -12)                       ## get 12 week away from end week -> inclusive pre_en_wk = 13 weeks
         self.pre_st_date = period_cal.f_date_of_wk(self.pre_st_wk).strftime('%Y-%m-%d')   ## get first date of start week to get full week data
@@ -185,40 +186,38 @@ class CampaignEval(CampaignParams):
             self.wk_tp     = 'promowk'
             self.week_type = 'promo_week'    
     
-    def load_store(self):
+    def load_target_store(self):
+        self.target_store = self.spark.read.csv( self.target_store_file.spark_api(), header=True, inferSchema=True)
+        pass
+    
+    def load_control_store(self):
         
-        def _get_rest_store(str_fmt: str, target_store: SparkDataFrame):
+        self.load_target_store()
+        
+        if self.params["resrv_store_class"] is not None:
+            self.params["reserved_store_type"] = "Reserved store class"
+            self.control_store = (self.spark.read.csv( (self.resrv_store_file).spark_api(), header=True, inferSchema=True)
+                                          .where(F.col("class_code")==self.params["resrv_store_class"])
+                                          .select("store_id"))
+        
+        elif Path(self.custom_ctrl_store_file.file_api()).is_file():
+            self.params["control_store_source"] = "Custom control store file"
+            self.control_store = self.spark.read.csv( (self.custom_ctrl_store_file).spark_api(), header=True, inferSchema=True)
+        
+        else:
+            self.params["control_store_source"] = "rest"
             store_dim_c = self.spark.table("tdm.v_store_dim_c")
-            if str_fmt in ["hde", "hyper"]:
+            
+            if self.store_fmt in ["hde", "hyper"]:
                 target_format = store_dim_c.where(F.col("format_id").isin([1, 2, 3]))
-            elif str_fmt in ["talad", "super"]:
+            elif self.store_fmt in ["talad", "super"]:
                 target_format = store_dim_c.where(F.col("format_id").isin([4]))
-            elif str_fmt in ["gofresh", "mini_super"]:
+            elif self.store_fmt in ["gofresh", "mini_super"]:
                 target_format = store_dim_c.where(F.col("format_id").isin([5]))
             else:
                 target_format = store_dim_c.where(F.col("format_id").isin([1,2,3,4,5]))
-            return target_format.join(target_store, "store_id", "leftanti").select("store_id").drop_duplicates()
+            self.control_store = target_format.join(self.target_store, "store_id", "leftanti").select("store_id").drop_duplicates()
         
-        self.target_store = self.spark.read.csv( (self.target_store_file).spark_api(), header=True, inferSchema=True)
-        
-        try:
-            _ctrl_store_from_custom_file = self.spark.read.csv( (self.custom_ctrl_store_file).spark_api(), header=True, inferSchema=True)
-            self.params["reserved_store_type"] = "Custom control store file"
-            self.ctrl_store = _ctrl_store_from_custom_file
-            
-        except Exception as e:
-            if self.params["resrv_store_class"] is not None:
-                _ctrl_store_from_class = (self.spark.read.csv( (self.resrv_store_file).spark_api(), header=True, inferSchema=True)
-                                          .where(F.col("class_code")==self.params["resrv_store_class"])
-                                          .select("store_id")
-                                         )
-                self.params["reserved_store_type"] = "Reserved store class"
-                self.ctrl_store = _ctrl_store_from_class
-
-            else:
-                _ctrl_store_rest = _get_rest_store(self.store_fmt, self.target_store)
-                self.params["reserved_store_type"] = "Rest"
-                self.ctrl_store = _ctrl_store_rest
         pass
                                                                                    
     def load_prod(self):
@@ -261,17 +260,33 @@ class CampaignEval(CampaignParams):
             logger.logger("No snapped transaction")
         pass
     
-    def get_exposure(self, exposure_type:str):
-        VISIT_EXPOSURE_MULTIPLIER_LKP = {"hde":2.2, "hyper":2.2, "talad":1.5, "super":1.5, "gofresh":1.0, "mini_super":1.0}
+    def get_exposure(self, 
+                     exposure_type:str, 
+                     visit_multiplier: float):
+        
+        self.params["visit_multiplier"] = visit_multiplier
+        
         if exposure_type == "store_lv":
-            self.params["exposure_type"] = "store_lv"    
-            txn_store = None
-            # (self.txn
-            #              .join(self.target_store("store_id"), "inner")
-            #              .where(F.col("date_id").between())
-            # )
+            self.params["exposure_type"] = "store_lv"
+            txn_x_store = self.txn.join(self.target_store, "store_id", "inner")
+            visit = (txn_x_store
+                     .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
+                     .agg(F.col("transaction_uid"))
+                     ).collect()[0][0]
+            exposure = visit*visit_multiplier
             return exposure
+        
         elif exposure_type == "aisle_lv":
             self.params["exposure_type"] = "aisle_lv"
+            txn_x_store_x_aisle = self.txn.join(self.target_store, "store_id", "inner").join(self.aisle_sku, "upc_id", "inner")
+            visit = (txn_x_store_x_aisle
+                        .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
+                        .agg(F.col("transaction_uid"))
+                        ).collect()[0][0]
+            exposure = visit*visit_multiplier
+            return exposure
+        
+        else:
+            self.params["exposure_type"] = "undefined"
             exposure = None
             return exposure
