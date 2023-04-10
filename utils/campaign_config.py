@@ -185,11 +185,113 @@ class CampaignEval(CampaignParams):
             self.week_type = 'fis_week'    
         elif self.params["wk_type"] == 'promo_wk':
             self.wk_tp     = 'promowk'
-            self.week_type = 'promo_week'    
-    
+            self.week_type = 'promo_week' 
+        pass
+       
     def load_target_store(self):
         self.target_store = self.spark.read.csv( self.target_store_file.spark_api(), header=True, inferSchema=True)
         pass
+    
+    def check_combine_region(self):
+        """Base on store group name,
+        - if HDE / Talad -> count check test vs total store
+        - if GoFresh -> adjust 'store_region' in txn, count check
+        """
+        from typing import List
+        from pyspark.sql import DataFrame as SparkDataFrame
+
+        print('-'*80)
+        print('Count check store region & Combine store region for GoFresh')
+        print(f'Store format defined : {self.store_fmt}')
+
+        def _get_all_and_test_store(self, 
+                                    format_id_list: List):
+            """Get universe store count, based on format definded
+            If store region Null -> Not show in count
+            """
+            all_store_count_region = \
+            (self.spark.table('tdm.v_store_dim')
+             .where(F.col('format_id').isin(format_id_list))
+             .select('store_id', 'store_name', F.col('region').alias('store_region'))
+             .drop_duplicates()
+             .fillna('Unidentified', subset='store_region')
+             .groupBy('store_region')
+             .agg(F.count('store_id').alias(f'total_{self.store_fmt}'))
+            )
+
+            test_store_count_region = \
+            (self.spark.table('tdm.v_store_dim')
+             .select('store_id','store_name', 'format_id', F.col('region').alias('store_region'))
+             .drop_duplicates()
+             .join(self.target_store, 'store_id', 'left_semi')
+             .withColumn("store_format_name", F.when(F.col("format_id").isin([1,2,3]), "hyper")
+                                               .when(F.col("format_id").isin([4]), "super")
+                                               .when(F.col("format_id").isin([5]), "mini_super")
+                                               .otherwise("other"))
+             .groupBy('store_region')
+             .pivot("store_format_name")
+             .agg(F.count('store_id').alias(f'test_store_count'))
+            )
+
+            return all_store_count_region, test_store_count_region
+        
+        self.load_target_store()
+        self.load_txn()
+        
+        if self.store_fmt in ["hde", "hyper"]:
+            all_store_count_region, test_store_count_region = _get_all_and_test_store([1,2,3])
+
+        elif self.store_fmt in ["talad", "super"]:
+            all_store_count_region, test_store_count_region = _get_all_and_test_store([4])
+
+        elif self.store_fmt in ["gofresh", "mini_super"]:
+            #---- Adjust Transaction
+            print('GoFresh : Combine store_region West + Central in variable "txn_all"')
+            print("GoFresh : Auto-remove 'Null' region")
+
+            adjusted_store_region =  \
+            (self.spark.table('tdm.v_store_dim')
+            .withColumn('store_region', F.when(F.col('region').isin(['West','Central']), F.lit('West+Central'))
+                                         .when(F.col('region').isNull(), F.lit('Unidentified'))
+                                         .otherwise(F.col('region')))
+            .drop("region")
+            .drop_duplicates()
+            )
+
+            self.txn = self.txn.drop('store_region').join(adjusted_store_region, 'store_id', 'left').fillna("Unidentified", subset="store_region")
+
+            #---- Count Region
+            all_store_count_region = \
+            (adjusted_store_region
+            .where(F.col('format_id').isin([5]))
+            .select('store_id', 'store_name', 'store_region')
+            .drop_duplicates()
+            .fillna('Unidentified', subset='store_region')
+            .groupBy('store_region')
+            .agg(F.count('store_id').alias(f'total_{self.store_fmt}'))
+            )
+
+            test_store_count_region = \
+            (adjusted_store_region
+             .select('store_id','store_name', 'format_id')
+             .drop_duplicates()
+             .join(self.target_store, 'store_id', 'left_semi')
+             .withColumn("store_format_name", F.when(F.col("format_id").isin([1,2,3]), "hyper")
+                                               .when(F.col("format_id").isin([4]), "super")
+                                               .when(F.col("format_id").isin([5]), "mini_super")
+                                               .otherwise("other"))
+             .groupBy('store_region')
+             .pivot("store_format_name")
+             .agg(F.count('store_id').alias(f'test_store_count'))
+            )
+
+        else:
+            print(f'Unknown store format group name : {self.store_fmt}')
+            return None
+
+        test_vs_all_store_count = all_store_count_region.join(test_store_count_region, 'store_region', 'left').orderBy('store_region')
+
+        return test_vs_all_store_count
     
     def load_control_store(self):
         
@@ -260,34 +362,3 @@ class CampaignEval(CampaignParams):
         except Exception as e:
             logger.logger("No snapped transaction")
         pass
-    
-    def get_exposure(self, 
-                     exposure_type:str, 
-                     visit_multiplier: float):
-        
-        self.params["visit_multiplier"] = visit_multiplier
-        
-        if exposure_type == "store_lv":
-            self.params["exposure_type"] = "store_lv"
-            txn_x_store = self.txn.join(self.target_store, "store_id", "inner")
-            visit = (txn_x_store
-                     .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
-                     .agg(F.col("transaction_uid"))
-                     ).collect()[0][0]
-            exposure = visit*visit_multiplier
-            return exposure
-        
-        elif exposure_type == "aisle_lv":
-            self.params["exposure_type"] = "aisle_lv"
-            txn_x_store_x_aisle = self.txn.join(self.target_store, "store_id", "inner").join(self.aisle_sku, "upc_id", "inner")
-            visit = (txn_x_store_x_aisle
-                        .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
-                        .agg(F.col("transaction_uid"))
-                        ).collect()[0][0]
-            exposure = visit*visit_multiplier
-            return exposure
-        
-        else:
-            self.params["exposure_type"] = "undefined"
-            exposure = None
-            return exposure
