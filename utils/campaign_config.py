@@ -32,8 +32,7 @@ class CampaignConfigFile:
         return f"CampaignConfigFile class, source file = '{self.source_config_file}'"
     
     def display_details(self):
-        self.cmp_config_df.display()
-        pass
+        return self.cmp_config_df.display()
       
     def search_details(self, 
                        column: str,
