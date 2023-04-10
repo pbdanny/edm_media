@@ -204,8 +204,7 @@ class CampaignEval(CampaignParams):
         print('Count check store region & Combine store region for GoFresh')
         print(f'Store format defined : {self.store_fmt}')
 
-        def _get_all_and_test_store(self, 
-                                    format_id_list: List):
+        def _get_all_and_test_store(format_id_list: List):
             """Get universe store count, based on format definded
             If store region Null -> Not show in count
             """
