@@ -124,9 +124,13 @@ class CampaignEval(CampaignParams):
 
     def load_period(self):
         self.cmp_st_wk = period_cal.wk_of_year_ls(self.cmp_start)
+        self.params["cmp_st_wk"] = self.cmp_st_wk
         self.cmp_en_wk = period_cal.wk_of_year_ls(self.cmp_end)
+        self.params["cmp_en_wk"] = self.cmp_en_wk
         self.cmp_st_promo_wk = period_cal.wk_of_year_promo_ls(self.cmp_start)
+        self.params["cmp_st_promo_wk"] = self.cmp_st_promo_wk
         self.cmp_en_promo_wk = period_cal.wk_of_year_promo_ls(self.cmp_end)
+        self.params["cmp_en_promo_wk"] = self.cmp_en_promo_wk
         self.gap_start_date = self.params["gap_start_date"]
         self.gap_end_date = self.params["gap_end_date"]
 
@@ -137,7 +141,7 @@ class CampaignEval(CampaignParams):
             chk_pre_wk  = self.cmp_st_wk
 
         elif ( self.gap_start_date is not None ) & ( self.gap_end_date is not None ):
-            print(f'\n Campaign {self.cmp_nm} has gap period between : {self.gap_start_date} and {self.gap_end_date} \n')
+            print(f'Campaign {self.cmp_nm} has gap period between : {self.gap_start_date} and {self.gap_end_date}')
 
             ## fis_week
             self.gap_st_wk   = period_cal.wk_of_year_ls(self.gap_start_date)
@@ -159,21 +163,30 @@ class CampaignEval(CampaignParams):
             raise Exception("Incorrect Gap period value please recheck !!")
 
         self.pre_en_date = (datetime.strptime(chk_pre_dt, '%Y-%m-%d') + timedelta(days=-1)).strftime('%Y-%m-%d')
+        # pre end week migh overlap with cmp st wk
         self.pre_en_wk   = period_cal.wk_of_year_ls(self.pre_en_date)
+        self.params["pre_en_wk"] = self.pre_en_wk
         self.pre_st_wk   = period_cal.week_cal(self.pre_en_wk, -12)                       ## get 12 week away from end week -> inclusive pre_en_wk = 13 weeks
+        self.params["pre_st_wk"] = self.pre_st_wk
         self.pre_st_date = period_cal.f_date_of_wk(self.pre_st_wk).strftime('%Y-%m-%d')   ## get first date of start week to get full week data
 
         ## promo week
         self.pre_en_promo_wk = period_cal.wk_of_year_promo_ls(self.pre_en_date)
+        self.param["pre_en_promo_wk"] = self.pre_en_promo_wk
         self.pre_st_promo_wk = period_cal.promo_week_cal(self.pre_en_promo_wk, -12)
+        self.param["pre_st_promo_wk"] = self.pre_st_promo_wk
 
         self.ppp_en_wk       = period_cal.week_cal(self.pre_st_wk, -1)
+        self.param["ppp_en_wk"] = self.ppp_en_wk
         self.ppp_st_wk       = period_cal.week_cal(self.ppp_en_wk, -12)
+        self.param["ppp_st_wk"] = self.ppp_st_wk
 
         ## promo week
         self.ppp_en_promo_wk = period_cal.promo_week_cal(self.pre_st_promo_wk, -1)
+        self.param["ppp_en_promo_wk"] = self.ppp_en_promo_wk
         self.ppp_st_promo_wk = period_cal.promo_week_cal(self.ppp_en_promo_wk, -12)
-
+        self.param["ppp_st_promo_wk"] = self.ppp_st_promo_wk
+        
         self.ppp_st_date = period_cal.f_date_of_wk(self.ppp_en_wk).strftime('%Y-%m-%d')
         self.ppp_en_date = period_cal.f_date_of_wk(self.ppp_st_wk).strftime('%Y-%m-%d')
 
@@ -397,9 +410,14 @@ class CampaignEval(CampaignParams):
                 _store()
         pass
 
-    def load_txn(self):
-        try:
-            self.txn = self.spark.table(f"tdm_seg.media_campaign_eval_txn_data_{self.params['cmp_id'].lower()}")
-        except Exception as e:
-            logger.logger("No snapped transaction")
-        pass
+    def load_txn(self,
+                 txn_mode: str = ""):
+        
+        self.load_period()
+        
+        if txn_mode == "prejoined":    
+            try:
+                self.txn = self.spark.table(f"tdm_seg.media_campaign_eval_txn_data_{self.params['cmp_id'].lower()}")
+            except Exception as e:
+                logger.logger("No snapped transaction")
+            pass
