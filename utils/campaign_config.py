@@ -204,7 +204,7 @@ class CampaignEval(CampaignParams):
         self.target_store = self.spark.read.csv( self.target_store_file.spark_api(), header=True, inferSchema=True)
         pass
 
-    def check_combine_region(self):
+    def check_target_store(self):
         """Base on store group name,
         - if HDE / Talad -> count check test vs total store
         - if GoFresh -> adjust 'store_region' in txn, count check
@@ -247,7 +247,6 @@ class CampaignEval(CampaignParams):
             return all_store_count_region, test_store_count_region
 
         self.load_target_store()
-        self.load_txn()
 
         if self.store_fmt in ["hde", "hyper"]:
             all_store_count_region, test_store_count_region = _get_all_and_test_store([1,2,3])
@@ -268,8 +267,6 @@ class CampaignEval(CampaignParams):
             .drop("region")
             .drop_duplicates()
             )
-
-            self.txn = self.txn.drop('store_region').join(adjusted_store_region, 'store_id', 'left').fillna("Unidentified", subset="store_region")
 
             #---- Count Region
             all_store_count_region = \
