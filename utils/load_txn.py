@@ -23,10 +23,18 @@ from edm_class import txnItem
 spark = SparkSession.builder.appName("campaingEval").getOrCreate()
 
 def load_txn(cmp: CampaignEval,
-             txn_mode: str = ""):
-    """
+             txn_mode: str = "pre_generated_118wk"):
+    """Load transaction
+    
+    Parameters
+    ----------
+    txn_mode: str, default = "pre_generated_118wk"
+        "pre_generated_118wk" : load from pregenerated tdm_seg.v_latest_txn118wk
+        "campaign_specific" : load from created tdm_seg.media_campaign_eval_txn_data_{cmp.params['cmp_id']}
+        "create_new" : create from raw table
     """
     if txn_mode == "create_new":
+        cmp.params["txn_mode"] == "create_new"
         snap = txnItem(end_wk_id=cmp.cmp_en_wk, 
                        str_wk_id=cmp.ppp_st_wk, 
                        manuf_name=False, 
@@ -40,11 +48,28 @@ def load_txn(cmp: CampaignEval,
         cmp.txn = snap.txn
         
     elif txn_mode == "campaign_specific":
-        cmp.txn = spark.table(f"tdm_seg.media_campaign_eval_txn_data_{cmp.params['cmp_id']}")
+        try:
+            cmp.txn = spark.table(f"tdm_seg.media_campaign_eval_txn_data_{cmp.params['cmp_id']}")
+            cmp.params["txn_mode"] == "campaign_specific"
+        except Exception as e:
+            cmp.params["txn_mode"] == "pre_generated_118wk"
+            cmp.txn = spark.table("tdm_seg.v_latest_txn118wk")
     else:
+        cmp.params["txn_mode"] == "pre_generated_118wk"
         cmp.txn = spark.table("tdm_seg.v_latest_txn118wk")
-        
+
+    create_period_col(cmp)
+    cmp.txn = cmp.txn.where( (F.col("period_fis_wk").isin(["cmp", "gap", "pre", "ppp"])) | 
+                            (F.col("period_promo_wk").isin(["cmp", "gap", "pre", "ppp"])) |
+                            (F.col("period_promo_mv_wk").isin(["cmp", "gap", "pre", "ppp"])) )
+    replace_brand_nm(cmp)
+    combine_store_region(cmp)
+    
+    pass
+
 def replace_brand_nm(cmp: CampaignEval):
+    """Replace muliti feature brand with main brand
+    """
     brand_list = cmp.feat_brand_nm.toPandas()["brand_name"].tolist()
     brand_list.sort()
     if len(brand_list) > 1:
@@ -52,18 +77,26 @@ def replace_brand_nm(cmp: CampaignEval):
     pass
 
 def create_period_col(cmp: CampaignEval):
+    """Create period columns : period_fis_wk, period_promo_wk, period_promo_mv_wk
+    """
     if cmp.gap_flag:
         cmp.txn = (cmp.txn.withColumn('period_fis_wk', 
                             F.when(F.col('week_id').between(cmp.cmp_st_wk, cmp.cmp_en_wk), F.lit('cmp'))
-                            .when(F.col('week_id').between(cmp.gap_st_wk, cmp.gap_en_wk), F.lit('gap'))
-                            .when(F.col('week_id').between(cmp.pre_st_wk, cmp.pre_en_wk), F.lit('pre'))
-                            .when(F.col('week_id').between(cmp.ppp_st_wk, cmp.ppp_en_wk), F.lit('ppp'))
-                            .otherwise(F.lit('NA')))
-               .withColumn('period_promo_wk', 
+                             .when(F.col('week_id').between(cmp.gap_st_wk, cmp.gap_en_wk), F.lit('gap'))
+                             .when(F.col('week_id').between(cmp.pre_st_wk, cmp.pre_en_wk), F.lit('pre'))
+                             .when(F.col('week_id').between(cmp.ppp_st_wk, cmp.ppp_en_wk), F.lit('ppp'))
+                             .otherwise(F.lit('NA')))
+                           .withColumn('period_promo_wk', 
+                            F.when(F.col('promoweek_id').between(cmp.cmp_st_promo_wk, cmp.cmp_en_promo_wk), F.lit('cmp'))
+                             .when(F.col('promoweek_id').between(cmp.gap_st_promo_wk, cmp.gap_en_promo_wk), F.lit('gap'))
+                             .when(F.col('promoweek_id').between(cmp.pre_st_promo_wk, cmp.pre_en_promo_wk), F.lit('pre'))
+                             .when(F.col('promoweek_id').between(cmp.ppp_st_promo_wk, cmp.ppp_en_promo_wk), F.lit('ppp'))
+                             .otherwise(F.lit('NA')))
+                           .withColumn('period_promo_mv_wk', 
                             F.when(F.col('promoweek_id').between(cmp.cmp_st_promo_wk, cmp.cmp_en_promo_wk), F.lit('cmp'))
                             .when(F.col('promoweek_id').between(cmp.gap_st_promo_wk, cmp.gap_en_promo_wk), F.lit('gap'))
-                            .when(F.col('promoweek_id').between(cmp.pre_st_promo_wk, cmp.pre_en_promo_wk), F.lit('pre'))
-                            .when(F.col('promoweek_id').between(cmp.ppp_st_promo_wk, cmp.ppp_en_promo_wk), F.lit('ppp'))
+                            .when(F.col('promoweek_id').between(cmp.pre_st_promo_mv_wk, cmp.pre_en_promo_mv_wk), F.lit('pre'))
+                            .when(F.col('promoweek_id').between(cmp.ppp_st_promo_mv_wk, cmp.ppp_en_promo_mv_wk), F.lit('ppp'))
                             .otherwise(F.lit('NA')))
                         )
     else:
@@ -72,16 +105,22 @@ def create_period_col(cmp: CampaignEval):
                             .when(F.col('week_id').between(cmp.pre_st_wk, cmp.pre_en_wk), F.lit('pre'))
                             .when(F.col('week_id').between(cmp.ppp_st_wk, cmp.ppp_en_wk), F.lit('ppp'))
                             .otherwise(F.lit('NA')))
-                .withColumn('period_promo_wk', 
+                          .withColumn('period_promo_wk', 
                             F.when(F.col('promoweek_id').between(cmp.cmp_st_promo_wk, cmp.cmp_en_promo_wk), F.lit('cmp'))
-                            .when(F.col('promoweek_id').between(cmp.pre_st_promo_wk, cmp.pre_en_promo_wk), F.lit('pre'))
-                            .when(F.col('promoweek_id').between(cmp.ppp_st_promo_wk, cmp.ppp_en_promo_wk), F.lit('ppp'))
+                             .when(F.col('promoweek_id').between(cmp.pre_st_promo_wk, cmp.pre_en_promo_wk), F.lit('pre'))
+                             .when(F.col('promoweek_id').between(cmp.ppp_st_promo_wk, cmp.ppp_en_promo_wk), F.lit('ppp'))
+                             .otherwise(F.lit('NA')))
+                          .withColumn('period_promo_mv_wk', 
+                            F.when(F.col('promoweek_id').between(cmp.cmp_st_promo_wk, cmp.cmp_en_promo_wk), F.lit('cmp'))
+                            .when(F.col('promoweek_id').between(cmp.pre_st_promo_mv_wk, cmp.pre_en_promo_mv_wk), F.lit('pre'))
+                            .when(F.col('promoweek_id').between(cmp.ppp_st_promo_mv_wk, cmp.ppp_en_promo_mv_wk), F.lit('ppp'))
                             .otherwise(F.lit('NA')))
         )
+        
     pass
 
 def combine_store_region(cmp: CampaignEval):
-    """
+    """For Gofresh, reclassified West , Central -> West+Central
     """
     if cmp.store_fmt in ["gofresh", "mini_super"]:
             #---- Adjust Transaction
@@ -99,7 +138,6 @@ def combine_store_region(cmp: CampaignEval):
             
             cmp.txn = cmp.txn.drop('store_region').join(adjusted_store_region, 'store_id', 'left').when(F.col('region').isNull(), F.lit('Unidentified'))    
     pass
-
 
 def save_txn(cmp: CampaignEval):
     load_txn()
