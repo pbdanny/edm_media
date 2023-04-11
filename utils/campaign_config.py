@@ -115,7 +115,7 @@ class CampaignEval(CampaignParams):
         self.load_control_store()
         self.load_prod()
         self.load_aisle()
-        self.load_txn()
+        # self.load_txn()
 
         pass
 
