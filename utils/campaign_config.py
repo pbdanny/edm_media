@@ -361,12 +361,21 @@ class CampaignEval(CampaignParams):
         feat_class = prd_dim_c.join(self.feat_sku, "upc_id", "inner").select("class_code").drop_duplicates()
         self.feat_subclass_sku = prd_dim_c.join(feat_subclass, "subclass_code").select("upc_id").drop_duplicates()
         self.feat_class_sku = prd_dim_c.join(feat_class, "class_code").select("upc_id").drop_duplicates()
+        
         if self.params["cate_lvl"].lower() in ["class"]:
             self.feat_cate_sku = self.feat_class_sku
+            feat_brand = prd_dim_c.join(feat_class, "class_code").join(self.feat_sku, "upc_id")
+            self.feat_brand_nm = feat_brand.select("brand_name").drop_duplicates()
+            self.feat_brand_sku = feat_brand.select("upc_id").drop_duplicates()
         elif self.params["cate_lvl"].lower() in ["subclass"]:
             self.feat_cate_sku = self.feat_class_sku
+            feat_brand = prd_dim_c.join(feat_subclass, "subclass_code").join(self.feat_sku, "upc_id")
+            self.feat_brand_nm = feat_brand.select("brand_name").drop_duplicates()
+            self.feat_brand_sku = feat_brand.select("upc_id").drop_duplicates()
         else:
             self.feat_cate_sku = None
+            self.feat_brand_nm = None
+            self.feat_brand_sku = None
         pass
 
     def load_aisle(self,
@@ -409,15 +418,3 @@ class CampaignEval(CampaignParams):
             else:
                 _store()
         pass
-
-    def load_txn(self,
-                 txn_mode: str = ""):
-        
-        self.load_period()
-        
-        if txn_mode == "prejoined":    
-            try:
-                self.txn = self.spark.table(f"tdm_seg.media_campaign_eval_txn_data_{self.params['cmp_id'].lower()}")
-            except Exception as e:
-                logger.logger("No snapped transaction")
-            pass
