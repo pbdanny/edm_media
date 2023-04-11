@@ -172,20 +172,20 @@ class CampaignEval(CampaignParams):
 
         ## promo week
         self.pre_en_promo_wk = period_cal.wk_of_year_promo_ls(self.pre_en_date)
-        self.param["pre_en_promo_wk"] = self.pre_en_promo_wk
+        self.params["pre_en_promo_wk"] = self.pre_en_promo_wk
         self.pre_st_promo_wk = period_cal.promo_week_cal(self.pre_en_promo_wk, -12)
-        self.param["pre_st_promo_wk"] = self.pre_st_promo_wk
+        self.params["pre_st_promo_wk"] = self.pre_st_promo_wk
 
         self.ppp_en_wk       = period_cal.week_cal(self.pre_st_wk, -1)
-        self.param["ppp_en_wk"] = self.ppp_en_wk
+        self.params["ppp_en_wk"] = self.ppp_en_wk
         self.ppp_st_wk       = period_cal.week_cal(self.ppp_en_wk, -12)
-        self.param["ppp_st_wk"] = self.ppp_st_wk
+        self.params["ppp_st_wk"] = self.ppp_st_wk
 
         ## promo week
         self.ppp_en_promo_wk = period_cal.promo_week_cal(self.pre_st_promo_wk, -1)
-        self.param["ppp_en_promo_wk"] = self.ppp_en_promo_wk
+        self.params["ppp_en_promo_wk"] = self.ppp_en_promo_wk
         self.ppp_st_promo_wk = period_cal.promo_week_cal(self.ppp_en_promo_wk, -12)
-        self.param["ppp_st_promo_wk"] = self.ppp_st_promo_wk
+        self.params["ppp_st_promo_wk"] = self.ppp_st_promo_wk
         
         self.ppp_st_date = period_cal.f_date_of_wk(self.ppp_en_wk).strftime('%Y-%m-%d')
         self.ppp_en_date = period_cal.f_date_of_wk(self.ppp_st_wk).strftime('%Y-%m-%d')
