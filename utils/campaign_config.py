@@ -357,19 +357,19 @@ class CampaignEval(CampaignParams):
     def load_prod(self):
         self.feat_sku = self.spark.read.csv( (self.sku_file).spark_api(), header=True, inferSchema=True).withColumnRenamed("feature", "upc_id")
         prd_dim_c = self.spark.table("tdm.v_prod_dim_c")
-        feat_subclass = prd_dim_c.join(self.feat_sku, "upc_id", "inner").select("subclass_code").drop_duplicates()
-        feat_class = prd_dim_c.join(self.feat_sku, "upc_id", "inner").select("class_code").drop_duplicates()
-        self.feat_subclass_sku = prd_dim_c.join(feat_subclass, "subclass_code").select("upc_id").drop_duplicates()
-        self.feat_class_sku = prd_dim_c.join(feat_class, "class_code").select("upc_id").drop_duplicates()
+        self.feat_subclass_code = prd_dim_c.join(self.feat_sku, "upc_id", "inner").select("subclass_code").drop_duplicates()
+        self.feat_class_code = prd_dim_c.join(self.feat_sku, "upc_id", "inner").select("class_code").drop_duplicates()
+        self.feat_subclass_sku = prd_dim_c.join(self.feat_subclass_code, "subclass_code").select("upc_id").drop_duplicates()
+        self.feat_class_sku = prd_dim_c.join(self.feat_class_code, "class_code").select("upc_id").drop_duplicates()
         
         if self.params["cate_lvl"].lower() in ["class"]:
             self.feat_cate_sku = self.feat_class_sku
-            feat_brand = prd_dim_c.join(feat_class, "class_code").join(self.feat_sku, "upc_id")
+            feat_brand = prd_dim_c.join(self.feat_class_code, "class_code").join(self.feat_sku, "upc_id")
             self.feat_brand_nm = feat_brand.select("brand_name").drop_duplicates()
             self.feat_brand_sku = feat_brand.select("upc_id").drop_duplicates()
         elif self.params["cate_lvl"].lower() in ["subclass"]:
             self.feat_cate_sku = self.feat_class_sku
-            feat_brand = prd_dim_c.join(feat_subclass, "subclass_code").join(self.feat_sku, "upc_id")
+            feat_brand = prd_dim_c.join(self.feat_subclass_code, "subclass_code").join(self.feat_sku, "upc_id")
             self.feat_brand_nm = feat_brand.select("brand_name").drop_duplicates()
             self.feat_brand_sku = feat_brand.select("upc_id").drop_duplicates()
         else:
