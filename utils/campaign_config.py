@@ -367,6 +367,7 @@ class CampaignEval(CampaignParams):
 
     def load_prod(self):
         """Load feature product, feature brand name, feature subclass, feature subclass
+        
         """
         self.feat_sku = self.spark.read.csv( (self.sku_file).spark_api(), header=True, inferSchema=True).withColumnRenamed("feature", "upc_id")
         prd_dim_c = self.spark.table("tdm.v_prod_dim_c")
