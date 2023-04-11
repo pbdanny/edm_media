@@ -123,6 +123,8 @@ class CampaignEval(CampaignParams):
         return f"CampaignEval class \nConfig file : '{self.cmp_config_file}'\nRow number : {self.row_no}"
 
     def load_period(self):
+        """Load campaign period : cmp, per, ppp & gap
+        """
         self.cmp_st_wk = period_cal.wk_of_year_ls(self.cmp_start)
         self.params["cmp_st_wk"] = self.cmp_st_wk
         self.cmp_en_wk = period_cal.wk_of_year_ls(self.cmp_end)
@@ -201,6 +203,8 @@ class CampaignEval(CampaignParams):
         pass
 
     def load_target_store(self):
+        """Load target store
+        """
         self.target_store = self.spark.read.csv( self.target_store_file.spark_api(), header=True, inferSchema=True)
         pass
 
@@ -303,6 +307,16 @@ class CampaignEval(CampaignParams):
 
     def load_control_store(self,
                            control_store_mode: str = ''):
+        """Load control store
+        
+        Parameters
+        ----------
+        control_store_mode: str, default=""
+            "" : (leave blank) = Auto upto input in config file
+            "reserved_store" : use reserved store
+            "custom_control_file" : load from custom control store
+            "rest" : rest
+        """
         def _resrv():
             self.params["control_store_source"] = "Reserved store class"
             self.control_store = (self.spark.read.csv( (self.resrv_store_file).spark_api(), header=True, inferSchema=True)
@@ -352,6 +366,8 @@ class CampaignEval(CampaignParams):
         pass
 
     def load_prod(self):
+        """Load feature product, feature brand name, feature subclass, feature subclass
+        """
         self.feat_sku = self.spark.read.csv( (self.sku_file).spark_api(), header=True, inferSchema=True).withColumnRenamed("feature", "upc_id")
         prd_dim_c = self.spark.table("tdm.v_prod_dim_c")
         self.feat_subclass_code = prd_dim_c.join(self.feat_sku, "upc_id", "inner").select("subclass_code").drop_duplicates()
@@ -377,6 +393,16 @@ class CampaignEval(CampaignParams):
 
     def load_aisle(self,
                    aisle_mode: str = ''):
+        """Load aisle for exposure calculation
+
+        Parameters
+        ----------
+        aisle_mode: str
+                        "" : (leave blank) = Auto upto input in config file
+            "homeshelf" : use feature sku & aisle definition
+            "cross_cate" : use defined cross catgory & aisle definition
+            "total_store" : total store product
+        """
         def _homeshelf():
             self.params["aisle_mode"] = "homeshelf"
             feat_subclass = prd_dim_c.join(self.feat_sku, "upc_id", "inner").select("subclass_code").drop_duplicates()
