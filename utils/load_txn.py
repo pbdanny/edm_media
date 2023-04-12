@@ -50,12 +50,12 @@ def load_txn(cmp: CampaignEval,
     elif txn_mode == "campaign_specific":
         try:
             cmp.txn = spark.table(f"tdm_seg.media_campaign_eval_txn_data_{cmp.params['cmp_id']}")
-            cmp.params["txn_mode"] == "campaign_specific"
+            cmp.params["txn_mode"] = "campaign_specific"
         except Exception as e:
-            cmp.params["txn_mode"] == "pre_generated_118wk"
+            cmp.params["txn_mode"] = "pre_generated_118wk"
             cmp.txn = spark.table("tdm_seg.v_latest_txn118wk")
     else:
-        cmp.params["txn_mode"] == "pre_generated_118wk"
+        cmp.params["txn_mode"] = "pre_generated_118wk"
         cmp.txn = spark.table("tdm_seg.v_latest_txn118wk")
 
     create_period_col(cmp)
