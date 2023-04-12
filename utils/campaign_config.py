@@ -122,8 +122,16 @@ class CampaignEval(CampaignParams):
     def __repr__(self):
         return f"CampaignEval class \nConfig file : '{self.cmp_config_file}'\nRow number : {self.row_no}"
 
-    def load_period(self):
-        """Load campaign period : cmp, per, ppp & gap
+    def load_period(self,
+                    eval_mode: str = "homeshelf"):
+        """Load campaign period : cmp, pre, ppp & gap
+        For evaluation type "promotion_zone" the pre period number of week = same week as cmp period
+        For evaluation type "homeshelf" the pre period number of week 13 week before cmp period 
+        
+        Parameters
+        ----------
+        eval_mode: str, default "homeshelf"
+            Evaluation type : "promotion_zone", "homeshelf"
         """
         self.cmp_st_wk = period_cal.wk_of_year_ls(self.cmp_start)
         self.params["cmp_st_wk"] = self.cmp_st_wk
@@ -136,24 +144,9 @@ class CampaignEval(CampaignParams):
         self.gap_start_date = self.params["gap_start_date"]
         self.gap_end_date = self.params["gap_end_date"]
         
-        # Period for customer movement
-        ## get number of campaign period weeks for promo campaign
         dt_diff = (datetime.strptime(self.cmp_end, '%Y-%m-%d') - datetime.strptime(self.cmp_start, '%Y-%m-%d')) + timedelta(days = 1)
         diff_days = dt_diff.days ## convert from time delta to int (number of days diff)
         wk_cmp = int(np.round(diff_days/7, 0))
-        
-        self.pre_en_promo_wk    = period_cal.wk_of_year_promo_ls(self.pre_en_date)
-        self.pre_st_promo_wk    = period_cal.promo_week_cal(self.pre_en_promo_wk, (wk_cmp-1) * -1)
-        
-        self.pre_en_promo_mv_wk = self.pre_en_promo_wk
-        self.pre_st_promo_mv_wk = period_cal.promo_week_cal(self.pre_en_promo_wk, -12)
-        self.pre_st_date_promo  = period_cal.f_date_of_promo_wk(self.pre_st_promo_wk).strftime('%Y-%m-%d')
-        self.pre_st_date_promo_mv = period_cal.f_date_of_promo_wk(self.pre_st_promo_mv_wk).strftime('%Y-%m-%d')
-        
-        self.ppp_en_promo_mv_wk   = period_cal.promo_week_cal(self.pre_st_promo_mv_wk, -1)
-        self.ppp_st_promo_mv_wk   = period_cal.promo_week_cal(self.ppp_en_promo_mv_wk, -12)
-        self.ppp_st_date_promo_mv = period_cal.f_date_of_promo_wk(self.ppp_en_promo_mv_wk).strftime('%Y-%m-%d')
-        self.ppp_en_date_promo_mv = period_cal.f_date_of_promo_wk(self.ppp_st_promo_mv_wk).strftime('%Y-%m-%d')
 
         if ( self.gap_start_date is None ) & ( self.gap_end_date is None ):
             print(f'No Gap Week for campaign : {self.cmp_nm}')
@@ -184,7 +177,9 @@ class CampaignEval(CampaignParams):
             raise Exception("Incorrect Gap period value please recheck !!")
 
         self.pre_en_date = (datetime.strptime(chk_pre_dt, '%Y-%m-%d') + timedelta(days=-1)).strftime('%Y-%m-%d')
-        # pre end week migh overlap with cmp st wk
+        if eval_mode == "homeshelf":
+            
+        
         self.pre_en_wk   = period_cal.wk_of_year_ls(self.pre_en_date)
         self.params["pre_en_wk"] = self.pre_en_wk
         self.pre_st_wk   = period_cal.week_cal(self.pre_en_wk, -12)                       ## get 12 week away from end week -> inclusive pre_en_wk = 13 weeks
@@ -210,6 +205,19 @@ class CampaignEval(CampaignParams):
         
         self.ppp_st_date = period_cal.f_date_of_wk(self.ppp_en_wk).strftime('%Y-%m-%d')
         self.ppp_en_date = period_cal.f_date_of_wk(self.ppp_st_wk).strftime('%Y-%m-%d')
+        
+        self.pre_en_promo_wk    = period_cal.wk_of_year_promo_ls(self.pre_en_date)
+        self.pre_st_promo_wk    = period_cal.promo_week_cal(self.pre_en_promo_wk, (wk_cmp-1) * -1)
+        
+        self.pre_en_promo_mv_wk = self.pre_en_promo_wk
+        self.pre_st_promo_mv_wk = period_cal.promo_week_cal(self.pre_en_promo_wk, -12)
+        self.pre_st_date_promo  = period_cal.f_date_of_promo_wk(self.pre_st_promo_wk).strftime('%Y-%m-%d')
+        self.pre_st_date_promo_mv = period_cal.f_date_of_promo_wk(self.pre_st_promo_mv_wk).strftime('%Y-%m-%d')
+        
+        self.ppp_en_promo_mv_wk   = period_cal.promo_week_cal(self.pre_st_promo_mv_wk, -1)
+        self.ppp_st_promo_mv_wk   = period_cal.promo_week_cal(self.ppp_en_promo_mv_wk, -12)
+        self.ppp_st_date_promo_mv = period_cal.f_date_of_promo_wk(self.ppp_en_promo_mv_wk).strftime('%Y-%m-%d')
+        self.ppp_en_date_promo_mv = period_cal.f_date_of_promo_wk(self.ppp_st_promo_mv_wk).strftime('%Y-%m-%d')
 
         ## Add setup week type parameter
 
