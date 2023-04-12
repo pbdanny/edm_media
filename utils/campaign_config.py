@@ -135,6 +135,17 @@ class CampaignEval(CampaignParams):
         self.params["cmp_en_promo_wk"] = self.cmp_en_promo_wk
         self.gap_start_date = self.params["gap_start_date"]
         self.gap_end_date = self.params["gap_end_date"]
+        
+        # Period for customer movemetn
+        self.pre_en_promo_mv_wk = self.pre_en_promo_wk
+        self.pre_st_promo_mv_wk = period_cal.promo_week_cal(self.pre_en_promo_wk, -12)
+        self.pre_st_date_promo  = period_cal.f_date_of_promo_wk(self.pre_st_promo_wk).strftime('%Y-%m-%d')
+        self.pre_st_date_promo_mv = period_cal.f_date_of_promo_wk(self.pre_st_promo_mv_wk).strftime('%Y-%m-%d')
+        
+        self.ppp_en_promo_mv_wk   = period_cal.promo_week_cal(self.pre_st_promo_mv_wk, -1)
+        self.ppp_st_promo_mv_wk   = period_cal.promo_week_cal(self.ppp_en_promo_mv_wk, -12)
+        self.ppp_st_date_promo_mv = period_cal.f_date_of_promo_wk(self.ppp_en_promo_mv_wk).strftime('%Y-%m-%d')
+        self.ppp_en_date_promo_mv = period_cal.f_date_of_promo_wk(self.ppp_st_promo_mv_wk).strftime('%Y-%m-%d')
 
         if ( self.gap_start_date is None ) & ( self.gap_end_date is None ):
             print(f'No Gap Week for campaign : {self.cmp_nm}')
