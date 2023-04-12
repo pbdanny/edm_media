@@ -136,7 +136,15 @@ class CampaignEval(CampaignParams):
         self.gap_start_date = self.params["gap_start_date"]
         self.gap_end_date = self.params["gap_end_date"]
         
-        # Period for customer movemetn
+        # Period for customer movement
+        ## get number of campaign period weeks for promo campaign
+        dt_diff = (datetime.strptime(self.cmp_end, '%Y-%m-%d') - datetime.strptime(self.cmp_start, '%Y-%m-%d')) + timedelta(days = 1)
+        diff_days = dt_diff.days ## convert from time delta to int (number of days diff)
+        wk_cmp = int(np.round(diff_days/7, 0))
+        
+        self.pre_en_promo_wk    = period_cal.wk_of_year_promo_ls(self.pre_en_date)
+        self.pre_st_promo_wk    = period_cal.promo_week_cal(self.pre_en_promo_wk, (wk_cmp-1) * -1)
+        
         self.pre_en_promo_mv_wk = self.pre_en_promo_wk
         self.pre_st_promo_mv_wk = period_cal.promo_week_cal(self.pre_en_promo_wk, -12)
         self.pre_st_date_promo  = period_cal.f_date_of_promo_wk(self.pre_st_promo_wk).strftime('%Y-%m-%d')
