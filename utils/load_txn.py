@@ -136,8 +136,7 @@ def combine_store_region(cmp: CampaignEval):
             .drop_duplicates()
             )
             
-            cmp.txn = cmp.txn.drop('store_region').join(adjusted_store_region, 'store_id', 'left').where(F.col('region').isNull(), F.lit('Unidentified'))    
-    pass
+            cmp.txn = cmp.txn.drop('store_region').join(adjusted_store_region, 'store_id', 'left').fillna('Unidentified', subset='region')
 
 def save_txn(cmp: CampaignEval):
     load_txn()
