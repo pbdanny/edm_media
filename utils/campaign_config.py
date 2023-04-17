@@ -332,7 +332,7 @@ class CampaignEval(CampaignParams):
 
             test_store_count_region = (
                 adjusted_store_region.select(
-                    "store_id", "store_name", "format_id")
+                    "store_id", "store_name", "store_region", "format_id")
                 .drop_duplicates()
                 .join(self.target_store, "store_id", "left_semi")
                 .withColumn(
@@ -485,7 +485,7 @@ class CampaignEval(CampaignParams):
         Parameters
         ----------
         aisle_mode: str
-                        "" : (leave blank) = Auto upto input in config file
+            "" : (leave blank) = Auto upto input in config file
             "homeshelf" : use feature sku & aisle definition
             "cross_cate" : use defined cross catgory & aisle definition
             "total_store" : total store product
