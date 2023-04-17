@@ -199,6 +199,7 @@ class CampaignEval(CampaignParams):
         self.pre_en_date = (datetime.strptime(chk_pre_dt, "%Y-%m-%d") + timedelta(days=-1)).strftime("%Y-%m-%d")
         self.pre_en_wk = period_cal.wk_of_year_ls(self.pre_en_date)
         self.pre_en_promo_wk = period_cal.wk_of_year_promo_ls(self.pre_en_date)
+        self.pre_en_promo_mv_wk = self.pre_en_promo_wk
         
         self.pre_st_wk = period_cal.week_cal(self.pre_en_wk, -12)
         self.pre_st_mv_wk = self.pre_st_wk
