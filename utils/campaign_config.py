@@ -19,14 +19,15 @@ from utils import logger
 class CampaignConfigFile:
     def __init__(self, source_file):
         self.source_config_file = source_file
-        self.cmp_config_file = DBPath(source_file)
+        self.cmp_config_file = DBPath(str("/dbfs"+source_file[5:]))
         self.cmp_config_file_name = self.cmp_config_file.name
         self.cmp_config_df = pd.read_csv(self.cmp_config_file.file_api())
         self.cmp_config_df.insert(
             loc=0, column="row_num", value=self.cmp_config_df.index + 1
         )
         self.total_rows = self.cmp_config_df.shape[0]
-        self.cmp_inputs_files = self.cmp_config_file.parent / "inputs_files"
+        # self.cmp_inputs_files = self.cmp_config_file.parent / "inputs_files"
+        self.cmp_inputs_files = self.cmp_config_file.parent.glob("**/input*")
         self.cmp_output = self.cmp_config_file.parents[1]
         pass
 
