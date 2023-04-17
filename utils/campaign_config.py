@@ -170,7 +170,6 @@ class CampaignEval(CampaignParams):
             print(f"No Gap Week for campaign : {self.cmp_nm}")
             self.gap_flag = False
             chk_pre_dt = self.cmp_start
-            chk_pre_wk = self.cmp_st_wk
 
         elif (self.gap_start_date is not None) & (self.gap_end_date is not None):
             print(
@@ -189,8 +188,6 @@ class CampaignEval(CampaignParams):
             self.gap_flag = True
 
             chk_pre_dt = self.gap_start_date
-            chk_pre_wk = self.gap_st_wk
-            chk_pre_promo_wk = self.gap_st_promo_wk
 
         else:
             print("Incorrect gap period. Please recheck - Code will skip\n")
@@ -206,14 +203,16 @@ class CampaignEval(CampaignParams):
         self.pre_st_mv_wk = self.pre_st_wk
         self.pre_st_promo_wk = period_cal.promo_week_cal(self.pre_en_promo_wk, -12)
         self.pre_st_promo_mv_wk = self.pre_st_promo_mv_wk
+        
         self.ppp_en_wk = period_cal.week_cal(self.pre_st_wk, -1)
         self.ppp_en_mv_wk = self.ppp_en_wk
         self.ppp_en_promo_wk = period_cal.promo_week_cal(self.pre_st_promo_wk, -1)
         self.ppp_en_promo_mv_wk = self.ppp_en_promo_wk
+        
         self.ppp_st_wk = period_cal.week_cal(self.ppp_en_wk, -12)
         self.ppp_st_mv_wk = self.ppp_st_wk
         self.ppp_st_promo_wk = period_cal.promo_week_cal(self.ppp_en_promo_wk, -12)
-        self.ppp_st_mv_wk = self.ppp_st_promo_wk
+        self.ppp_st_promo_mv_wk = self.ppp_st_promo_wk
 
         if eval_mode == "promozone":
             self.pre_st_wk = period_cal.week_cal(self.pre_en_wk, (wk_cmp - 1) * -1)
