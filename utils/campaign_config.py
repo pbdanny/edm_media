@@ -95,7 +95,7 @@ class CampaignEval(CampaignParams):
 
     def __init__(self, config_file, cmp_row_no):
         super().__init__(config_file, cmp_row_no)
-        self.spark = SparkSession.builder.appName("campaingEval").getOrCreate()
+        self.spark = SparkSession.builder.appName("campaignEval").getOrCreate()
 
         self.store_fmt = self.params["store_fmt"].lower()
         self.wk_type = self.params["wk_type"]
