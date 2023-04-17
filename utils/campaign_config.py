@@ -202,7 +202,7 @@ class CampaignEval(CampaignParams):
         self.pre_st_wk = period_cal.week_cal(self.pre_en_wk, -12)
         self.pre_st_mv_wk = self.pre_st_wk
         self.pre_st_promo_wk = period_cal.promo_week_cal(self.pre_en_promo_wk, -12)
-        self.pre_st_promo_mv_wk = self.pre_st_promo_mv_wk
+        self.pre_st_promo_mv_wk = self.pre_st_promo_wk
         
         self.ppp_en_wk = period_cal.week_cal(self.pre_st_wk, -1)
         self.ppp_en_mv_wk = self.ppp_en_wk
