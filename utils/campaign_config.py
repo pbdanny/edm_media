@@ -493,6 +493,7 @@ class CampaignEval(CampaignParams):
 
         def _homeshelf():
             self.params["aisle_mode"] = "homeshelf"
+            aisle_master = self.spark.read.csv(self.adjacency_file.spark_api(), header=True, inferSchema=True)
             feat_subclass = (
                 prd_dim_c.join(self.feat_sku, "upc_id", "inner")
                 .select("subclass_code")
@@ -517,10 +518,8 @@ class CampaignEval(CampaignParams):
 
         def _x_cat():
             self.params["aisle_mode"] = "cross_cate"
-            x_subclass = self.spark.createDataFrame(
-                pd.DataFrame(data=self.cross_cate_cd_list,
-                             columns=["subclass_code"])
-            ).drop_duplicates()
+            aisle_master = self.spark.read.csv(self.adjacency_file.spark_api(), header=True, inferSchema=True)
+            x_subclass = self.spark.createDataFrame(pd.DataFrame(data=self.cross_cate_cd_list, columns=["subclass_code"])).drop_duplicates()
             aisle_group = (
                 aisle_master.join(x_subclass, "subclass_code", "inner")
                 .select("group")
@@ -546,9 +545,6 @@ class CampaignEval(CampaignParams):
         self.load_prod()
         prd_dim_c = self.spark.table("tdm.v_prod_dim_c")
         self.cross_cate_cd_list = self.convert_param_to_list("cross_cate_cd")
-        aisle_master = self.spark.read.csv(
-            self.adjacency_file.spark_api(), header=True, inferSchema=True
-        )
 
         if aisle_mode == "":
             if not self.cross_cate_cd_list:
