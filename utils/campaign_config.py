@@ -27,7 +27,7 @@ class CampaignConfigFile:
         )
         self.total_rows = self.cmp_config_df.shape[0]
         # self.cmp_inputs_files = self.cmp_config_file.parent / "inputs_files"
-        self.cmp_inputs_files = self.cmp_config_file.parent.glob("**/input*")
+        self.cmp_inputs_files = next(self.cmp_config_file.parent.glob("**/input*"))
         self.cmp_output = self.cmp_config_file.parents[1]
         pass
 
