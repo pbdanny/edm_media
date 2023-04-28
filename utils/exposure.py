@@ -117,8 +117,8 @@ def get_awareness(cmp: CampaignEval):
      .withColumn('avg_carded_freq', F.col('carded_visits')/F.col('carded_reach') )
      .withColumn('est_non_carded_reach', F.col('non_carded_visits')/F.col('avg_carded_freq') )
      .withColumn('total_reach', F.col('carded_reach') + F.col('est_non_carded_reach'))
-     .withColumn('media_spend', F.lit(cmp.media_spend))
-     .withColumn('CPM', F.lit(cmp.media_spend) / ( F.col('epos_impression') / 1000 ) )
+     .withColumn('media_spend', F.lit(cmp.media_fee))
+     .withColumn('CPM', F.lit(cmp.media_fee) / ( F.col('epos_impression') / 1000 ) )
     )         
     
     #---- By Region Exposure
@@ -164,7 +164,7 @@ def get_awareness(cmp: CampaignEval):
     media_by_region = \
     (count_test_store_region
      .withColumn('num_all_test_stores', F.lit(count_test_store_all))
-     .withColumn('all_media_spend', F.lit(cmp.media_spend))
+     .withColumn('all_media_spend', F.lit(cmp.media_fee))
      .withColumn('region_media_spend', F.col('all_media_spend')/F.col('num_all_test_stores')*F.col('num_test_store'))
     )
     
