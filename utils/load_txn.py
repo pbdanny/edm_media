@@ -122,21 +122,8 @@ def create_period_col(cmp: CampaignEval):
 def combine_store_region(cmp: CampaignEval):
     """For Gofresh, reclassified West , Central -> West+Central
     """
-    if cmp.store_fmt in ["gofresh", "mini_super"]:
-            #---- Adjust Transaction
-            print('GoFresh : Combine store_region West + Central in variable "txn_all"')
-            print("GoFresh : Auto-remove 'Null' region")
-
-            adjusted_store_region =  \
-            (spark.table('tdm.v_store_dim')
-             .withColumn('store_region', F.when(F.col('region').isin(['West','Central']), F.lit('West+Central'))
-                                         .when(F.col('region').isNull(), F.lit('Unidentified'))
-                                         .otherwise(F.col('region')))
-            .drop("region")
-            .drop_duplicates()
-            )
-            
-            cmp.txn = cmp.txn.drop('store_region').join(adjusted_store_region, 'store_id', 'left').fillna('Unidentified', subset='store_region')
+    cmp.txn = cmp.txn.drop('store_region').join(cmp.store_dim, 'store_id', 'left').fillna('Unidentified', subset='store_region')
+    pass
 
 def save_txn(cmp: CampaignEval):
     load_txn()

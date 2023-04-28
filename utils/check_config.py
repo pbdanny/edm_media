@@ -16,6 +16,7 @@ from pathlib import Path
 from utils.DBPath import DBPath
 from utils.campaign_config import CampaignEval
 
+
 def check_target_store(cmp: CampaignEval):
     """Base on store group name,
     - if HDE / Talad -> count check test vs total store
@@ -33,25 +34,16 @@ def check_target_store(cmp: CampaignEval):
         If store region Null -> Not show in count
         """
         all_store_count_region = (
-            cmp.spark.table("tdm.v_store_dim")
+            cmp.store_dim
             .where(F.col("format_id").isin(format_id_list))
-            .select("store_id", "store_name", F.col("region").alias("store_region"))
-            .drop_duplicates()
-            .fillna("Unidentified", subset="store_region")
             .groupBy("store_region")
             .agg(F.count("store_id").alias(f"total_{cmp.store_fmt}"))
         )
 
         test_store_count_region = (
-            cmp.spark.table("tdm.v_store_dim")
-            .select(
-                "store_id",
-                "store_name",
-                "format_id",
-                F.col("region").alias("store_region"),
-            )
-            .drop_duplicates()
+            cmp.store_dim
             .join(cmp.target_store, "store_id", "left_semi")
+            .drop("store_format_name")
             .withColumn(
                 "store_format_name",
                 F.when(F.col("format_id").isin([1, 2, 3]), "target_hyper")
@@ -74,57 +66,11 @@ def check_target_store(cmp: CampaignEval):
         )
 
     elif cmp.store_fmt in ["talad", "super"]:
-        all_store_count_region, test_store_count_region = _get_all_and_test_store(
-            [4]
-        )
+        all_store_count_region, test_store_count_region = _get_all_and_test_store([4])
 
     elif cmp.store_fmt in ["gofresh", "mini_super"]:
-        # ---- Adjust Transaction
-        print('GoFresh : Combine store_region West + Central in variable "txn_all"')
-        print("GoFresh : Auto-remove 'Null' region")
-
-        adjusted_store_region = (
-            cmp.spark.table("tdm.v_store_dim")
-            .withColumn(
-                "store_region",
-                F.when(
-                    F.col("region").isin(["West", "Central"]), F.lit("West+Central")
-                )
-                .when(F.col("region").isNull(), F.lit("Unidentified"))
-                .otherwise(F.col("region")),
-            )
-            .drop("region")
-            .drop_duplicates()
-        )
-
-        # ---- Count Region
-        all_store_count_region = (
-            adjusted_store_region.where(F.col("format_id").isin([5]))
-            .select("store_id", "store_name", "store_region")
-            .drop_duplicates()
-            .fillna("Unidentified", subset="store_region")
-            .groupBy("store_region")
-            .agg(F.count("store_id").alias(f"total_{cmp.store_fmt}"))
-        )
-
-        test_store_count_region = (
-            adjusted_store_region.select(
-                "store_id", "store_name", "store_region", "format_id"
-            )
-            .drop_duplicates()
-            .join(cmp.target_store, "store_id", "left_semi")
-            .withColumn(
-                "store_format_name",
-                F.when(F.col("format_id").isin([1, 2, 3]), "target_hyper")
-                .when(F.col("format_id").isin([4]), "target_super")
-                .when(F.col("format_id").isin([5]), "target_mini_super")
-                .otherwise("target_other_fmt"),
-            )
-            .groupBy("store_region")
-            .pivot("store_format_name")
-            .agg(F.count("store_id").alias(f"test_store_count"))
-        )
-
+        all_store_count_region, test_store_count_region = _get_all_and_test_store([5])
+        
     else:
         print(f"Unknown store format group name : {cmp.store_fmt}")
         return None
@@ -134,6 +80,7 @@ def check_target_store(cmp: CampaignEval):
     ).orderBy("store_region")
 
     return test_vs_all_store_count
+
 
 def get_target_control_store_dup(trg_str_df, ctl_str_df):
     """4 Jan 2023  -- Paksirinat Chanchana - initial version
@@ -150,7 +97,9 @@ def get_target_control_store_dup(trg_str_df, ctl_str_df):
         trg_str_df, [ctl_str_df.store_id == trg_str_df.store_id], "left_semi"
     )
     n_store_dup = (
-        chk_store_dup_df.agg(F.sum(F.lit(1)).alias("n_store_dup")).collect()[0].n_store_dup
+        chk_store_dup_df.agg(F.sum(F.lit(1)).alias("n_store_dup"))
+        .collect()[0]
+        .n_store_dup
     )
 
     if n_store_dup is None:
