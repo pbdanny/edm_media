@@ -448,22 +448,38 @@ class CampaignEval(CampaignParams):
                 _store()
         pass
 
-    def load_store_dim_adjust_region(self):
-        """Create internal store dim with adjusted store region & combine "West" & "Central" -> West+Central
-        """
-        store_dim = \
-            (self.spark.table('tdm.v_store_dim')
-             .select("store_id", "format_id", "store_name", "date_opened", "date_closed", "status",
-                     F.lower(F.col("region")).alias("store_region_orig")
-                     )
-             .drop_duplicates()
+    def load_store_dim_adjusted(self):
+        """Create internal store dim with adjusted store region & combine "West" & "Central" -> West+Central"""
+        store_dim = (
+            self.spark.table("tdm.v_store_dim")
+            .select(
+                "store_id",
+                "format_id",
+                "store_name",
+                "date_opened",
+                "date_closed",
+                "status",
+                F.lower(F.col("region")).alias("store_region_orig"),
             )
-        self.store_dim = store_dim.withColumn("store_region", 
-                                              F.when( (F.col("format_id").isin(5)) & (F.col("store_region_orig").isin(["West", "Central"])) , F.lit("West+Central"))
-                                               .when(  F.col("store_region_orig").isNull(), F.lit('Unidentified'))
-                                               .otherwise(F.col("store_region_orig"))
+            .drop_duplicates()
         )
-            
+        self.store_dim = store_dim.withColumn(
+            "store_region",
+            F.when(
+                (F.col("format_id").isin(5))
+                & (F.col("store_region_orig").isin(["West", "Central"])),
+                F.lit("West+Central"),
+            )
+            .when(F.col("store_region_orig").isNull(), F.lit("Unidentified"))
+            .otherwise(F.col("store_region_orig")),
+        ).withColumn(
+            "store_format_name",
+            F.when(F.col("format_id").isin([1, 2, 3]), "hde")
+            .when(F.col("format_id").isin([4]), "talad")
+            .when(F.col("format_id").isin([5]), "gofresh")
+            .otherwise("other_fmt"),
+        )
+
         pass
 
     def _get_prod_df(self):
@@ -478,13 +494,15 @@ class CampaignEval(CampaignParams):
                         ,list of subclass_id (sclass_cd_list)
                         ,list of subclass_name (sclass_nm_list)
         """
-        
+
         sku_list = self.feat_sku.toPandas()["upc_id"].to_numpy().tolist()
         cate_lvl = self.params["cate_lvl"]
-        std_ai_df = self.spark.read.csv(self.adjacency_file.spark_api(), header=True, inferSchema=True)
+        std_ai_df = self.spark.read.csv(
+            self.adjacency_file.spark_api(), header=True, inferSchema=True
+        )
         x_cate_flag = 0.0 if self.params["cross_cate_flag"] is None else 1.0
-        x_cate_cd = 0.0 if self.params["cross_cate_cd"] is None else 1.0 
-        
+        x_cate_cd = 0.0 if self.params["cross_cate_cd"] is None else 1.0
+
         prod_all = self.spark.table("tdm.v_prod_dim_c")
         mfr = self.spark.table("tdm.v_mfr_dim_c")
 
@@ -571,10 +589,16 @@ class CampaignEval(CampaignParams):
 
         ## get section list
         sec_cd_list = (
-            feat_df.select(feat_df.sec_cd).dropDuplicates().toPandas()["sec_cd"].to_list()
+            feat_df.select(feat_df.sec_cd)
+            .dropDuplicates()
+            .toPandas()["sec_cd"]
+            .to_list()
         )
         sec_nm_list = (
-            feat_df.select(feat_df.sec_nm).dropDuplicates().toPandas()["sec_nm"].to_list()
+            feat_df.select(feat_df.sec_nm)
+            .dropDuplicates()
+            .toPandas()["sec_nm"]
+            .to_list()
         )
 
         print("-" * 80 + "\n List of Section Name show below : \n " + "-" * 80)
@@ -650,13 +674,15 @@ class CampaignEval(CampaignParams):
         # check category_level for brand definition
         if cate_lvl == "subclass":
             brand_df = prod_mfr.where(
-                prod_mfr.brand_nm.isin(brand_list) & prod_mfr.sclass_cd.isin(sclass_cd_list)
+                prod_mfr.brand_nm.isin(brand_list)
+                & prod_mfr.sclass_cd.isin(sclass_cd_list)
             )
             cate_df = prod_mfr.where(prod_mfr.sclass_cd.isin(sclass_cd_list))
             cate_cd_list = sclass_cd_list
         elif cate_lvl == "class":
             brand_df = prod_mfr.where(
-                prod_mfr.brand_nm.isin(brand_list) & prod_mfr.class_cd.isin(class_cd_list)
+                prod_mfr.brand_nm.isin(brand_list)
+                & prod_mfr.class_cd.isin(class_cd_list)
             )
             cate_df = prod_mfr.where(prod_mfr.class_cd.isin(class_cd_list))
             cate_cd_list = class_cd_list
