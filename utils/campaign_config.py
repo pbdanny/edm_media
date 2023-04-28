@@ -447,221 +447,220 @@ class CampaignEval(CampaignParams):
                 _store()
         pass
 
+    def _get_prod_df(self):
+        """To get Product information refering to input SKU list (expected input as list )
+        function will return feature dataframe (feat_df)
+                        , brand dataframe (brand_df)
+                        , subclass dataframe (sclass_df) containing all product in subclass for matching
+                        , category dataframe (cate_df) containing all product in category defined of campaign.
+                        ,list of brand (brand_list)
+                        ,list of class_id (class_cd_list)
+                        ,list of class_name (class_nm_list)
+                        ,list of subclass_id (sclass_cd_list)
+                        ,list of subclass_name (sclass_nm_list)
+        """
+        
+        sku_list = cmp.feat_sku.toPandas()["upc_id"].to_numpy().tolist(),
+        cate_lvl = cmp.params["cate_lvl"],
+        std_ai_df = spark.read.csv(cmp.adjacency_file.spark_api(), header=True, inferSchema=True),
+        x_cate_flag = 0.0 if cmp.params["cross_cate_flag"] is None else 1.0,
+        x_cate_cd = 0.0 if cmp.params["cross_cate_cd"] is None else 1.0 
+        
+        prod_all = spark.table("tdm.v_prod_dim_c")
+        mfr = spark.table("tdm.v_mfr_dim_c")
 
-def _get_prod_df(
-    sku_list: List,
-    cate_lvl: str,
-    std_ai_df: SparkDataFrame,
-    x_cate_flag,
-    x_cate_cd: str,
-):
-    """To get Product information refering to input SKU list (expected input as list )
-    function will return feature dataframe (feat_df)
-                       , brand dataframe (brand_df)
-                       , subclass dataframe (sclass_df) containing all product in subclass for matching
-                       , category dataframe (cate_df) containing all product in category defined of campaign.
-                       ,list of brand (brand_list)
-                       ,list of class_id (class_cd_list)
-                       ,list of class_name (class_nm_list)
-                       ,list of subclass_id (sclass_cd_list)
-                       ,list of subclass_name (sclass_nm_list)
-    """
-    prod_all = spark.table("tdm.v_prod_dim_c")
-    mfr = spark.table("tdm.v_mfr_dim_c")
-
-    prod_mfr = (
-        prod_all.join(mfr, "mfr_id", "left")
-        .select(
-            prod_all.upc_id,
-            prod_all.product_en_desc.alias("prod_en_desc"),
-            prod_all.brand_name.alias("brand_nm"),
-            prod_all.mfr_id,
-            mfr.mfr_name,
-            prod_all.division_id.alias("div_id"),
-            prod_all.division_name.alias("div_nm"),
-            prod_all.department_id.alias("dept_id"),
-            prod_all.department_code.alias("dept_cd"),
-            prod_all.department_name.alias("dept_nm"),
-            prod_all.section_id.alias("sec_id"),
-            prod_all.section_code.alias("sec_cd"),
-            prod_all.section_name.alias("sec_nm"),
-            prod_all.class_id.alias("class_id"),
-            prod_all.class_code.alias("class_cd"),
-            prod_all.class_name.alias("class_nm"),
-            prod_all.subclass_id.alias("sclass_id"),
-            prod_all.subclass_code.alias("sclass_cd"),
-            prod_all.subclass_name.alias("sclass_nm"),
+        prod_mfr = (
+            prod_all.join(mfr, "mfr_id", "left")
+            .select(
+                prod_all.upc_id,
+                prod_all.product_en_desc.alias("prod_en_desc"),
+                prod_all.brand_name.alias("brand_nm"),
+                prod_all.mfr_id,
+                mfr.mfr_name,
+                prod_all.division_id.alias("div_id"),
+                prod_all.division_name.alias("div_nm"),
+                prod_all.department_id.alias("dept_id"),
+                prod_all.department_code.alias("dept_cd"),
+                prod_all.department_name.alias("dept_nm"),
+                prod_all.section_id.alias("sec_id"),
+                prod_all.section_code.alias("sec_cd"),
+                prod_all.section_name.alias("sec_nm"),
+                prod_all.class_id.alias("class_id"),
+                prod_all.class_code.alias("class_cd"),
+                prod_all.class_name.alias("class_nm"),
+                prod_all.subclass_id.alias("sclass_id"),
+                prod_all.subclass_code.alias("sclass_cd"),
+                prod_all.subclass_name.alias("sclass_nm"),
+            )
+            .persist()
         )
-        .persist()
-    )
 
-    feat_df = prod_mfr.where(prod_mfr.upc_id.isin(sku_list))
+        feat_df = prod_mfr.where(prod_mfr.upc_id.isin(sku_list))
 
-    del mfr
-    del prod_all
+        del mfr
+        del prod_all
 
-    ## get brand name list
-    brand_pd = feat_df.select(feat_df.brand_nm).dropDuplicates().toPandas()
+        ## get brand name list
+        brand_pd = feat_df.select(feat_df.brand_nm).dropDuplicates().toPandas()
 
-    brand_list = brand_pd["brand_nm"].to_list()
+        brand_list = brand_pd["brand_nm"].to_list()
 
-    print("-" * 80 + "\n List of Brand Name show below : \n " + "-" * 80)
-    print(brand_list)
+        print("-" * 80 + "\n List of Brand Name show below : \n " + "-" * 80)
+        print(brand_list)
 
-    del brand_pd
+        del brand_pd
 
-    ## get subclass list
-    sclass_cd_list = (
-        feat_df.select(feat_df.sclass_cd)
-        .dropDuplicates()
-        .toPandas()["sclass_cd"]
-        .to_list()
-    )
-    sclass_nm_list = (
-        feat_df.select(feat_df.sclass_nm)
-        .dropDuplicates()
-        .toPandas()["sclass_nm"]
-        .to_list()
-    )
+        ## get subclass list
+        sclass_cd_list = (
+            feat_df.select(feat_df.sclass_cd)
+            .dropDuplicates()
+            .toPandas()["sclass_cd"]
+            .to_list()
+        )
+        sclass_nm_list = (
+            feat_df.select(feat_df.sclass_nm)
+            .dropDuplicates()
+            .toPandas()["sclass_nm"]
+            .to_list()
+        )
 
-    print(
-        "-" * 80
-        + "\n List of Subclass Id and Subclass Name show below : \n "
-        + "-" * 80
-    )
-    print(sclass_cd_list)
-    print(sclass_nm_list)
-
-    ## get class list
-    class_cd_list = (
-        feat_df.select(feat_df.class_cd)
-        .dropDuplicates()
-        .toPandas()["class_cd"]
-        .to_list()
-    )
-    class_nm_list = (
-        feat_df.select(feat_df.class_nm)
-        .dropDuplicates()
-        .toPandas()["class_nm"]
-        .to_list()
-    )
-
-    print("-" * 80 + "\n List of Class Name show below : \n " + "-" * 80)
-    print(class_cd_list)
-    print(class_nm_list)
-
-    ## get section list
-    sec_cd_list = (
-        feat_df.select(feat_df.sec_cd).dropDuplicates().toPandas()["sec_cd"].to_list()
-    )
-    sec_nm_list = (
-        feat_df.select(feat_df.sec_nm).dropDuplicates().toPandas()["sec_nm"].to_list()
-    )
-
-    print("-" * 80 + "\n List of Section Name show below : \n " + "-" * 80)
-    print(sec_nm_list)
-
-    ## get mfr name
-    mfr_nm_list = (
-        feat_df.select(feat_df.mfr_name)
-        .dropDuplicates()
-        .toPandas()["mfr_name"]
-        .to_list()
-    )
-
-    print("-" * 80 + "\n List of Manufactor Name show below : \n " + "-" * 80)
-    print(mfr_nm_list)
-
-    ## get use aisle dataframe
-    print("Cross cate flag = " + str(x_cate_flag))
-
-    if str(x_cate_flag) == "":
-        x_cate_flag = 0
-    ## end if
-
-    ## check cross category
-    if (float(x_cate_flag) == 1) | (str(x_cate_flag) == "true"):
-        x_cate_list = x_cate_cd.split(",")
-        get_ai_sclass = [cd.strip() for cd in x_cate_list]
         print(
             "-" * 80
-            + "\n Using Cross Category code to define Aisle, input list of subclass code show below \n "
+            + "\n List of Subclass Id and Subclass Name show below : \n "
             + "-" * 80
         )
-    else:
-        get_ai_sclass = sclass_cd_list  ## use feature subclass list
-        print(
-            "-" * 80
-            + "\n Using Subclass of feature product to define Aisle, input list of subclass code show below \n "
-            + "-" * 80
+        print(sclass_cd_list)
+        print(sclass_nm_list)
+
+        ## get class list
+        class_cd_list = (
+            feat_df.select(feat_df.class_cd)
+            .dropDuplicates()
+            .toPandas()["class_cd"]
+            .to_list()
         )
-    ## end if
-
-    print("get_ai_sclass = " + str(get_ai_sclass))
-
-    use_ai_grp_list = list(
-        std_ai_df.where(std_ai_df.subclass_code.isin(get_ai_sclass))
-        .select(std_ai_df.group)
-        .dropDuplicates()
-        .toPandas()["group"]
-    )
-
-    print("-" * 80 + "\n List of Aisle group to be use show below : \n " + "-" * 80)
-    print(use_ai_grp_list)
-
-    use_ai_sclass = list(
-        std_ai_df.where(std_ai_df.group.isin(use_ai_grp_list))
-        .select(std_ai_df.subclass_code)
-        .dropDuplicates()
-        .toPandas()["subclass_code"]
-    )
-
-    use_ai_df = prod_mfr.where(
-        prod_mfr.sclass_cd.isin(use_ai_sclass)
-    )  ## all product in aisles group
-
-    use_ai_sec_list = list(
-        use_ai_df.select(use_ai_df.sec_nm).dropDuplicates().toPandas()["sec_nm"]
-    )
-
-    ## get class & Subclass DataFrame
-    class_df = prod_mfr.where(prod_mfr.class_cd.isin(class_cd_list))
-    sclass_df = prod_mfr.where(prod_mfr.sclass_cd.isin(sclass_cd_list))
-
-    # check category_level for brand definition
-    if cate_lvl == "subclass":
-        brand_df = prod_mfr.where(
-            prod_mfr.brand_nm.isin(brand_list) & prod_mfr.sclass_cd.isin(sclass_cd_list)
+        class_nm_list = (
+            feat_df.select(feat_df.class_nm)
+            .dropDuplicates()
+            .toPandas()["class_nm"]
+            .to_list()
         )
-        cate_df = prod_mfr.where(prod_mfr.sclass_cd.isin(sclass_cd_list))
-        cate_cd_list = sclass_cd_list
-    elif cate_lvl == "class":
-        brand_df = prod_mfr.where(
-            prod_mfr.brand_nm.isin(brand_list) & prod_mfr.class_cd.isin(class_cd_list)
-        )
-        cate_df = prod_mfr.where(prod_mfr.class_cd.isin(class_cd_list))
-        cate_cd_list = class_cd_list
-    else:
-        raise Exception("Incorrect category Level")
-    ## end if
 
-    return (
-        feat_df,
-        brand_df,
-        class_df,
-        sclass_df,
-        cate_df,
-        use_ai_df,
-        brand_list,
-        sec_cd_list,
-        sec_nm_list,
-        class_cd_list,
-        class_nm_list,
-        sclass_cd_list,
-        sclass_nm_list,
-        mfr_nm_list,
-        cate_cd_list,
-        use_ai_grp_list,
-        use_ai_sec_list,
-    )
-pass
+        print("-" * 80 + "\n List of Class Name show below : \n " + "-" * 80)
+        print(class_cd_list)
+        print(class_nm_list)
+
+        ## get section list
+        sec_cd_list = (
+            feat_df.select(feat_df.sec_cd).dropDuplicates().toPandas()["sec_cd"].to_list()
+        )
+        sec_nm_list = (
+            feat_df.select(feat_df.sec_nm).dropDuplicates().toPandas()["sec_nm"].to_list()
+        )
+
+        print("-" * 80 + "\n List of Section Name show below : \n " + "-" * 80)
+        print(sec_nm_list)
+
+        ## get mfr name
+        mfr_nm_list = (
+            feat_df.select(feat_df.mfr_name)
+            .dropDuplicates()
+            .toPandas()["mfr_name"]
+            .to_list()
+        )
+
+        print("-" * 80 + "\n List of Manufactor Name show below : \n " + "-" * 80)
+        print(mfr_nm_list)
+
+        ## get use aisle dataframe
+        print("Cross cate flag = " + str(x_cate_flag))
+
+        if str(x_cate_flag) == "":
+            x_cate_flag = 0
+        ## end if
+
+        ## check cross category
+        if (float(x_cate_flag) == 1) | (str(x_cate_flag) == "true"):
+            x_cate_list = x_cate_cd.split(",")
+            get_ai_sclass = [cd.strip() for cd in x_cate_list]
+            print(
+                "-" * 80
+                + "\n Using Cross Category code to define Aisle, input list of subclass code show below \n "
+                + "-" * 80
+            )
+        else:
+            get_ai_sclass = sclass_cd_list  ## use feature subclass list
+            print(
+                "-" * 80
+                + "\n Using Subclass of feature product to define Aisle, input list of subclass code show below \n "
+                + "-" * 80
+            )
+        ## end if
+
+        print("get_ai_sclass = " + str(get_ai_sclass))
+
+        use_ai_grp_list = list(
+            std_ai_df.where(std_ai_df.subclass_code.isin(get_ai_sclass))
+            .select(std_ai_df.group)
+            .dropDuplicates()
+            .toPandas()["group"]
+        )
+
+        print("-" * 80 + "\n List of Aisle group to be use show below : \n " + "-" * 80)
+        print(use_ai_grp_list)
+
+        use_ai_sclass = list(
+            std_ai_df.where(std_ai_df.group.isin(use_ai_grp_list))
+            .select(std_ai_df.subclass_code)
+            .dropDuplicates()
+            .toPandas()["subclass_code"]
+        )
+
+        use_ai_df = prod_mfr.where(
+            prod_mfr.sclass_cd.isin(use_ai_sclass)
+        )  ## all product in aisles group
+
+        use_ai_sec_list = list(
+            use_ai_df.select(use_ai_df.sec_nm).dropDuplicates().toPandas()["sec_nm"]
+        )
+
+        ## get class & Subclass DataFrame
+        class_df = prod_mfr.where(prod_mfr.class_cd.isin(class_cd_list))
+        sclass_df = prod_mfr.where(prod_mfr.sclass_cd.isin(sclass_cd_list))
+
+        # check category_level for brand definition
+        if cate_lvl == "subclass":
+            brand_df = prod_mfr.where(
+                prod_mfr.brand_nm.isin(brand_list) & prod_mfr.sclass_cd.isin(sclass_cd_list)
+            )
+            cate_df = prod_mfr.where(prod_mfr.sclass_cd.isin(sclass_cd_list))
+            cate_cd_list = sclass_cd_list
+        elif cate_lvl == "class":
+            brand_df = prod_mfr.where(
+                prod_mfr.brand_nm.isin(brand_list) & prod_mfr.class_cd.isin(class_cd_list)
+            )
+            cate_df = prod_mfr.where(prod_mfr.class_cd.isin(class_cd_list))
+            cate_cd_list = class_cd_list
+        else:
+            raise Exception("Incorrect category Level")
+        ## end if
+
+        return (
+            feat_df,
+            brand_df,
+            class_df,
+            sclass_df,
+            cate_df,
+            use_ai_df,
+            brand_list,
+            sec_cd_list,
+            sec_nm_list,
+            class_cd_list,
+            class_nm_list,
+            sclass_cd_list,
+            sclass_nm_list,
+            mfr_nm_list,
+            cate_cd_list,
+            use_ai_grp_list,
+            use_ai_sec_list,
+        )
