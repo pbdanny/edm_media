@@ -79,8 +79,8 @@ def get_awareness(cmp: CampaignEval):
      .filter(F.col('offline_online_other_channel')=='OFFLINE')
      .join(cmp.target_store, 'store_id','inner') # Mapping cmp_start, cmp_end, mech_count by store
      .join(cmp.aisle_sku, 'upc_id', 'inner')
-     .fillna(str(cmp.cp_start), subset='c_start')
-     .fillna(str(cmp.cp_end), subset='c_end')
+     .fillna(str(cmp.cmp_start), subset='c_start')
+     .fillna(str(cmp.cmp_end), subset='c_end')
      .filter(F.col('date_id').between(F.col('c_start'), F.col('c_end'))) # Filter only period in each mechanics
     )
     
