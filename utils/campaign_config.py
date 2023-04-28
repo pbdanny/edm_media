@@ -126,6 +126,7 @@ class CampaignEval(CampaignParams):
         self.load_period()
         self.load_target_store()
         self.load_control_store()
+        self.load_store_dim_adjust_region()
         self.load_prod()
         self.load_aisle()
         # self.load_txn()
@@ -445,6 +446,24 @@ class CampaignEval(CampaignParams):
                 _x_cat()
             else:
                 _store()
+        pass
+
+    def load_store_dim_adjust_region(self):
+        """Create internal store dim with adjusted store region & combine "West" & "Central" -> West+Central
+        """
+        store_dim = \
+            (self.spark.table('tdm.v_store_dim')
+             .select("store_id", "format_id", "store_name", "date_open", "date_close", "status",
+                     F.lower(F.col("region")).alias("store_region_orig")
+                     )
+             .drop_duplicates()
+            )
+        self.store_dim = store_dim.withColumn("store_region", 
+                                              F.when( (F.col("format_id").isin(5)) & (F.col("store_region_orig").isin(["West", "Central"])) , F.lit("West+Central"))
+                                               .when(  F.col("store_region_orig").isNull(), F.lit('Unidentified'))
+                                               .otherwise(F.col("store_region_orig"))
+        )
+            
         pass
 
     def _get_prod_df(self):
