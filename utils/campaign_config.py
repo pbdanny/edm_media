@@ -453,7 +453,7 @@ class CampaignEval(CampaignParams):
         """
         store_dim = \
             (self.spark.table('tdm.v_store_dim')
-             .select("store_id", "format_id", "store_name", "date_open", "date_close", "status",
+             .select("store_id", "format_id", "store_name", "date_opened", "date_closed", "status",
                      F.lower(F.col("region")).alias("store_region_orig")
                      )
              .drop_duplicates()
