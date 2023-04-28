@@ -126,7 +126,7 @@ class CampaignEval(CampaignParams):
         self.load_period()
         self.load_target_store()
         self.load_control_store()
-        self.load_store_dim_adjust_region()
+        self.load_store_dim_adjusted()
         self.load_prod()
         self.load_aisle()
         # self.load_txn()
