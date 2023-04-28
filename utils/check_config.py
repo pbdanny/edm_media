@@ -150,7 +150,7 @@ def get_target_control_store_dup(trg_str_df, ctl_str_df):
         trg_str_df, [ctl_str_df.store_id == trg_str_df.store_id], "left_semi"
     )
     n_store_dup = (
-        chk_store_dup_df.agg(sum(lit(1)).alias("n_store_dup")).collect()[0].n_store_dup
+        chk_store_dup_df.agg(F.sum(F.lit(1)).alias("n_store_dup")).collect()[0].n_store_dup
     )
 
     if n_store_dup is None:
