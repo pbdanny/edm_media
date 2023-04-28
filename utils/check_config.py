@@ -26,7 +26,7 @@ def check_target_store(cmp: CampaignEval):
     from pyspark.sql import DataFrame as SparkDataFrame
 
     print("-" * 80)
-    print("Count check store region & Combine store region for GoFresh")
+    print("Count check store region")
     print(f"Store format defined : {cmp.store_fmt}")
 
     def _get_all_and_test_store(format_id_list: List):
@@ -81,8 +81,7 @@ def check_target_store(cmp: CampaignEval):
 
     return test_vs_all_store_count
 
-
-def get_target_control_store_dup(trg_str_df, ctl_str_df):
+def get_target_control_store_dup(cmp: CampaignEval):
     """4 Jan 2023  -- Paksirinat Chanchana - initial version
 
     2 input parameter as sparkdataframe (target_store_df, control_store_df)
@@ -92,7 +91,8 @@ def get_target_control_store_dup(trg_str_df, ctl_str_df):
     > dup_str_list: List of store_id which duplicate between 2 dataframe
 
     """
-
+    trg_str_df = cmp.target_store
+    ctl_str_df = cmp.control_store
     chk_store_dup_df = ctl_str_df.join(
         trg_str_df, [ctl_str_df.store_id == trg_str_df.store_id], "left_semi"
     )
