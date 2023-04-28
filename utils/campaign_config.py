@@ -19,7 +19,7 @@ from utils import logger
 class CampaignConfigFile:
     def __init__(self, source_file):
         self.source_config_file = source_file
-        self.cmp_config_file = DBPath(str("/dbfs"+source_file[5:]))
+        self.cmp_config_file = DBPath(str("/dbfs" + source_file[5:]))
         self.cmp_config_file_name = self.cmp_config_file.name
         self.cmp_config_df = pd.read_csv(self.cmp_config_file.file_api())
         self.cmp_config_df.insert(
@@ -59,8 +59,7 @@ class CampaignParams:
         else:
             self.row_no = cmp_row_no
             self.params = (
-                self.all_cmp_df.applymap(
-                    lambda x: x.strip() if type(x) == str else x)
+                self.all_cmp_df.applymap(lambda x: x.strip() if type(x) == str else x)
                 .iloc[self.row_no - 1]
                 .replace(np.nan, None)
                 .replace("", None)
@@ -106,8 +105,7 @@ class CampaignEval(CampaignParams):
         self.cmp_end = self.params["cmp_end"]
         self.media_fee = self.params["media_fee"]
 
-        self.sku_file = self.cmp_inputs_files / \
-            f"upc_list_{self.params['cmp_id']}.csv"
+        self.sku_file = self.cmp_inputs_files / f"upc_list_{self.params['cmp_id']}.csv"
         self.target_store_file = (
             self.cmp_inputs_files / f"target_store_{self.params['cmp_id']}.csv"
         )
@@ -118,12 +116,10 @@ class CampaignEval(CampaignParams):
         self.use_reserved_store = bool(self.params["use_reserved_store"])
 
         self.custom_ctrl_store_file = (
-            self.cmp_inputs_files /
-            f"control_store_{self.params['cmp_id']}.csv"
+            self.cmp_inputs_files / f"control_store_{self.params['cmp_id']}.csv"
         )
 
-        self.adjacency_file = self.std_input_path / \
-            f"{self.params['adjacency_file']}"
+        self.adjacency_file = self.std_input_path / f"{self.params['adjacency_file']}"
         self.svv_table = self.params["svv_table"]
         self.purchase_cyc_table = self.params["purchase_cyc_table"]
 
@@ -158,8 +154,10 @@ class CampaignEval(CampaignParams):
         self.cmp_en_promo_wk = period_cal.wk_of_year_promo_ls(self.cmp_end)
         self.params["cmp_en_promo_wk"] = self.cmp_en_promo_wk
 
-        dt_diff = (datetime.strptime(self.cmp_end, "%Y-%m-%d") -
-                   datetime.strptime(self.cmp_start, "%Y-%m-%d")) + timedelta(days=1)
+        dt_diff = (
+            datetime.strptime(self.cmp_end, "%Y-%m-%d")
+            - datetime.strptime(self.cmp_start, "%Y-%m-%d")
+        ) + timedelta(days=1)
         # convert from time delta to int (number of days diff)
         diff_days = dt_diff.days
         wk_cmp = int(np.round(diff_days / 7, 0))
@@ -174,17 +172,16 @@ class CampaignEval(CampaignParams):
 
         elif (self.gap_start_date is not None) & (self.gap_end_date is not None):
             print(
-                f"Campaign {self.cmp_nm} has gap period between : {self.gap_start_date} and {self.gap_end_date}")
+                f"Campaign {self.cmp_nm} has gap period between : {self.gap_start_date} and {self.gap_end_date}"
+            )
 
             # fis_week
             self.gap_st_wk = period_cal.wk_of_year_ls(self.gap_start_date)
             self.gap_en_wk = period_cal.wk_of_year_ls(self.gap_end_date)
 
             # promo
-            self.gap_st_promo_wk = period_cal.wk_of_year_promo_ls(
-                self.gap_start_date)
-            self.gap_en_promo_wk = period_cal.wk_of_year_promo_ls(
-                self.gap_end_date)
+            self.gap_st_promo_wk = period_cal.wk_of_year_promo_ls(self.gap_start_date)
+            self.gap_en_promo_wk = period_cal.wk_of_year_promo_ls(self.gap_end_date)
 
             self.gap_flag = True
 
@@ -193,24 +190,27 @@ class CampaignEval(CampaignParams):
         else:
             print("Incorrect gap period. Please recheck - Code will skip\n")
             print(
-                f'Received Gap = {self.gap_start_date} + " and " + {self.gap_end_date}')
+                f'Received Gap = {self.gap_start_date} + " and " + {self.gap_end_date}'
+            )
             raise Exception("Incorrect Gap period value please recheck")
 
-        self.pre_en_date = (datetime.strptime(chk_pre_dt, "%Y-%m-%d") + timedelta(days=-1)).strftime("%Y-%m-%d")
+        self.pre_en_date = (
+            datetime.strptime(chk_pre_dt, "%Y-%m-%d") + timedelta(days=-1)
+        ).strftime("%Y-%m-%d")
         self.pre_en_wk = period_cal.wk_of_year_ls(self.pre_en_date)
         self.pre_en_promo_wk = period_cal.wk_of_year_promo_ls(self.pre_en_date)
         self.pre_en_promo_mv_wk = self.pre_en_promo_wk
-        
+
         self.pre_st_wk = period_cal.week_cal(self.pre_en_wk, -12)
         self.pre_st_mv_wk = self.pre_st_wk
         self.pre_st_promo_wk = period_cal.promo_week_cal(self.pre_en_promo_wk, -12)
         self.pre_st_promo_mv_wk = self.pre_st_promo_wk
-        
+
         self.ppp_en_wk = period_cal.week_cal(self.pre_st_wk, -1)
         self.ppp_en_mv_wk = self.ppp_en_wk
         self.ppp_en_promo_wk = period_cal.promo_week_cal(self.pre_st_promo_wk, -1)
         self.ppp_en_promo_mv_wk = self.ppp_en_promo_wk
-        
+
         self.ppp_st_wk = period_cal.week_cal(self.ppp_en_wk, -12)
         self.ppp_st_mv_wk = self.ppp_st_wk
         self.ppp_st_promo_wk = period_cal.promo_week_cal(self.ppp_en_promo_wk, -12)
@@ -218,7 +218,9 @@ class CampaignEval(CampaignParams):
 
         if eval_mode == "promozone":
             self.pre_st_wk = period_cal.week_cal(self.pre_en_wk, (wk_cmp - 1) * -1)
-            self.pre_st_promo_wk = period_cal.promo_week_cal(self.pre_en_promo_wk, (wk_cmp - 1) * -1)
+            self.pre_st_promo_wk = period_cal.promo_week_cal(
+                self.pre_en_promo_wk, (wk_cmp - 1) * -1
+            )
             self.ppp_en_wk = None
             self.ppp_en_promo_wk = None
             self.ppp_st_wk = None
@@ -311,8 +313,7 @@ class CampaignEval(CampaignParams):
                 .withColumn(
                     "store_region",
                     F.when(
-                        F.col("region").isin(
-                            ["West", "Central"]), F.lit("West+Central")
+                        F.col("region").isin(["West", "Central"]), F.lit("West+Central")
                     )
                     .when(F.col("region").isNull(), F.lit("Unidentified"))
                     .otherwise(F.col("region")),
@@ -333,7 +334,8 @@ class CampaignEval(CampaignParams):
 
             test_store_count_region = (
                 adjusted_store_region.select(
-                    "store_id", "store_name", "store_region", "format_id")
+                    "store_id", "store_name", "store_region", "format_id"
+                )
                 .drop_duplicates()
                 .join(self.target_store, "store_id", "left_semi")
                 .withColumn(
@@ -393,8 +395,7 @@ class CampaignEval(CampaignParams):
             store_dim_c = self.spark.table("tdm.v_store_dim_c")
 
             if self.store_fmt in ["hde", "hyper"]:
-                target_format = store_dim_c.where(
-                    F.col("format_id").isin([1, 2, 3]))
+                target_format = store_dim_c.where(F.col("format_id").isin([1, 2, 3]))
             elif self.store_fmt in ["talad", "super"]:
                 target_format = store_dim_c.where(F.col("format_id").isin([4]))
             elif self.store_fmt in ["gofresh", "mini_super"]:
@@ -463,16 +464,14 @@ class CampaignEval(CampaignParams):
             feat_brand = prd_dim_c.join(self.feat_class_code, "class_code").join(
                 self.feat_sku, "upc_id"
             )
-            self.feat_brand_nm = feat_brand.select(
-                "brand_name").drop_duplicates()
+            self.feat_brand_nm = feat_brand.select("brand_name").drop_duplicates()
             self.feat_brand_sku = feat_brand.select("upc_id").drop_duplicates()
         elif self.params["cate_lvl"].lower() in ["subclass"]:
             self.feat_cate_sku = self.feat_class_sku
             feat_brand = prd_dim_c.join(self.feat_subclass_code, "subclass_code").join(
                 self.feat_sku, "upc_id"
             )
-            self.feat_brand_nm = feat_brand.select(
-                "brand_name").drop_duplicates()
+            self.feat_brand_nm = feat_brand.select("brand_name").drop_duplicates()
             self.feat_brand_sku = feat_brand.select("upc_id").drop_duplicates()
         else:
             self.feat_cate_sku = None
@@ -494,7 +493,9 @@ class CampaignEval(CampaignParams):
 
         def _homeshelf():
             self.params["aisle_mode"] = "homeshelf"
-            aisle_master = self.spark.read.csv(self.adjacency_file.spark_api(), header=True, inferSchema=True)
+            aisle_master = self.spark.read.csv(
+                self.adjacency_file.spark_api(), header=True, inferSchema=True
+            )
             feat_subclass = (
                 prd_dim_c.join(self.feat_sku, "upc_id", "inner")
                 .select("subclass_code")
@@ -519,8 +520,12 @@ class CampaignEval(CampaignParams):
 
         def _x_cat():
             self.params["aisle_mode"] = "cross_cate"
-            aisle_master = self.spark.read.csv(self.adjacency_file.spark_api(), header=True, inferSchema=True)
-            x_subclass = self.spark.createDataFrame(pd.DataFrame(data=self.cross_cate_cd_list, columns=["subclass_code"])).drop_duplicates()
+            aisle_master = self.spark.read.csv(
+                self.adjacency_file.spark_api(), header=True, inferSchema=True
+            )
+            x_subclass = self.spark.createDataFrame(
+                pd.DataFrame(data=self.cross_cate_cd_list, columns=["subclass_code"])
+            ).drop_duplicates()
             aisle_group = (
                 aisle_master.join(x_subclass, "subclass_code", "inner")
                 .select("group")
@@ -560,3 +565,41 @@ class CampaignEval(CampaignParams):
             else:
                 _store()
         pass
+
+
+def get_target_control_store_dup(trg_str_df, ctl_str_df):
+    """4 Jan 2023  -- Paksirinat Chanchana - initial version
+
+    2 input parameter as sparkdataframe (target_store_df, control_store_df)
+    2 output variable
+
+    > n_store_dup : Number of duplicate stores (expected to be zero)
+    > dup_str_list: List of store_id which duplicate between 2 dataframe
+
+    """
+
+    chk_store_dup_df = ctl_str_df.join(
+        trg_str_df, [ctl_str_df.store_id == trg_str_df.store_id], "left_semi"
+    )
+    n_store_dup = (
+        chk_store_dup_df.agg(sum(lit(1)).alias("n_store_dup")).collect()[0].n_store_dup
+    )
+
+    if n_store_dup is None:
+        n_store_dup = 0
+
+    print(
+        " Number of duplicate stores between target & control = "
+        + str(n_store_dup)
+        + " stores \n"
+    )
+    print("=" * 80)
+
+    if n_store_dup > 1:
+        dup_str_list = (
+            chk_store_dup_df.toPandas()["store_id"].drop_duplicates().to_list()
+        )
+    else:
+        dup_str_list = []
+
+    return n_store_dup, dup_str_list
