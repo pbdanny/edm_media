@@ -460,14 +460,14 @@ class CampaignEval(CampaignParams):
                         ,list of subclass_name (sclass_nm_list)
         """
         
-        sku_list = cmp.feat_sku.toPandas()["upc_id"].to_numpy().tolist(),
-        cate_lvl = cmp.params["cate_lvl"],
-        std_ai_df = spark.read.csv(cmp.adjacency_file.spark_api(), header=True, inferSchema=True),
-        x_cate_flag = 0.0 if cmp.params["cross_cate_flag"] is None else 1.0,
-        x_cate_cd = 0.0 if cmp.params["cross_cate_cd"] is None else 1.0 
+        sku_list = self.feat_sku.toPandas()["upc_id"].to_numpy().tolist(),
+        cate_lvl = self.params["cate_lvl"],
+        std_ai_df = self.spark.read.csv(self.adjacency_file.spark_api(), header=True, inferSchema=True),
+        x_cate_flag = 0.0 if self.params["cross_cate_flag"] is None else 1.0,
+        x_cate_cd = 0.0 if self.params["cross_cate_cd"] is None else 1.0 
         
-        prod_all = spark.table("tdm.v_prod_dim_c")
-        mfr = spark.table("tdm.v_mfr_dim_c")
+        prod_all = self.spark.table("tdm.v_prod_dim_c")
+        mfr = self.spark.table("tdm.v_mfr_dim_c")
 
         prod_mfr = (
             prod_all.join(mfr, "mfr_id", "left")
