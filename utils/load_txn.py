@@ -15,6 +15,7 @@ from pathlib import Path
 
 from utils.DBPath import DBPath
 from utils.campaign_config import CampaignEval
+from utils import period_cal
 
 sys.path.append(os.path.abspath("/Workspace/Repos/thanakrit.boonquarmdee@lotuss.com/edm_util"))
 
@@ -59,9 +60,7 @@ def load_txn(cmp: CampaignEval,
         cmp.txn = spark.table("tdm_seg.v_latest_txn118wk")
 
     create_period_col(cmp)
-    cmp.txn = cmp.txn.where( (F.col("period_fis_wk").isin(["cmp", "gap", "pre", "ppp"])) | 
-                            (F.col("period_promo_wk").isin(["cmp", "gap", "pre", "ppp"])) |
-                            (F.col("period_promo_mv_wk").isin(["cmp", "gap", "pre", "ppp"])) )
+    scope_txn(cmp)
     replace_brand_nm(cmp)
     combine_store_region(cmp)
     
@@ -123,6 +122,17 @@ def combine_store_region(cmp: CampaignEval):
     """For Gofresh, reclassified West , Central -> West+Central
     """
     cmp.txn = cmp.txn.drop('store_region').join(cmp.store_dim, 'store_id', 'left').fillna('Unidentified', subset='store_region')
+    pass
+def scope_txn(cmp: CampaignEval):
+    """Improve performance when use pre-joined 118wk txn
+    """
+    ppp_wk_list = list(cmp.ppp_st_wk, cmp.ppp_st_promo_wk, cmp.ppp_st_mv_wk, cmp.ppp_st_promo_mv_wk)
+    min_wk_id = min([wk for wk in ppp_wk_list if wk is not None])
+    cmp_wk_list = list(cmp.cmp_st_wk, cmp.cmp_st_promo_wk)
+    max_wk_id = max([wk for wk in cmp_wk_list if wk is not None])
+    # +1 week buffer for eval with promo week, data of promo week from Mon - Thur will overflow to fis_week + 1
+    max_wk_id = period_cal.week_cal(max_wk_id, 1)
+    cmp.txn = cmp.txn.where(F.col("week_id").between(min_wk_id, max_wk_id))
     pass
 
 def save_txn(cmp: CampaignEval):
