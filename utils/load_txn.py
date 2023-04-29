@@ -128,7 +128,7 @@ def scope_txn(cmp: CampaignEval):
     """
     ppp_wk_list = [cmp.ppp_st_wk, cmp.ppp_st_promo_wk, cmp.ppp_st_mv_wk, cmp.ppp_st_promo_mv_wk]
     min_wk_id = min([wk for wk in ppp_wk_list if wk is not None])
-    cmp_wk_list = [cmp.cmp_st_wk, cmp.cmp_st_promo_wk]
+    cmp_wk_list = [cmp.cmp_en_wk, cmp.cmp_en_promo_wk]
     max_wk_id = max([wk for wk in cmp_wk_list if wk is not None])
     # +1 week buffer for eval with promo week, data of promo week from Mon - Thur will overflow to fis_week + 1
     max_wk_id = period_cal.week_cal(max_wk_id, 1)
