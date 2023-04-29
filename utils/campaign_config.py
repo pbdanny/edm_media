@@ -11,10 +11,9 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
-from utils import period_cal
-from utils.DBPath import DBPath
-from utils import logger
-
+from . import period_cal
+from . import DBPath
+from . import logger
 
 class CampaignConfigFile:
     def __init__(self, source_file):
@@ -81,6 +80,7 @@ class CampaignParams:
 
 
 class CampaignEval(CampaignParams):
+    
     def convert_param_to_list(self, param_name: str) -> List:
         if self.params[param_name] is not None:
             param = self.params["cross_cate_cd"]
@@ -222,10 +222,10 @@ class CampaignEval(CampaignParams):
             self.pre_st_promo_wk = period_cal.promo_week_cal(
                 self.pre_en_promo_wk, (wk_cmp - 1) * -1
             )
-            self.ppp_en_wk = None
-            self.ppp_en_promo_wk = None
-            self.ppp_st_wk = None
-            self.ppp_st_promo_wk = None
+            self.ppp_en_wk = period_cal.week_cal(self.pre_st_wk, -1)
+            self.ppp_en_promo_wk = period_cal.promo_week_cal(self.pre_st_promo_wk, -1)
+            self.ppp_st_wk = period_cal.week_cal(self.ppp_en_wk, (wk_cmp - 1) * -1)
+            self.ppp_st_promo_wk = period_cal.promo_week_cal(self.ppp_en_promo_wk, (wk_cmp - 1) * -1)
 
         if self.params["wk_type"] == "fis_wk":
             self.wk_tp = "fiswk"

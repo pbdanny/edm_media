@@ -9,8 +9,8 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql import DataFrame as SparkDataFrame
 
-from utils.DBPath import DBPath
-from utils.campaign_config import CampaignEval
+from . import DBPath
+from campaign_config import CampaignEval
 
 def get_exposure(cmp, exposure_type: str, visit_multiplier: float):
 
@@ -69,6 +69,7 @@ def get_awareness(cmp: CampaignEval):
         family_size = 1.0
 
     print(f'For store format "{cmp.store_fmt}" family size : {family_size:.2f}')
+    cmp.params["family_size"] = family_size
     
     # Join txn with test store details & adjacency product
     # If not defined c_start, c_end will use cp_start_date, cp_end_date
