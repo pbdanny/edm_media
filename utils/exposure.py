@@ -9,8 +9,8 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql import DataFrame as SparkDataFrame
 
-from . import DBPath
-from campaign_config import CampaignEval
+from utils.DBPath import DBPath
+from utils.campaign_config import CampaignEval
 
 def get_exposure(cmp, exposure_type: str, visit_multiplier: float):
 

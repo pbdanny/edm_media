@@ -11,9 +11,9 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
-from . import period_cal
-from . import DBPath
-from . import logger
+from utils import period_cal
+from utils.DBPath import DBPath
+from utils import logger
 
 class CampaignConfigFile:
     def __init__(self, source_file):

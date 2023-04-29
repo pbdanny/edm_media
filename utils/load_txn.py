@@ -13,8 +13,8 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
-from . import DBPath
-from campaign_config import CampaignEval
+from utils.DBPath import DBPath
+from utils.campaign_config import CampaignEval
 
 sys.path.append(os.path.abspath("/Workspace/Repos/thanakrit.boonquarmdee@lotuss.com/edm_util"))
 
