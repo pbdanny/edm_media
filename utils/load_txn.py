@@ -123,6 +123,7 @@ def combine_store_region(cmp: CampaignEval):
     """
     cmp.txn = cmp.txn.drop('store_region').join(cmp.store_dim, 'store_id', 'left').fillna('Unidentified', subset='store_region')
     pass
+
 def scope_txn(cmp: CampaignEval):
     """Improve performance when use pre-joined 118wk txn
     """
