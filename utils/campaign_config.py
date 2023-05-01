@@ -351,7 +351,7 @@ class CampaignEval(CampaignParams):
                  .drop_duplicates()
                 )
             self.feat_brand_nm = self.feat_cate_cd_brand_nm.select("brand_name").drop_duplicates()
-            self.feat_brand_sku = self.prod_dim_c.join(self.feat_cate_cd_brand_nm, ["class_code", "brand_name"]).select("upc_id").drop_duplicates()
+            self.feat_brand_sku = prd_dim_c.join(self.feat_cate_cd_brand_nm, ["class_code", "brand_name"]).select("upc_id").drop_duplicates()
         elif self.params["cate_lvl"].lower() in ["subclass"]:
             self.feat_cate_sku = self.feat_subclass_sku
             self.feat_cate_cd_brand_nm = \
@@ -362,7 +362,7 @@ class CampaignEval(CampaignParams):
                  .drop_duplicates()
                 )
             self.feat_brand_nm = self.feat_cate_cd_brand_nm.select("brand_name").drop_duplicates()
-            self.feat_brand_sku = self.prod_dim_c.join(self.feat_cate_cd_brand_nm, ["subclass_code", "brand_name"]).select("upc_id").drop_duplicates()
+            self.feat_brand_sku = prd_dim_c.join(self.feat_cate_cd_brand_nm, ["subclass_code", "brand_name"]).select("upc_id").drop_duplicates()
         else:
             self.feat_cate_sku = None
             self.feat_brand_nm = None
