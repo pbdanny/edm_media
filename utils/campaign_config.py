@@ -343,18 +343,26 @@ class CampaignEval(CampaignParams):
 
         if self.params["cate_lvl"].lower() in ["class"]:
             self.feat_cate_sku = self.feat_class_sku
-            feat_brand = prd_dim_c.join(self.feat_class_code, "class_code").join(
-                self.feat_sku, "upc_id"
-            )
-            self.feat_brand_nm = feat_brand.select("brand_name").drop_duplicates()
-            self.feat_brand_sku = feat_brand.select("upc_id").drop_duplicates()
+            self.feat_cate_cd_brand_nm = \
+                (prd_dim_c
+                 .join(self.feat_class_code, "class_code")
+                 .join(self.feat_sku, "upc_id")
+                 .select("class_code", "class_name", "brand_name")
+                 .drop_duplicates()
+                )
+            self.feat_brand_nm = self.feat_cate_cd_brand_nm.select("brand_name").drop_duplicates()
+            self.feat_brand_sku = self.prod_dim_c.join(self.feat_cate_cd_brand_nm, ["class_code", "brand_name"]).select("upc_id").drop_duplicates()
         elif self.params["cate_lvl"].lower() in ["subclass"]:
-            self.feat_cate_sku = self.feat_class_sku
-            feat_brand = prd_dim_c.join(self.feat_subclass_code, "subclass_code").join(
-                self.feat_sku, "upc_id"
-            )
-            self.feat_brand_nm = feat_brand.select("brand_name").drop_duplicates()
-            self.feat_brand_sku = feat_brand.select("upc_id").drop_duplicates()
+            self.feat_cate_sku = self.feat_subclass_sku
+            self.feat_cate_cd_brand_nm = \
+                (prd_dim_c
+                 .join(self.feat_subclass_code, "subclass_code")
+                 .join(self.feat_sku, "upc_id")
+                 .select("subclass_code", "subclass_name", "brand_name")
+                 .drop_duplicates()
+                )
+            self.feat_brand_nm = self.feat_cate_cd_brand_nm.select("brand_name").drop_duplicates()
+            self.feat_brand_sku = self.prod_dim_c.join(self.feat_cate_cd_brand_nm, ["subclass_code", "brand_name"]).select("upc_id").drop_duplicates()
         else:
             self.feat_cate_sku = None
             self.feat_brand_nm = None
