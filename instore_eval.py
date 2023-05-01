@@ -9,7 +9,6 @@ import os
 import pandas as pd
 import numpy as np
 from pandas import DataFrame as PandasDataFrame
-
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql import types as T
@@ -23,8 +22,6 @@ dbutils = DBUtils(spark)
 
 sys.path.append(os.path.abspath("/Workspace/Repos/thanakrit.boonquarmdee@lotuss.com/edm_util"))
 from edm_helper import get_lag_wk_id, to_pandas, pandas_to_csv_filestore
-
-from utils import load_config
 
 def print_dev(func):
     @functools.wraps(func)
@@ -56,18 +53,23 @@ def check_combine_region(store_format_group: str,
         """Get universe store count, based on format definded
         If store region Null -> Not show in count
         """
+        print("Store with 'Null' region => 'Unidentified'")
+
         all_store_count_region = \
         (spark.table('tdm.v_store_dim')
-         .filter(F.col('format_id').isin(str_fmt_id))
-         .select('store_id', 'store_name', F.col('region').alias('store_region')).drop_duplicates()
-         .dropna('all', subset='store_region')
+         .where(F.col('format_id').isin(str_fmt_id))
+         .select('store_id', 'store_name', F.col('region').alias('store_region'))
+         .drop_duplicates()
+         .fillna('Unidentified', subset=['store_region'])
          .groupBy('store_region')
          .agg(F.count('store_id').alias(f'total_{str_fmt_gr_nm}'))
         )
 
         test_store_count_region = \
         (spark.table('tdm.v_store_dim')
-         .select('store_id','store_name',F.col('region').alias('store_region')).drop_duplicates()
+         .select('store_id','store_name',F.col('region').alias('store_region'))
+         .drop_duplicates()
+         .fillna('Unidentified', subset=['store_region'])
          .join(test_store_sf, 'store_id', 'left_semi')
          .groupBy('store_region')
          .agg(F.count('store_id').alias(f'test_store_count'))
@@ -88,7 +90,6 @@ def check_combine_region(store_format_group: str,
 
         #---- Adjust Transaction
         print('GoFresh : Combine store_region West + Central in variable "txn_all"')
-        print("GoFresh : Auto-remove 'Null' region")
 
         adjusted_store_region =  \
         (spark.table('tdm.v_store_dim')
@@ -105,20 +106,20 @@ def check_combine_region(store_format_group: str,
         #---- Count Region
         all_store_count_region = \
         (adjusted_store_region
-         .filter(F.col('format_id').isin(format_id_list))
+         .where(F.col('format_id').isin(format_id_list))
          .select('store_id', 'store_name', 'store_region')
          .drop_duplicates()
-         .dropna('all', subset='store_region')
+         .fillna('Unidentified', subset=['store_region'])
          .groupBy('store_region')
          .agg(F.count('store_id').alias(f'total_{store_format_group}'))
         )
 
         test_store_count_region = \
         (adjusted_store_region
-         .filter(F.col('format_id').isin(format_id_list))
+         .where(F.col('format_id').isin(format_id_list))
          .select('store_id', 'store_name', 'store_region')
          .drop_duplicates()
-         .dropna('all', subset='store_region')
+         .fillna('Unidentified', subset=['store_region'])
          .join(test_store_sf, 'store_id', 'left_semi')
          .groupBy('store_region')
          .agg(F.count('store_id').alias(f'test_store_count'))
@@ -154,6 +155,32 @@ def get_cust_activated(txn: SparkDataFrame,
     spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
 
     #--- Helper fn
+    def _get_period_wk_col_nm(wk_type: str
+                              ) -> str:
+        """Column name for period week identification
+        """
+        if wk_type in ["promo_week", "promo_wk"]:
+            period_wk_col_nm = "period_promo_wk"
+        elif wk_type in ["promozone"]:
+            period_wk_col_nm = "period_promo_mv_wk"
+        else:
+            period_wk_col_nm = "period_fis_wk"
+        return period_wk_col_nm
+
+    def _create_test_store_sf(test_store_sf: SparkDataFrame,
+                             cp_start_date: str,
+                             cp_end_date: str
+                             ) -> SparkDataFrame:
+        """From target store definition, fill c_start, c_end
+        based on cp_start_date, cp_end_date
+        """
+        filled_test_store_sf = \
+            (test_store_sf
+            .fillna(str(cp_start_date), subset='c_start')
+            .fillna(str(cp_end_date), subset='c_end')
+            )
+        return filled_test_store_sf
+
     def _create_adj_prod_df(txn: SparkDataFrame) -> SparkDataFrame:
         """If adj_prod_sf is None, create from all upc_id in txn
         """
@@ -270,12 +297,12 @@ def get_cust_activated(txn: SparkDataFrame,
         print("Media exposed use total store level (all products)")
         adj_prod_sf = _create_adj_prod_df(txn)
     print("-"*80)
-    period_wk_col = load_config.get_period_wk_col_nm(wk_type=wk_type)
+    period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
     print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
     print("-"*80)
 
     # Brand activate
-    target_str             = load_config.get_test_store_sf(test_store_sf=test_store_sf, cp_start_date=cp_start_date, cp_end_date=cp_end_date)
+    target_str             = _create_test_store_sf(test_store_sf=test_store_sf, cp_start_date=cp_start_date, cp_end_date=cp_end_date)
     cmp_exposed            = _get_exposed_cust(txn=txn, test_store_sf=target_str, adj_prod_sf=adj_prod_sf)
     cmp_brand_shppr        = _get_shppr(txn=txn, period_wk_col_nm=period_wk_col, prd_scope_df=brand_sf)
     cmp_brand_activated    = _get_activated(exposed_cust=cmp_exposed, shppr_cust=cmp_brand_shppr)
@@ -331,6 +358,17 @@ def get_cust_movement(txn: SparkDataFrame,
     """
     spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
     #---- Helper function
+    def _get_period_wk_col_nm(wk_type: str
+                              ) -> str:
+        """Column name for period week identification
+        """
+        if wk_type in ["promo_week", "promo_wk"]:
+            period_wk_col_nm = "period_promo_wk"
+        elif wk_type in ["promozone"]:
+            period_wk_col_nm = "period_promo_mv_wk"
+        else:
+            period_wk_col_nm = "period_fis_wk"
+        return period_wk_col_nm
 
     #---- Main
     # Movement
@@ -341,7 +379,7 @@ def get_cust_movement(txn: SparkDataFrame,
     print("-"*80)
 
     print("-"*80)
-    period_wk_col = load_config.get_period_wk_col_nm(wk_type=wk_type)
+    period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
     print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
     print("-"*80)
 
@@ -521,6 +559,17 @@ def get_cust_brand_switching_and_penetration(
     """
     spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
     #---- Helper fn
+    def _get_period_wk_col_nm(wk_type: str
+                              ) -> str:
+        """Column name for period week identification
+        """
+        if wk_type in ["promo_week", "promo_wk"]:
+            period_wk_col_nm = "period_promo_wk"
+        elif wk_type in ["promozone"]:
+            period_wk_col_nm = "period_promo_mv_wk"
+        else:
+            period_wk_col_nm = "period_fis_wk"
+        return period_wk_col_nm
 
     ## Customer Switching by Sai
     def _switching(switching_lv:str, micro_flag: str, cust_movement_sf: SparkDataFrame,
@@ -679,7 +728,7 @@ def get_cust_brand_switching_and_penetration(
     print("Customer brand switching")
     print(f"Brand switching within : {switching_lv.upper()}")
     print("-"*80)
-    period_wk_col = load_config.get_period_wk_col_nm(wk_type=wk_type)
+    period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
     print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
     print("-"*80)
 
@@ -708,13 +757,24 @@ def get_cust_brand_switching_and_penetration_multi(
     """
     spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
     #---- Helper fn
+    def _get_period_wk_col_nm(wk_type: str
+                              ) -> str:
+        """Column name for period week identification
+        """
+        if wk_type in ["promo_week", "promo_wk"]:
+            period_wk_col_nm = "period_promo_wk"
+        elif wk_type in ["promozone"]:
+            period_wk_col_nm = "period_promo_mv_wk"
+        else:
+            period_wk_col_nm = "period_fis_wk"
+        return period_wk_col_nm
 
     #---- Main
     print("-"*80)
     print("Customer brand switching")
     print(f"Brand switching within : {switching_lv.upper()}")
     print("-"*80)
-    period_wk_col = load_config.get_period_wk_col_nm(wk_type=wk_type)
+    period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
     print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
     print("-"*80)
 
@@ -788,6 +848,17 @@ def get_cust_sku_switching(
     """
     spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
     #---- Helper fn
+    def _get_period_wk_col_nm(wk_type: str
+                              ) -> str:
+        """Column name for period week identification
+        """
+        if wk_type in ["promo_week", "promo_wk"]:
+            period_wk_col_nm = "period_promo_wk"
+        elif wk_type in ["promozone"]:
+            period_wk_col_nm = "period_promo_mv_wk"
+        else:
+            period_wk_col_nm = "period_fis_wk"
+        return period_wk_col_nm
 
     #---- Main
     print("-"*80)
@@ -796,7 +867,7 @@ def get_cust_sku_switching(
     print("Customer Movement consider only Feature SKU activated")
     print("-"*80)
 
-    period_wk_col = load_config.get_period_wk_col_nm(wk_type=wk_type)
+    period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
     print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
     print("-"*80)
 
@@ -858,6 +929,17 @@ def get_profile_truprice(txn: SparkDataFrame,
     Compare with total Lotus shopper at same store format
     """
     #---- Helper fn
+    def _get_period_wk_col_nm(wk_type: str
+                              ) -> str:
+        """Column name for period week identification
+        """
+        if wk_type in ["promo_week", "promo_wk"]:
+            period_wk_col_nm = "period_promo_wk"
+        elif wk_type in ["promozone"]:
+            period_wk_col_nm = "period_promo_mv_wk"
+        else:
+            period_wk_col_nm = "period_fis_wk"
+        return period_wk_col_nm
 
     def _get_truprice_seg(cp_end_date: str):
         """Get truprice seg from campaign end date
@@ -919,7 +1001,7 @@ def get_profile_truprice(txn: SparkDataFrame,
     print("Profile activated customer : TruPrice")
     print(f"Index with Total Lotus & {switching_lv.upper()} shopper at format : {store_fmt.upper()}, OFFLINE + ONLINE")
     print("-"*80)
-    period_wk_col = load_config.get_period_wk_col_nm(wk_type=wk_type)
+    period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
     print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
     print("-"*80)
     truprice_seg, truprice_period_id = _get_truprice_seg(cp_end_date=cp_end_date)
@@ -1020,6 +1102,18 @@ def get_store_matching(txn: SparkDataFrame,
     from sklearn.metrics.pairwise import cosine_similarity
 
     #---- Helper fn
+    def _get_wk_id_col_nm(wk_type: str
+                              ) -> str:
+        """Column name for period week identification
+        """
+        if wk_type in ["promo_week", "promo_wk"]:
+            wk_id_col_nm = "promoweek_id"
+        elif wk_type in ["promozone"]:
+            wk_id_col_nm = "promoweek_id"
+        else:
+            wk_id_col_nm = "week_id"
+
+        return wk_id_col_nm
 
     def _get_min_wk_sales(prod_scope_df: SparkDataFrame):
         """Count number of week sales by store, return the smallest number of target store, control store
@@ -1230,7 +1324,7 @@ def get_store_matching(txn: SparkDataFrame,
     #--------------
 
     print("-"*80)
-    wk_id_col_nm = load_config.get_period_wk_col_nm(wk_type=wk_type)
+    wk_id_col_nm = _get_wk_id_col_nm(wk_type=wk_type)
     print(f"Week_id based on column '{wk_id_col_nm}'")
     print('Matching performance only "OFFLINE" channel')
 
@@ -1413,6 +1507,18 @@ def get_store_matching_across_region(
     from sklearn.metrics.pairwise import cosine_similarity
 
     #---- Helper fn
+    def _get_wk_id_col_nm(wk_type: str
+                              ) -> str:
+        """Column name for period week identification
+        """
+        if wk_type in ["promo_week", "promo_wk"]:
+            wk_id_col_nm = "promoweek_id"
+        elif wk_type in ["promozone"]:
+            wk_id_col_nm = "promoweek_id"
+        else:
+            wk_id_col_nm = "week_id"
+
+        return wk_id_col_nm
 
     def _get_min_wk_sales(prod_scope_df: SparkDataFrame):
         """Count number of week sales by store, return the smallest number of target store, control store
@@ -1623,7 +1729,7 @@ def get_store_matching_across_region(
     #--------------
 
     print("-"*80)
-    wk_id_col_nm = load_config.get_period_wk_col_nm(wk_type=wk_type)
+    wk_id_col_nm = _get_wk_id_col_nm(wk_type=wk_type)
     print(f"Week_id based on column '{wk_id_col_nm}'")
     print('Matching performance only "OFFLINE" channel')
 
@@ -1728,13 +1834,15 @@ def get_store_matching_across_region(
     print(f"Outlier score threshold : {OUTLIER_SCORE_THRESHOLD}")
     print("Details of bad match pair(s)")
     outlier = flag_outlier[flag_outlier["flag_outlier"]]
-    if outlier.count() > 0:
+    
+    #if outlier.count() > 0:
+    if outlier.empty :  ## Pat change to use ".empty" to check empty df -- 14 feb 2023
+        print("No outlier (no bad match)")        
+    else: ## have bad match
         (outlier
         .merge(test_str_region, on="test_store_id", how="left")
         .merge(ctrl_str_region, on="ctrl_store_id", how="left")
         ).display()
-    else:
-        print("No outlier (no bad match)")
 
     # print("Pair plot bad match store")
     #__plt_pair(outlier, store_comp_score=store_comp_score)
@@ -1776,6 +1884,17 @@ def get_customer_uplift(txn: SparkDataFrame,
     In case customer exposed and unexposed -> flag customer as exposed
     """
     #--- Helper fn
+    def _get_period_wk_col_nm(wk_type: str
+                              ) -> str:
+        """Column name for period week identification
+        """
+        if wk_type in ["promo_week", "promo_wk"]:
+            period_wk_col_nm = "period_promo_wk"
+        elif wk_type in ["promozone"]:
+            period_wk_col_nm = "period_promo_mv_wk"
+        else:
+            period_wk_col_nm = "period_fis_wk"
+        return period_wk_col_nm
 
     def _create_test_store_sf(test_store_sf: SparkDataFrame,
                              cp_start_date: str,
@@ -1891,7 +2010,7 @@ def get_customer_uplift(txn: SparkDataFrame,
     print("-"*80)
     print(f"Activate = Exposed & Shop {cust_uplift_lv.upper()} in campaign period at any store format and any channel")
     print("-"*80)
-    period_wk_col = load_config.get_period_wk_col_nm(wk_type=wk_type)
+    period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
     print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
     print("-"*80)
 
@@ -2040,6 +2159,17 @@ def get_customer_uplift_by_mech(txn: SparkDataFrame,
     In case customer exposed and unexposed -> flag customer as exposed
     """
     #--- Helper fn
+    def _get_period_wk_col_nm(wk_type: str
+                              ) -> str:
+        """Column name for period week identification
+        """
+        if wk_type in ["promo_week", "promo_wk"]:
+            period_wk_col_nm = "period_promo_wk"
+        elif wk_type in ["promozone"]:
+            period_wk_col_nm = "period_promo_mv_wk"
+        else:
+            period_wk_col_nm = "period_fis_wk"
+        return period_wk_col_nm
 
     def _create_test_store_sf(test_store_sf: SparkDataFrame,
                              cp_start_date: str,
@@ -2190,7 +2320,7 @@ def get_customer_uplift_by_mech(txn: SparkDataFrame,
     print("-"*80)
     print(f"Activate = Exposed & Shop {cust_uplift_lv.upper()} in campaign period at any store format and any channel")
     print("-"*80)
-    period_wk_col = load_config.get_period_wk_col_nm(wk_type=wk_type)
+    period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
     print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
     print("-"*80)
 
@@ -2357,6 +2487,17 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
    In case customer exposed and unexposed -> flag customer as exposed
    """
    #--- Helper fn
+   def _get_period_wk_col_nm(wk_type: str
+                             ) -> str:
+       """Column name for period week identification
+       """
+       if wk_type in ["promo_week", "promo_wk"]:
+           period_wk_col_nm = "period_promo_wk"
+       elif wk_type in ["promozone"]:
+           period_wk_col_nm = "period_promo_mv_wk"
+       else:
+           period_wk_col_nm = "period_fis_wk"
+       return period_wk_col_nm
 
    def _create_test_store_sf(test_store_sf: SparkDataFrame,
                             cp_start_date: str,
@@ -2691,7 +2832,7 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
    print("-"*80)
    print(f"Activate = Exposed & Shop {cust_uplift_lv.upper()} in campaign period at any store format and any channel")
    print("-"*80)
-   period_wk_col = load_config.get_period_wk_col_nm(wk_type=wk_type)
+   period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
    print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
    print("-"*80)
 
@@ -2948,6 +3089,17 @@ def get_cust_activated_prmzn(
     spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
 
     #--- Helper fn
+    def _get_period_wk_col_nm(wk_type: str
+                              ) -> str:
+        """Column name for period week identification
+        """
+        if wk_type in ["promo_week", "promo_wk"]:
+            period_wk_col_nm = "period_promo_wk"
+        elif wk_type in ["promozone"]:
+            period_wk_col_nm = "period_promo_mv_wk"
+        else:
+            period_wk_col_nm = "period_fis_wk"
+        return period_wk_col_nm
 
     def _create_test_store_sf(test_store_sf: SparkDataFrame,
                              cp_start_date: str,
@@ -3071,14 +3223,17 @@ def get_cust_activated_prmzn(
     print("Customer PromoZone Exposed & Activated")
     print("PromoZone Exposed & Activated = Shopped (Feature SKU/Feature Brand) in campaign period at test store")
     print("-"*80)
-    period_wk_col = load_config.get_period_wk_col_nm(wk_type=wk_type)
+    period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
     print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
     print("-"*80)
 
     # Brand activate
     target_str = _create_test_store_sf(test_store_sf=test_store_sf, cp_start_date=cp_start_date, cp_end_date=cp_end_date)
     cmp_exposed = _get_exposed_cust(txn=txn, test_store_sf=target_str, prd_scope_df=brand_sf)
-    cmp_brand_shppr = _get_shppr_prmzn(txn=txn, test_store_sf=target_str, period_wk_col_nm=period_wk_col, prd_scope_df=brand_sf)
+    #cmp_brand_shppr = _get_shppr_prmzn(txn=txn, test_store_sf=target_str, period_wk_col_nm=period_wk_col, prd_scope_df=brand_sf)
+    
+    ## Change column order to align with defined in function above -- Pat 22 Feb 2023
+    cmp_brand_shppr = _get_shppr_prmzn(txn=txn, period_wk_col_nm=period_wk_col, test_store_sf=target_str, prd_scope_df=brand_sf)
     cmp_brand_activated = _get_activated_prmzn(exposed_cust=cmp_exposed, shppr_cust=cmp_brand_shppr)
 
     #nmbr_brand_activated = cmp_brand_activated.count()
@@ -3140,6 +3295,17 @@ def get_cust_cltv(txn: SparkDataFrame,
     import numpy as np
 
     #--- Helper fn
+    def _get_period_wk_col_nm(wk_type: str
+                              ) -> str:
+        """Column name for period week identification
+        """
+        if wk_type in ["promo_week", "promo_wk"]:
+            period_wk_col_nm = "period_promo_wk"
+        elif wk_type in ["promozone"]:
+            period_wk_col_nm = "period_promo_mv_wk"
+        else:
+            period_wk_col_nm = "period_fis_wk"
+        return period_wk_col_nm
 
     def _get_brand_sec_id(feat_sf: SparkDataFrame):
         """Get brand_name, section_class_id, section_class_subclass_id
@@ -3426,7 +3592,7 @@ def get_cust_cltv(txn: SparkDataFrame,
     print("Media Exposed = shopped in media aisle within campaign period (base on target input file) at target store , channel OFFLINE ")
     print("Brand Activated = Exposed & Shop Feature Brand in campaign period at any store format and any channel")
     print("-"*80)
-    period_wk_col = load_config.get_period_wk_col_nm(wk_type=wk_type)
+    period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
     print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
     print("-"*80)
 
@@ -3619,6 +3785,18 @@ def _get_cust_brnd_swtchng_pntrtn(
     Support feature brand in multi subclass
     """
     spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
+    #---- Helper fn
+    def _get_period_wk_col_nm(wk_type: str
+                              ) -> str:
+        """Column name for period week identification
+        """
+        if wk_type in ["promo_week", "promo_wk"]:
+            period_wk_col_nm = "period_promo_wk"
+        elif wk_type in ["promozone"]:
+            period_wk_col_nm = "period_promo_mv_wk"
+        else:
+            period_wk_col_nm = "period_fis_wk"
+        return period_wk_col_nm
 
     #---- Customer brand switching, re-write
     def _switching(cust_mv_brand_spend: SparkDataFrame,
@@ -3802,7 +3980,7 @@ def _get_cust_brnd_swtchng_pntrtn(
     print("Customer brand switching")
     print(f"Brand switching within : {switching_lv.upper()}")
     print("-"*80)
-    period_wk_col = load_config.get_period_wk_col_nm(wk_type=wk_type)
+    period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
     print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
     print("-"*80)
 
