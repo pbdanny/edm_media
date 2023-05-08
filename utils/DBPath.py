@@ -6,6 +6,8 @@ class DBPath(_Path_):
     _flavour = _windows_flavour if os.name == 'nt' else _posix_flavour
     
     def __init__(self, input_file):
+        if "dbfs:" in input_file:
+            raise ValueError("DBPath accept only file API path style (path start with /dbfs/)")
         super().__init__()
         pass
         
