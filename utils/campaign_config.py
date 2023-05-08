@@ -379,6 +379,7 @@ class CampaignEval(CampaignParams):
             "homeshelf" : use feature sku & aisle definition
             "cross_cate" : use defined cross catgory & aisle definition
             "total_store" : total store product
+            "target_store_config" : Aisle defined at target store file
         """
 
         def _homeshelf():
@@ -437,6 +438,14 @@ class CampaignEval(CampaignParams):
             self.params["aisle_mode"] = "total_store"
             self.aisle_sku = prd_dim_c.select("upc_id").drop_duplicates()
             pass
+        
+        def _target_store_config():
+            """Aisle defined by target store config file
+            """
+            self.params["aisle_mode"] = "target_store_config"
+            self.aisle_sku = None
+            self.aisle_store_conf = self.load_target_store()
+            pass
 
         self.load_prod()
         prd_dim_c = self.spark.table("tdm.v_prod_dim_c")
@@ -452,8 +461,10 @@ class CampaignEval(CampaignParams):
                 _homeshelf()
             elif aisle_mode == "cross_cat":
                 _x_cat()
-            else:
+            elif aisle_mode == "total_store":
                 _store()
+            else:
+                _target_store_config()
         pass
 
     def load_store_dim_adjusted(self):
