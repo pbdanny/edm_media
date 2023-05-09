@@ -45,7 +45,7 @@ def get_exposure(cmp: CampaignEval,
     elif cmp.params["aisle_mode"] in ["target_store_config"]:
         cmp.params["exposure_type"] = "target_store_config"
         
-        txn_x_store_conf = cmp.txn.join(cmp.aisle_store_conf, ["store_id", "upc_id", "date_id"])
+        txn_x_store_conf = cmp.txn.join(cmp.aisle_target_store_conf, ["store_id", "upc_id", "date_id"])
         visit_str_mech = txn_x_store_conf.groupBy("store_id", "mech_name").agg(F.count_distinct(F.col("transaction_uid")).alias("visits"))
         exposure_str_mech = cmp.target_store.join(visit_str_mech, ["store_id", "mech_name"]).withColumn("exposure", F.col("visits")*family_size)
         exposure = exposure_str_mech.agg(F.sum("exposure")).collect()[0][0]

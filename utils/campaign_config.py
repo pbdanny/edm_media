@@ -449,7 +449,7 @@ class CampaignEval(CampaignParams):
             prd_dim_c = self.spark.table("tdm.v_prod_dim_c").select("upc_id", "subclass_code").drop_duplicates()
             date_dim = self.spark.table("tdm.date_dim").select("date_id", "week_id").drop_duplicates()
 
-            self.aisle_target_conf = \
+            self.aisle_target_store_conf = \
                 (self.target_store
                  .join(adj_tbl, self.target_store.aisle_subclass_cd == adj_tbl.subclass_code)
                  .drop("subclass_code")
