@@ -18,61 +18,61 @@ from utils import logger
 class CampaignConfigFile:
     def __init__(self, source_file):
         self.source_config_file = source_file
-        self.cmp_config_file = DBPath(str("/dbfs" + source_file[5:]))
-        self.cmp_config_file_name = self.cmp_config_file.name
-        self.cmp_config_df = pd.read_csv(self.cmp_config_file.file_api())
-        self.cmp_config_df.insert(
-            loc=0, column="row_num", value=self.cmp_config_df.index + 1
+        self.self_config_file = DBPath(str("/dbfs" + source_file[5:]))
+        self.self_config_file_name = self.self_config_file.name
+        self.self_config_df = pd.read_csv(self.self_config_file.file_api())
+        self.self_config_df.insert(
+            loc=0, column="row_num", value=self.self_config_df.index + 1
         )
-        self.total_rows = self.cmp_config_df.shape[0]
-        # self.cmp_inputs_files = self.cmp_config_file.parent / "inputs_files"
-        self.cmp_inputs_files = next(self.cmp_config_file.parent.glob("**/input*"))
-        self.cmp_output = self.cmp_config_file.parents[1]
+        self.total_rows = self.self_config_df.shape[0]
+        # self.self_inputs_files = self.self_config_file.parent / "inputs_files"
+        self.self_inputs_files = next(self.self_config_file.parent.glob("**/input*"))
+        self.self_output = self.self_config_file.parents[1]
         pass
 
     def __repr__(self):
         return f"CampaignConfigFile class, source file = '{self.source_config_file}'"
 
     def display_details(self):
-        return self.cmp_config_df.display()
+        return self.self_config_df.display()
 
     def search_details(self, column: str, search_key: str):
-        return self.cmp_config_df[self.cmp_config_df[column].str.contains(search_key)]
+        return self.self_config_df[self.self_config_df[column].str.contains(search_key)]
 
 
 class CampaignParams:
-    def __init__(self, config_file, cmp_row_no):
-        self.cmp_config_file = config_file.cmp_config_file
-        self.all_cmp_df = config_file.cmp_config_df
-        self.all_cmp_max_row = config_file.total_rows
-        self.cmp_inputs_files = config_file.cmp_inputs_files
+    def __init__(self, config_file, self_row_no):
+        self.self_config_file = config_file.self_config_file
+        self.all_self_df = config_file.self_config_df
+        self.all_self_max_row = config_file.total_rows
+        self.self_inputs_files = config_file.self_inputs_files
 
-        if cmp_row_no > self.all_cmp_max_row:
+        if self_row_no > self.all_self_max_row:
             raise ValueError(
-                f"Campaign input have only '{self.all_cmp_max_row}' rows, request {cmp_row_no} is not available"
+                f"Campaign input have only '{self.all_self_max_row}' rows, request {self_row_no} is not available"
             )
-        elif cmp_row_no < 0:
+        elif self_row_no < 0:
             raise ValueError(
-                f"Campaign input have only '{self.all_cmp_max_row}' rows, request {cmp_row_no} is not available"
+                f"Campaign input have only '{self.all_self_max_row}' rows, request {self_row_no} is not available"
             )
         else:
-            self.row_no = cmp_row_no
+            self.row_no = self_row_no
             self.params = (
-                self.all_cmp_df.applymap(lambda x: x.strip() if type(x) == str else x)
+                self.all_self_df.applymap(lambda x: x.strip() if type(x) == str else x)
                 .iloc[self.row_no - 1]
                 .replace(np.nan, None)
                 .replace("", None)
             ).to_dict()
             self.output_path = (
-                config_file.cmp_output
-                / self.params["cmp_month"]
-                / self.params["cmp_nm"]
+                config_file.self_output
+                / self.params["self_month"]
+                / self.params["self_nm"]
             )
-            self.std_input_path = config_file.cmp_output.parent / "00_std_inputs"
+            self.std_input_path = config_file.self_output.parent / "00_std_inputs"
         pass
 
     def __repr__(self):
-        return f"CampaignParams class, config file : '{self.cmp_input_file}'\nRow number : {self.row_no}"
+        return f"CampaignParams class, config file : '{self.self_input_file}'\nRow number : {self.row_no}"
 
     def display_details(self):
         pprint.pp(self.params)
@@ -93,21 +93,21 @@ class CampaignEval(CampaignParams):
         else:
             return []
 
-    def __init__(self, config_file, cmp_row_no):
-        super().__init__(config_file, cmp_row_no)
+    def __init__(self, config_file, self_row_no):
+        super().__init__(config_file, self_row_no)
         self.spark = SparkSession.builder.appName("campaignEval").getOrCreate()
 
         self.store_fmt = self.params["store_fmt"].lower()
         self.wk_type = self.params["wk_type"]
 
-        self.cmp_nm = self.params["cmp_nm"]
-        self.cmp_start = self.params["cmp_start"]
-        self.cmp_end = self.params["cmp_end"]
+        self.self_nm = self.params["self_nm"]
+        self.self_start = self.params["self_start"]
+        self.self_end = self.params["self_end"]
         self.media_fee = self.params["media_fee"]
 
-        self.sku_file = self.cmp_inputs_files / f"upc_list_{self.params['cmp_id']}.csv"
+        self.sku_file = self.self_inputs_files / f"upc_list_{self.params['self_id']}.csv"
         self.target_store_file = (
-            self.cmp_inputs_files / f"target_store_{self.params['cmp_id']}.csv"
+            self.self_inputs_files / f"target_store_{self.params['self_id']}.csv"
         )
 
         self.resrv_store_file = (
@@ -116,7 +116,7 @@ class CampaignEval(CampaignParams):
         self.use_reserved_store = bool(self.params["use_reserved_store"])
 
         self.custom_ctrl_store_file = (
-            self.cmp_inputs_files / f"control_store_{self.params['cmp_id']}.csv"
+            self.self_inputs_files / f"control_store_{self.params['self_id']}.csv"
         )
 
         self.adjacency_file = self.std_input_path / f"{self.params['adjacency_file']}"
@@ -134,46 +134,46 @@ class CampaignEval(CampaignParams):
         pass
 
     def __repr__(self):
-        return f"CampaignEval class \nConfig file : '{self.cmp_config_file}'\nRow number : {self.row_no}"
+        return f"CampaignEval class \nConfig file : '{self.self_config_file}'\nRow number : {self.row_no}"
 
     def load_period(self, eval_mode: str = "homeshelf"):
-        """Load campaign period : cmp, pre, ppp & gap
-        For evaluation type "promotion_zone" the pre period number of week = same week as cmp period
-        For evaluation type "homeshelf" the pre period number of week 13 week before cmp period
+        """Load campaign period : self, pre, ppp & gap
+        For evaluation type "promotion_zone" the pre period number of week = same week as self period
+        For evaluation type "homeshelf" the pre period number of week 13 week before self period
 
         Parameters
         ----------
         eval_mode: str, default "homeshelf"
             Evaluation type : "promotion_zone", "homeshelf"
         """
-        self.cmp_st_wk = period_cal.wk_of_year_ls(self.cmp_start)
-        self.params["cmp_st_wk"] = self.cmp_st_wk
-        self.cmp_en_wk = period_cal.wk_of_year_ls(self.cmp_end)
-        self.params["cmp_en_wk"] = self.cmp_en_wk
-        self.cmp_st_promo_wk = period_cal.wk_of_year_promo_ls(self.cmp_start)
-        self.params["cmp_st_promo_wk"] = self.cmp_st_promo_wk
-        self.cmp_en_promo_wk = period_cal.wk_of_year_promo_ls(self.cmp_end)
-        self.params["cmp_en_promo_wk"] = self.cmp_en_promo_wk
+        self.self_st_wk = period_cal.wk_of_year_ls(self.self_start)
+        self.params["self_st_wk"] = self.self_st_wk
+        self.self_en_wk = period_cal.wk_of_year_ls(self.self_end)
+        self.params["self_en_wk"] = self.self_en_wk
+        self.self_st_promo_wk = period_cal.wk_of_year_promo_ls(self.self_start)
+        self.params["self_st_promo_wk"] = self.self_st_promo_wk
+        self.self_en_promo_wk = period_cal.wk_of_year_promo_ls(self.self_end)
+        self.params["self_en_promo_wk"] = self.self_en_promo_wk
 
         dt_diff = (
-            datetime.strptime(self.cmp_end, "%Y-%m-%d")
-            - datetime.strptime(self.cmp_start, "%Y-%m-%d")
+            datetime.strptime(self.self_end, "%Y-%m-%d")
+            - datetime.strptime(self.self_start, "%Y-%m-%d")
         ) + timedelta(days=1)
         # convert from time delta to int (number of days diff)
         diff_days = dt_diff.days
-        wk_cmp = int(np.round(diff_days / 7, 0))
+        wk_self = int(np.round(diff_days / 7, 0))
 
         self.gap_start_date = self.params["gap_start_date"]
         self.gap_end_date = self.params["gap_end_date"]
 
         if (self.gap_start_date is None) & (self.gap_end_date is None):
-            print(f"No Gap Week for campaign : {self.cmp_nm}")
+            print(f"No Gap Week for campaign : {self.self_nm}")
             self.gap_flag = False
-            chk_pre_dt = self.cmp_start
+            chk_pre_dt = self.self_start
 
         elif (self.gap_start_date is not None) & (self.gap_end_date is not None):
             print(
-                f"Campaign {self.cmp_nm} has gap period between : {self.gap_start_date} and {self.gap_end_date}"
+                f"Campaign {self.self_nm} has gap period between : {self.gap_start_date} and {self.gap_end_date}"
             )
 
             # fis_week
@@ -218,14 +218,14 @@ class CampaignEval(CampaignParams):
         self.ppp_st_promo_mv_wk = self.ppp_st_promo_wk
 
         if eval_mode == "promozone":
-            self.pre_st_wk = period_cal.week_cal(self.pre_en_wk, (wk_cmp - 1) * -1)
+            self.pre_st_wk = period_cal.week_cal(self.pre_en_wk, (wk_self - 1) * -1)
             self.pre_st_promo_wk = period_cal.promo_week_cal(
-                self.pre_en_promo_wk, (wk_cmp - 1) * -1
+                self.pre_en_promo_wk, (wk_self - 1) * -1
             )
             self.ppp_en_wk = period_cal.week_cal(self.pre_st_wk, -1)
             self.ppp_en_promo_wk = period_cal.promo_week_cal(self.pre_st_promo_wk, -1)
-            self.ppp_st_wk = period_cal.week_cal(self.ppp_en_wk, (wk_cmp - 1) * -1)
-            self.ppp_st_promo_wk = period_cal.promo_week_cal(self.ppp_en_promo_wk, (wk_cmp - 1) * -1)
+            self.ppp_st_wk = period_cal.week_cal(self.ppp_en_wk, (wk_self - 1) * -1)
+            self.ppp_st_promo_wk = period_cal.promo_week_cal(self.ppp_en_promo_wk, (wk_self - 1) * -1)
 
         if self.params["wk_type"] == "fis_wk":
             self.wk_tp = "fiswk"
