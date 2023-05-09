@@ -444,7 +444,21 @@ class CampaignEval(CampaignParams):
             """
             self.params["aisle_mode"] = "target_store_config"
             self.aisle_sku = None
-            self.aisle_store_conf = self.load_target_store()
+            
+            adj_tbl = self.spark.read.csv(self.adjacency_file.spark_api(), header=True, inferSchema=True).select("subclass_code", "group").drop_duplicates()
+            prd_dim_c = self.spark.table("tdm.v_prod_dim_c").select("upc_id", "subclass_code").drop_duplicates()
+            date_dim = self.spark.table("tdm.date_dim").select("date_id", "week_id").drop_duplicates()
+
+            self.aisle_target_conf = \
+                (self.target_store
+                 .join(adj_tbl, self.target_store.aisle_subclass_cd == adj_tbl.subclass_code)
+                 .drop("subclass_code")
+                 .join(adj_tbl, "group")
+                 .join(prd_dim_c, "subclass_code")
+                 .join(date_dim)
+                 .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
+                )
+                
             pass
 
         self.load_prod()
