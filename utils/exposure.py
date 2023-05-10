@@ -77,7 +77,7 @@ def get_exposure(cmp: CampaignEval):
               F.sum('epos_impression').alias('epos_impression'),
               F.sum('carded_impression').alias('carded_impression'),
               F.sum('non_carded_impression').alias('non_carded_impression'),
-              F.sum('media_fee').alias("media_fee",)
+              F.sum('media_fee').alias("media_fee"),
               (F.sum("media_fee") / ( F.sum('epos_impression') / 1000)).alias("cpm")
               )
          )

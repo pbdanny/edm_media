@@ -237,9 +237,11 @@ class CampaignEval(CampaignParams):
 
     def load_target_store(self):
         """Load target store"""
-        self.target_store = self.spark.read.csv(
-            self.target_store_file.spark_api(), header=True, inferSchema=True
-        )
+        self.target_store = \
+            (self.spark.read.csv(self.target_store_file.spark_api(), header=True, inferSchema=True)
+             .fillna(str(self.cmp_start), subset='c_start')
+             .fillna(str(self.cmp_end), subset='c_end')
+             )
         pass
 
     def load_control_store(self, control_store_mode: str = ""):
@@ -407,6 +409,13 @@ class CampaignEval(CampaignParams):
                 .select("upc_id")
                 .drop_duplicates()
             )
+            date_dim = self.spark.table("tdm.date_dim").select("date_id", "week_id").drop_duplicates()
+            self.aisle_target_store_conf = \
+                (self.target_store
+                 .join(date_dim)
+                 .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
+                 .join(self.aisle_sku)
+                )
             pass
 
         def _x_cat():
@@ -432,11 +441,25 @@ class CampaignEval(CampaignParams):
                 .select("upc_id")
                 .drop_duplicates()
             )
+            date_dim = self.spark.table("tdm.date_dim").select("date_id", "week_id").drop_duplicates()
+            self.aisle_target_store_conf = \
+                (self.target_store
+                 .join(date_dim)
+                 .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
+                 .join(self.aisle_sku)
+                )
             pass
 
         def _store():
             self.params["aisle_mode"] = "total_store"
             self.aisle_sku = prd_dim_c.select("upc_id").drop_duplicates()
+            date_dim = self.spark.table("tdm.date_dim").select("date_id", "week_id").drop_duplicates()
+            self.aisle_target_store_conf = \
+                (self.target_store
+                 .join(date_dim)
+                 .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
+                 .join(self.aisle_sku)
+                )
             pass
         
         def _target_store_config():
