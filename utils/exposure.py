@@ -12,41 +12,12 @@ from pyspark.sql import DataFrame as SparkDataFrame
 from utils.DBPath import DBPath
 from utils.campaign_config import CampaignEval
 
+def create_txn_x_store_mech(cmp: CampaignEval):
+    cmp.txn_x_store_mech = cmp.txn.join(cmp.aisle_target_store_conf, ["store_id", "upc_id", "date_id"])
+    pass
 
-def get_exposure(cmp: CampaignEval):
-    
-    STORE_FMT_FAMILY_SIZE = cmp.spark.createDataFrame([("hde", 2.2), ("talad", 1.5), ("gofresh", 1.0)],["store_format_name", "family_size"])
-    family_size = STORE_FMT_FAMILY_SIZE.where(F.col("store_format_name")==cmp.store_fmt.lower())
-    
-    if cmp.params["aisle_mode"] in ["total_store"]:
-        cmp.params["exposure_type"] = "store_lv"
-        txn_x_store = cmp.txn.join(cmp.target_store, "store_id", "inner")
-        visit = (
-            txn_x_store.where(
-                F.col("date_id").between(F.col("c_start"), F.col("c_end"))
-            ).agg(F.count_distinct(F.col("transaction_uid")))
-        ).collect()[0][0]
-        exposure = visit * family_size
-        return exposure
-
-    elif cmp.params["aisle_mode"] in ["homeshelf", "cross_cate"]:
-        cmp.params["exposure_type"] = "aisle_lv"
-        txn_x_store_x_aisle = cmp.txn.join(
-            cmp.target_store, "store_id", "inner"
-        ).join(cmp.aisle_sku, "upc_id", "inner")
-        visit = (
-            txn_x_store_x_aisle.where(
-                F.col("date_id").between(F.col("c_start"), F.col("c_end"))
-            ).agg(F.count_distinct(F.col("transaction_uid")))
-        ).collect()[0][0]
-        exposure = visit * family_size
-        return exposure
-
-    elif cmp.params["aisle_mode"] in ["target_store_config"]:
-        cmp.params["exposure_type"] = "target_store_config"
-        
-        cmp.txn_x_store_mech = cmp.txn.join(cmp.aisle_target_store_conf, ["store_id", "upc_id", "date_id"])
-        str_mech_visits = \
+def _exposure_all(cmp: CampaignEval):
+    str_mech_visits = \
             (cmp.txn_x_store_mech
              .groupBy("store_id", "mech_name")
              .agg(F.avg(F.col("mech_count")).alias("mech_count"),
@@ -58,44 +29,68 @@ def get_exposure(cmp: CampaignEval):
                  'transaction_uid')).otherwise(None))).alias('non_carded_visits')
                   )
             )
-        cmp.str_mech_exposure_cmp = \
-            (str_mech_visits
-             .join(cmp.store_dim, "store_id", "left")
-             .join(STORE_FMT_FAMILY_SIZE, "store_format_name", "left")
-             .withColumn('epos_impression', F.col('epos_visits')*F.col("family_size")*F.col('mech_count'))
-             .withColumn('carded_impression', F.col('carded_visits')*F.col("family_size")*F.col('mech_count'))
-             .withColumn('non_carded_impression', F.col('non_carded_visits')*F.col("family_size")*F.col('mech_count'))
-             .withColumn("cpm", F.col("media_fee")/ (F.col('epos_visits')*F.col("family_size")*F.col('mech_count')/1000) )
-            )
             
-        #---- Overall Exposure    
-        all_impression = \
-        (cmp.str_mech_exposure_cmp
-         .agg(F.sum('epos_visits').alias('epos_visits'),
-              F.sum('carded_visits').alias('carded_visits'),
-              F.sum('non_carded_visits').alias('non_carded_visits'),
-              F.sum('epos_impression').alias('epos_impression'),
-              F.sum('carded_impression').alias('carded_impression'),
-              F.sum('non_carded_impression').alias('non_carded_impression'),
-              F.sum('media_fee').alias("media_fee"),
-              (F.sum("media_fee") / ( F.sum('epos_impression') / 1000)).alias("cpm")
-              )
-         )
-
-        all_store_customer = cmp.txn_x_store_mech.agg(F.count_distinct(F.col('household_id')).alias('carded_customers')).collect()[0][0]
+    cmp.str_mech_exposure_cmp = \
+        (str_mech_visits
+            .join(cmp.store_dim, "store_id", "left")
+            .join(STORE_FMT_FAMILY_SIZE, "store_format_name", "left")
+            .withColumn('epos_impression', F.col('epos_visits')*F.col("family_size")*F.col('mech_count'))
+            .withColumn('carded_impression', F.col('carded_visits')*F.col("family_size")*F.col('mech_count'))
+            .withColumn('non_carded_impression', F.col('non_carded_visits')*F.col("family_size")*F.col('mech_count'))
+            .withColumn("cpm", F.col("media_fee")/ (F.col('epos_visits')*F.col("family_size")*F.col('mech_count')/1000) )
+        )
         
-        exposure_all = \
-        (all_impression
-         .withColumn('carded_reach', F.lit(all_store_customer))
-         .withColumn('avg_carded_freq', F.col('carded_visits')/F.col('carded_reach'))
-         .withColumn('est_non_carded_reach', F.col('non_carded_visits')/F.col('avg_carded_freq'))
-         .withColumn('total_reach', F.col('carded_reach') + F.col('est_non_carded_reach'))
-         .withColumn('media_spend', F.col("media_fee"))
-         .withColumn('CPM', F.col("cpm"))
-         )
-        
-        return exposure_all
+    #---- Overall Exposure    
+    all_impression = \
+    (cmp.str_mech_exposure_cmp
+        .agg(F.sum('epos_visits').alias('epos_visits'),
+            F.sum('carded_visits').alias('carded_visits'),
+            F.sum('non_carded_visits').alias('non_carded_visits'),
+            F.sum('epos_impression').alias('epos_impression'),
+            F.sum('carded_impression').alias('carded_impression'),
+            F.sum('non_carded_impression').alias('non_carded_impression'),
+            F.sum('media_fee').alias("media_fee"),
+            (F.sum("media_fee") / ( F.sum('epos_impression') / 1000)).alias("cpm")
+            )
+        )
 
+    all_store_customer = cmp.txn_x_store_mech.agg(F.count_distinct(F.col('household_id')).alias('carded_customers')).collect()[0][0]
+    
+    exposure_all = \
+    (all_impression
+        .withColumn('carded_reach', F.lit(all_store_customer))
+        .withColumn('avg_carded_freq', F.col('carded_visits')/F.col('carded_reach'))
+        .withColumn('est_non_carded_reach', F.col('non_carded_visits')/F.col('avg_carded_freq'))
+        .withColumn('total_reach', F.col('carded_reach') + F.col('est_non_carded_reach'))
+        .withColumn('media_spend', F.col("media_fee"))
+        .withColumn('CPM', F.col("cpm"))
+        )
+        
+    return exposure_all
+    
+def get_exposure(cmp: CampaignEval):
+    
+    STORE_FMT_FAMILY_SIZE = cmp.spark.createDataFrame([("hde", 2.2), ("talad", 1.5), ("gofresh", 1.0)],["store_format_name", "family_size"])
+    family_size = STORE_FMT_FAMILY_SIZE.where(F.col("store_format_name")==cmp.store_fmt.lower())
+    
+    if cmp.params["aisle_mode"] in ["total_store"]:
+        cmp.params["exposure_type"] = "store_lv"
+        create_txn_x_store_mech(cmp)
+        exposure = _exposure_all(cmp)
+        return exposure
+
+    elif cmp.params["aisle_mode"] in ["homeshelf", "cross_cate"]:
+        cmp.params["exposure_type"] = "aisle_lv"
+        create_txn_x_store_mech(cmp)
+        exposure = _exposure_all(cmp)
+        return exposure
+
+    elif cmp.params["aisle_mode"] in ["target_store_config"]:
+        cmp.params["exposure_type"] = "target_store_config"
+        
+        create_txn_x_store_mech(cmp)
+        exposure = _exposure_all(cmp)
+        
 def get_awareness(cmp: CampaignEval):
     """For Awareness of HDE, Talad
 
