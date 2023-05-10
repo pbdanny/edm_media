@@ -410,11 +410,13 @@ class CampaignEval(CampaignParams):
                 .drop_duplicates()
             )
             date_dim = self.spark.table("tdm.date_dim").select("date_id", "week_id").drop_duplicates()
+            avg_media_fee = self.media_fee / self.target_store.count()
             self.aisle_target_store_conf = \
                 (self.target_store
                  .join(date_dim)
                  .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
                  .join(self.aisle_sku)
+                 .withColumn("media_fee", F.lit(avg_media_fee))
                 )
             pass
 
@@ -442,11 +444,14 @@ class CampaignEval(CampaignParams):
                 .drop_duplicates()
             )
             date_dim = self.spark.table("tdm.date_dim").select("date_id", "week_id").drop_duplicates()
+            avg_media_fee = self.media_fee / self.target_store.count()
+
             self.aisle_target_store_conf = \
                 (self.target_store
                  .join(date_dim)
                  .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
                  .join(self.aisle_sku)
+                 .withColumn("media_fee", F.lit(avg_media_fee))
                 )
             pass
 
@@ -454,11 +459,14 @@ class CampaignEval(CampaignParams):
             self.params["aisle_mode"] = "total_store"
             self.aisle_sku = prd_dim_c.select("upc_id").drop_duplicates()
             date_dim = self.spark.table("tdm.date_dim").select("date_id", "week_id").drop_duplicates()
+            avg_media_fee = self.media_fee / self.target_store.count()
+
             self.aisle_target_store_conf = \
                 (self.target_store
                  .join(date_dim)
                  .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
                  .join(self.aisle_sku)
+                 .withColumn("media_fee", F.lit(avg_media_fee))
                 )
             pass
         
