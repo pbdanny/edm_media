@@ -17,6 +17,9 @@ def create_txn_x_store_mech(cmp: CampaignEval):
     pass
 
 def _exposure_all(cmp: CampaignEval):
+    STORE_FMT_FAMILY_SIZE = cmp.spark.createDataFrame([("hde", 2.2), ("talad", 1.5), ("gofresh", 1.0)],["store_format_name", "family_size"])
+    family_size = STORE_FMT_FAMILY_SIZE.where(F.col("store_format_name")==cmp.store_fmt.lower())
+
     str_mech_visits = \
             (cmp.txn_x_store_mech
              .groupBy("store_id", "mech_name")
@@ -69,10 +72,7 @@ def _exposure_all(cmp: CampaignEval):
     return exposure_all
     
 def get_exposure(cmp: CampaignEval):
-    
-    STORE_FMT_FAMILY_SIZE = cmp.spark.createDataFrame([("hde", 2.2), ("talad", 1.5), ("gofresh", 1.0)],["store_format_name", "family_size"])
-    family_size = STORE_FMT_FAMILY_SIZE.where(F.col("store_format_name")==cmp.store_fmt.lower())
-    
+        
     if cmp.params["aisle_mode"] in ["total_store"]:
         cmp.params["exposure_type"] = "store_lv"
         create_txn_x_store_mech(cmp)
