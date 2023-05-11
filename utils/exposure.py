@@ -74,7 +74,10 @@ def _exposure_all(cmp: CampaignEval):
     return exposure_all
 
 def _exposure_region(cmp: CampaignEval):
-
+    
+    customer_by_region = cmp.txn_x_store_mech.groupBy('store_region').agg(
+        F.countDistinct(F.col('household_id')).alias('carded_customers'))
+    
     region_impression = \
         (cmp.str_mech_exposure_cmp
          .groupBy('store_region')
@@ -86,44 +89,13 @@ def _exposure_region(cmp: CampaignEval):
               F.sum('non_carded_impression').alias('non_carded_impression'),
               F.sum('media_fee').alias("media_fee"),
               (F.sum("media_fee") / ( F.sum('epos_impression') / 1000)).alias("cpm"),
-              F.count_distinct(F.col('household_id')).alias('carded_customers')
               )
+         .join(customer_by_region, "store_region", "left")
+         .withColumn('carded_reach', F.col('carded_customers'))
          .withColumn('avg_carded_freq', F.col('carded_visits')/F.col('carded_reach'))
          .withColumn('est_non_carded_reach', F.col('non_carded_visits')/F.col('avg_carded_freq'))
          .withColumn('total_reach', F.col('carded_reach') + F.col('est_non_carded_reach'))
         )
-        
-    # customer_by_region = cmp.txn_x_store_mech.groupBy('store_region').agg(
-    #     F.countDistinct(F.col('household_id')).alias('carded_customers'))
-
-    # # Allocate media by region
-    # count_test_store_all = cmp.target_store.select(
-    #     'store_id').drop_duplicates().count()
-
-    # # combine region for gofresh
-    # count_test_store_region = \
-    #     (cmp.store_dim
-    #      .join(cmp.target_store.select('store_id').drop_duplicates(), 'store_id', 'inner')
-    #      .groupBy('store_region')
-    #      .agg(F.count('store_id').alias('num_test_store'))
-    #      )
-
-    # media_by_region = \
-    #     (count_test_store_region
-    #      .withColumn('num_all_test_stores', F.lit(count_test_store_all))
-    #      .withColumn('all_media_spend', F.lit(cmp.media_fee))
-    #      .withColumn('region_media_spend', F.col('all_media_spend')/F.col('num_all_test_stores')*F.col('num_test_store'))
-    #      )
-
-    # exposure_region = \
-    #     (region_impression
-    #      .join(customer_by_region, 'store_region', 'left')
-    #      .withColumn('carded_reach', F.col('carded_customers'))
-    #      .withColumn('avg_carded_freq', F.col('carded_visits')/F.col('carded_reach'))
-    #      .withColumn('est_non_carded_reach', F.col('non_carded_visits')/F.col('avg_carded_freq'))
-    #      .withColumn('total_reach', F.col('carded_reach') + F.col('est_non_carded_reach'))
-    #      .withColumn('CPM', F.col('region_media_spend') / (F.col('epos_impression') / 1000))
-    #      )
         
     return region_impression
     
