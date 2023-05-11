@@ -21,7 +21,7 @@ def create_txn_x_store_mech(cmp: CampaignEval):
     
     str_mech_visits = \
         (cmp.txn_x_store_mech
-            .groupBy("store_id", "store_region", "mech_name")
+            .groupBy("store_id", "store_region", "mech_name", "store_format_name")
             .agg(F.avg(F.col("mech_count")).alias("mech_count"),
                 F.avg(F.col("media_fee")).alias("media_fee"),
                 F.count_distinct('transaction_uid').alias('epos_visits'),
@@ -34,7 +34,6 @@ def create_txn_x_store_mech(cmp: CampaignEval):
             
     cmp.str_mech_exposure_cmp = \
         (str_mech_visits
-            .join(cmp.store_dim.select("store_id", "store_format_name").drop_duplicates(), "store_id", "left")
             .join(STORE_FMT_FAMILY_SIZE, "store_format_name", "left")
             .withColumn('epos_impression', F.col('epos_visits')*F.col("family_size")*F.col('mech_count'))
             .withColumn('carded_impression', F.col('carded_visits')*F.col("family_size")*F.col('mech_count'))
