@@ -15,6 +15,7 @@ from utils import period_cal
 from utils.DBPath import DBPath
 from utils import logger
 
+
 class CampaignConfigFile:
     def __init__(self, source_file):
         self.source_config_file = source_file
@@ -26,7 +27,8 @@ class CampaignConfigFile:
         )
         self.total_rows = self.cmp_config_df.shape[0]
         # self.cmp_inputs_files = self.cmp_config_file.parent / "inputs_files"
-        self.cmp_inputs_files = next(self.cmp_config_file.parent.glob("**/input*"))
+        self.cmp_inputs_files = next(
+            self.cmp_config_file.parent.glob("**/input*"))
         self.cmp_output = self.cmp_config_file.parents[1]
         pass
 
@@ -58,7 +60,8 @@ class CampaignParams:
         else:
             self.row_no = cmp_row_no
             self.params = (
-                self.all_cmp_df.applymap(lambda x: x.strip() if type(x) == str else x)
+                self.all_cmp_df.applymap(
+                    lambda x: x.strip() if type(x) == str else x)
                 .iloc[self.row_no - 1]
                 .replace(np.nan, None)
                 .replace("", None)
@@ -80,7 +83,7 @@ class CampaignParams:
 
 
 class CampaignEval(CampaignParams):
-    
+
     def convert_param_to_list(self, param_name: str) -> List:
         if self.params[param_name] is not None:
             param = self.params["cross_cate_cd"]
@@ -105,7 +108,8 @@ class CampaignEval(CampaignParams):
         self.cmp_end = self.params["cmp_end"]
         self.media_fee = self.params["media_fee"]
 
-        self.sku_file = self.cmp_inputs_files / f"upc_list_{self.params['cmp_id']}.csv"
+        self.sku_file = self.cmp_inputs_files / \
+            f"upc_list_{self.params['cmp_id']}.csv"
         self.target_store_file = (
             self.cmp_inputs_files / f"target_store_{self.params['cmp_id']}.csv"
         )
@@ -116,10 +120,12 @@ class CampaignEval(CampaignParams):
         self.use_reserved_store = bool(self.params["use_reserved_store"])
 
         self.custom_ctrl_store_file = (
-            self.cmp_inputs_files / f"control_store_{self.params['cmp_id']}.csv"
+            self.cmp_inputs_files /
+            f"control_store_{self.params['cmp_id']}.csv"
         )
 
-        self.adjacency_file = self.std_input_path / f"{self.params['adjacency_file']}"
+        self.adjacency_file = self.std_input_path / \
+            f"{self.params['adjacency_file']}"
         self.svv_table = self.params["svv_table"]
         self.purchase_cyc_table = self.params["purchase_cyc_table"]
 
@@ -181,8 +187,10 @@ class CampaignEval(CampaignParams):
             self.gap_en_wk = period_cal.wk_of_year_ls(self.gap_end_date)
 
             # promo
-            self.gap_st_promo_wk = period_cal.wk_of_year_promo_ls(self.gap_start_date)
-            self.gap_en_promo_wk = period_cal.wk_of_year_promo_ls(self.gap_end_date)
+            self.gap_st_promo_wk = period_cal.wk_of_year_promo_ls(
+                self.gap_start_date)
+            self.gap_en_promo_wk = period_cal.wk_of_year_promo_ls(
+                self.gap_end_date)
 
             self.gap_flag = True
 
@@ -204,28 +212,35 @@ class CampaignEval(CampaignParams):
 
         self.pre_st_wk = period_cal.week_cal(self.pre_en_wk, -12)
         self.pre_st_mv_wk = self.pre_st_wk
-        self.pre_st_promo_wk = period_cal.promo_week_cal(self.pre_en_promo_wk, -12)
+        self.pre_st_promo_wk = period_cal.promo_week_cal(
+            self.pre_en_promo_wk, -12)
         self.pre_st_promo_mv_wk = self.pre_st_promo_wk
 
         self.ppp_en_wk = period_cal.week_cal(self.pre_st_wk, -1)
         self.ppp_en_mv_wk = self.ppp_en_wk
-        self.ppp_en_promo_wk = period_cal.promo_week_cal(self.pre_st_promo_wk, -1)
+        self.ppp_en_promo_wk = period_cal.promo_week_cal(
+            self.pre_st_promo_wk, -1)
         self.ppp_en_promo_mv_wk = self.ppp_en_promo_wk
 
         self.ppp_st_wk = period_cal.week_cal(self.ppp_en_wk, -12)
         self.ppp_st_mv_wk = self.ppp_st_wk
-        self.ppp_st_promo_wk = period_cal.promo_week_cal(self.ppp_en_promo_wk, -12)
+        self.ppp_st_promo_wk = period_cal.promo_week_cal(
+            self.ppp_en_promo_wk, -12)
         self.ppp_st_promo_mv_wk = self.ppp_st_promo_wk
 
         if eval_mode == "promozone":
-            self.pre_st_wk = period_cal.week_cal(self.pre_en_wk, (wk_cmp - 1) * -1)
+            self.pre_st_wk = period_cal.week_cal(
+                self.pre_en_wk, (wk_cmp - 1) * -1)
             self.pre_st_promo_wk = period_cal.promo_week_cal(
                 self.pre_en_promo_wk, (wk_cmp - 1) * -1
             )
             self.ppp_en_wk = period_cal.week_cal(self.pre_st_wk, -1)
-            self.ppp_en_promo_wk = period_cal.promo_week_cal(self.pre_st_promo_wk, -1)
-            self.ppp_st_wk = period_cal.week_cal(self.ppp_en_wk, (wk_cmp - 1) * -1)
-            self.ppp_st_promo_wk = period_cal.promo_week_cal(self.ppp_en_promo_wk, (wk_cmp - 1) * -1)
+            self.ppp_en_promo_wk = period_cal.promo_week_cal(
+                self.pre_st_promo_wk, -1)
+            self.ppp_st_wk = period_cal.week_cal(
+                self.ppp_en_wk, (wk_cmp - 1) * -1)
+            self.ppp_st_promo_wk = period_cal.promo_week_cal(
+                self.ppp_en_promo_wk, (wk_cmp - 1) * -1)
 
         if self.params["wk_type"] == "fis_wk":
             self.wk_tp = "fiswk"
@@ -279,7 +294,8 @@ class CampaignEval(CampaignParams):
             store_dim_c = self.spark.table("tdm.v_store_dim_c")
 
             if self.store_fmt in ["hde", "hyper"]:
-                target_format = store_dim_c.where(F.col("format_id").isin([1, 2, 3]))
+                target_format = store_dim_c.where(
+                    F.col("format_id").isin([1, 2, 3]))
             elif self.store_fmt in ["talad", "super"]:
                 target_format = store_dim_c.where(F.col("format_id").isin([4]))
             elif self.store_fmt in ["gofresh", "mini_super"]:
@@ -351,9 +367,11 @@ class CampaignEval(CampaignParams):
                  .join(self.feat_sku, "upc_id")
                  .select("class_code", "class_name", "brand_name")
                  .drop_duplicates()
-                )
-            self.feat_brand_nm = self.feat_cate_cd_brand_nm.select("brand_name").drop_duplicates()
-            self.feat_brand_sku = prd_dim_c.join(self.feat_cate_cd_brand_nm, ["class_code", "brand_name"]).select("upc_id").drop_duplicates()
+                 )
+            self.feat_brand_nm = self.feat_cate_cd_brand_nm.select(
+                "brand_name").drop_duplicates()
+            self.feat_brand_sku = prd_dim_c.join(self.feat_cate_cd_brand_nm, [
+                                                 "class_code", "brand_name"]).select("upc_id").drop_duplicates()
         elif self.params["cate_lvl"].lower() in ["subclass"]:
             self.feat_cate_sku = self.feat_subclass_sku
             self.feat_cate_cd_brand_nm = \
@@ -362,9 +380,11 @@ class CampaignEval(CampaignParams):
                  .join(self.feat_sku, "upc_id")
                  .select("subclass_code", "subclass_name", "brand_name")
                  .drop_duplicates()
-                )
-            self.feat_brand_nm = self.feat_cate_cd_brand_nm.select("brand_name").drop_duplicates()
-            self.feat_brand_sku = prd_dim_c.join(self.feat_cate_cd_brand_nm, ["subclass_code", "brand_name"]).select("upc_id").drop_duplicates()
+                 )
+            self.feat_brand_nm = self.feat_cate_cd_brand_nm.select(
+                "brand_name").drop_duplicates()
+            self.feat_brand_sku = prd_dim_c.join(self.feat_cate_cd_brand_nm, [
+                                                 "subclass_code", "brand_name"]).select("upc_id").drop_duplicates()
         else:
             self.feat_cate_sku = None
             self.feat_brand_nm = None
@@ -409,7 +429,8 @@ class CampaignEval(CampaignParams):
                 .select("upc_id")
                 .drop_duplicates()
             )
-            date_dim = self.spark.table("tdm.date_dim").select("date_id", "week_id").drop_duplicates()
+            date_dim = self.spark.table("tdm.date_dim").select(
+                "date_id", "week_id").drop_duplicates()
             avg_media_fee = self.media_fee / self.target_store.count()
             self.aisle_target_store_conf = \
                 (self.target_store
@@ -417,7 +438,7 @@ class CampaignEval(CampaignParams):
                  .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
                  .join(self.aisle_sku)
                  .withColumn("media_fee", F.lit(avg_media_fee))
-                )
+                 )
             pass
 
         def _x_cat():
@@ -426,7 +447,8 @@ class CampaignEval(CampaignParams):
                 self.adjacency_file.spark_api(), header=True, inferSchema=True
             )
             x_subclass = self.spark.createDataFrame(
-                pd.DataFrame(data=self.cross_cate_cd_list, columns=["subclass_code"])
+                pd.DataFrame(data=self.cross_cate_cd_list,
+                             columns=["subclass_code"])
             ).drop_duplicates()
             aisle_group = (
                 aisle_master.join(x_subclass, "subclass_code", "inner")
@@ -443,7 +465,8 @@ class CampaignEval(CampaignParams):
                 .select("upc_id")
                 .drop_duplicates()
             )
-            date_dim = self.spark.table("tdm.date_dim").select("date_id", "week_id").drop_duplicates()
+            date_dim = self.spark.table("tdm.date_dim").select(
+                "date_id", "week_id").drop_duplicates()
             avg_media_fee = self.media_fee / self.target_store.count()
 
             self.aisle_target_store_conf = \
@@ -452,13 +475,14 @@ class CampaignEval(CampaignParams):
                  .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
                  .join(self.aisle_sku)
                  .withColumn("media_fee", F.lit(avg_media_fee))
-                )
+                 )
             pass
 
         def _store():
             self.params["aisle_mode"] = "total_store"
             self.aisle_sku = prd_dim_c.select("upc_id").drop_duplicates()
-            date_dim = self.spark.table("tdm.date_dim").select("date_id", "week_id").drop_duplicates()
+            date_dim = self.spark.table("tdm.date_dim").select(
+                "date_id", "week_id").drop_duplicates()
             avg_media_fee = self.media_fee / self.target_store.count()
 
             self.aisle_target_store_conf = \
@@ -467,18 +491,21 @@ class CampaignEval(CampaignParams):
                  .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
                  .join(self.aisle_sku)
                  .withColumn("media_fee", F.lit(avg_media_fee))
-                )
+                 )
             pass
-        
+
         def _target_store_config():
             """Aisle defined by target store config file
             """
             self.params["aisle_mode"] = "target_store_config"
             self.aisle_sku = None
-            
-            adj_tbl = self.spark.read.csv(self.adjacency_file.spark_api(), header=True, inferSchema=True).select("subclass_code", "group").drop_duplicates()
-            prd_dim_c = self.spark.table("tdm.v_prod_dim_c").select("upc_id", "subclass_code").drop_duplicates()
-            date_dim = self.spark.table("tdm.date_dim").select("date_id", "week_id").drop_duplicates()
+
+            adj_tbl = self.spark.read.csv(self.adjacency_file.spark_api(
+            ), header=True, inferSchema=True).select("subclass_code", "group").drop_duplicates()
+            prd_dim_c = self.spark.table("tdm.v_prod_dim_c").select(
+                "upc_id", "subclass_code").drop_duplicates()
+            date_dim = self.spark.table("tdm.date_dim").select(
+                "date_id", "week_id").drop_duplicates()
 
             self.aisle_target_store_conf = \
                 (self.target_store
@@ -488,8 +515,8 @@ class CampaignEval(CampaignParams):
                  .join(prd_dim_c, "subclass_code")
                  .join(date_dim)
                  .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
-                )
-                
+                 )
+
             pass
 
         self.load_prod()
@@ -601,7 +628,7 @@ class CampaignEval(CampaignParams):
         del mfr
         del prod_all
 
-        ## get brand name list
+        # get brand name list
         brand_pd = feat_df.select(feat_df.brand_nm).dropDuplicates().toPandas()
 
         brand_list = brand_pd["brand_nm"].to_list()
@@ -611,7 +638,7 @@ class CampaignEval(CampaignParams):
 
         del brand_pd
 
-        ## get subclass list
+        # get subclass list
         sclass_cd_list = (
             feat_df.select(feat_df.sclass_cd)
             .dropDuplicates()
@@ -633,7 +660,7 @@ class CampaignEval(CampaignParams):
         print(sclass_cd_list)
         print(sclass_nm_list)
 
-        ## get class list
+        # get class list
         class_cd_list = (
             feat_df.select(feat_df.class_cd)
             .dropDuplicates()
@@ -651,7 +678,7 @@ class CampaignEval(CampaignParams):
         print(class_cd_list)
         print(class_nm_list)
 
-        ## get section list
+        # get section list
         sec_cd_list = (
             feat_df.select(feat_df.sec_cd)
             .dropDuplicates()
@@ -668,7 +695,7 @@ class CampaignEval(CampaignParams):
         print("-" * 80 + "\n List of Section Name show below : \n " + "-" * 80)
         print(sec_nm_list)
 
-        ## get mfr name
+        # get mfr name
         mfr_nm_list = (
             feat_df.select(feat_df.mfr_name)
             .dropDuplicates()
@@ -679,14 +706,14 @@ class CampaignEval(CampaignParams):
         print("-" * 80 + "\n List of Manufactor Name show below : \n " + "-" * 80)
         print(mfr_nm_list)
 
-        ## get use aisle dataframe
+        # get use aisle dataframe
         print("Cross cate flag = " + str(x_cate_flag))
 
         if str(x_cate_flag) == "":
             x_cate_flag = 0
-        ## end if
+        # end if
 
-        ## check cross category
+        # check cross category
         if (float(x_cate_flag) == 1) | (str(x_cate_flag) == "true"):
             x_cate_list = x_cate_cd.split(",")
             get_ai_sclass = [cd.strip() for cd in x_cate_list]
@@ -696,13 +723,13 @@ class CampaignEval(CampaignParams):
                 + "-" * 80
             )
         else:
-            get_ai_sclass = sclass_cd_list  ## use feature subclass list
+            get_ai_sclass = sclass_cd_list  # use feature subclass list
             print(
                 "-" * 80
                 + "\n Using Subclass of feature product to define Aisle, input list of subclass code show below \n "
                 + "-" * 80
             )
-        ## end if
+        # end if
 
         print("get_ai_sclass = " + str(get_ai_sclass))
 
@@ -725,13 +752,14 @@ class CampaignEval(CampaignParams):
 
         use_ai_df = prod_mfr.where(
             prod_mfr.sclass_cd.isin(use_ai_sclass)
-        )  ## all product in aisles group
+        )  # all product in aisles group
 
         use_ai_sec_list = list(
-            use_ai_df.select(use_ai_df.sec_nm).dropDuplicates().toPandas()["sec_nm"]
+            use_ai_df.select(use_ai_df.sec_nm).dropDuplicates().toPandas()[
+                "sec_nm"]
         )
 
-        ## get class & Subclass DataFrame
+        # get class & Subclass DataFrame
         class_df = prod_mfr.where(prod_mfr.class_cd.isin(class_cd_list))
         sclass_df = prod_mfr.where(prod_mfr.sclass_cd.isin(sclass_cd_list))
 
@@ -752,7 +780,7 @@ class CampaignEval(CampaignParams):
             cate_cd_list = class_cd_list
         else:
             raise Exception("Incorrect category Level")
-        ## end if
+        # end if
 
         return (
             feat_df,
