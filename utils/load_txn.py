@@ -66,7 +66,7 @@ def load_txn(cmp: CampaignEval,
     create_period_col(cmp)
     scope_txn(cmp)
     replace_brand_nm(cmp)
-    combine_store_region(cmp)
+    replace_store_region(cmp)
 
     pass
 
@@ -86,8 +86,11 @@ def replace_brand_nm(cmp: CampaignEval):
         if cmp.params["cate_lvl"].lower() in ["subclass"]:
             feature_subclass_cd = list(
                 set(cmp.feat_brand_nm.toPandas()["subclass_code"].tolist()))
-        cmp.txn = cmp.txn.withColumn("brand_name", F.when(F.col("brand_name").isin(
-            brand_list) & F.col("subclass_code").isin(feature_subclass_cd), F.lit(brand_list[0])).otherwise(F.col("brand_name")))
+        cmp.txn = \
+            (cmp.txn.withColumn("brand_name", 
+                                F.when( (F.col("brand_name").isin(brand_list)) & (F.col("subclass_code").isin(feature_subclass_cd)), 
+                                       F.lit(brand_list[0]))
+                                .otherwise(F.col("brand_name")))
 
     pass
 
@@ -142,13 +145,20 @@ def create_period_col(cmp: CampaignEval):
     pass
 
 
-def combine_store_region(cmp: CampaignEval):
+
+def replace_store_region(cmp: CampaignEval):
     """For Gofresh, reclassified West , Central -> West+Central
     """
-    cmp.txn = cmp.txn.drop('store_region').join(
-        cmp.store_dim, 'store_id', 'left').fillna('Unidentified', subset='store_region')
-    pass
+    txn_col = cmp.txn.columns
+    str_dim_col = cmp.store_dim.columns
 
+    overlapped_col_set = set(txn_col).intersection(set(str_dim_col))
+    to_add_col = list(set(str_dim_col).difference(overlapped_col_set))
+    to_add_col.append("store_id")
+
+    cmp.txn = cmp.txn.join(
+        cmp.store_dim.select(to_add_col), 'store_id', 'left').fillna('Unidentified', subset='store_region')
+    pass
 
 def scope_txn(cmp: CampaignEval):
     """Improve performance when use pre-joined 118wk txn

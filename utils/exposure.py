@@ -17,7 +17,10 @@ def create_txn_x_store_mech(cmp: CampaignEval):
     STORE_FMT_FAMILY_SIZE = cmp.spark.createDataFrame([("hde", 2.2), ("talad", 1.5), ("gofresh", 1.0)],["store_format_name", "family_size"])
     family_size = STORE_FMT_FAMILY_SIZE.where(F.col("store_format_name")==cmp.store_fmt.lower())
     
-    cmp.txn_x_store_mech = cmp.txn.join(cmp.aisle_target_store_conf, ["store_id", "upc_id", "date_id"])
+    cmp.txn_x_store_mech = \
+        (cmp.txn.join(cmp.aisle_target_store_conf, ["store_id", "upc_id", "date_id"])
+         .where(F.col("offline_online_other_channel")=="OFFLINE")
+        )
     
     str_mech_visits = \
         (cmp.txn_x_store_mech
