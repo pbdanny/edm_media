@@ -73,8 +73,8 @@ def replace_brand_nm(cmp: CampaignEval):
     """
     cmp.txn = \
     (cmp.txn
-        .drop("store_region")
-        .join(cmp.product_dim.select("upc_id", "brand_name"), 'store_id', 'left')
+        .drop("brand_name")
+        .join(cmp.product_dim.select("upc_id", "brand_name"), 'upc_id', 'left')
         .fillna('Unidentified', subset='brand_name')
     )
 
