@@ -72,7 +72,7 @@ def load_txn(cmp: CampaignEval,
 
 
 def replace_brand_nm(cmp: CampaignEval):
-    """Replace multi feature brand with main brand
+    """Replace multi feature brand with first main brand
     """
     brand_list = cmp.feat_brand_nm.toPandas()["brand_name"].tolist()
     brand_list.sort()
@@ -91,6 +91,7 @@ def replace_brand_nm(cmp: CampaignEval):
                                 F.when( (F.col("brand_name").isin(brand_list)) & (F.col("subclass_code").isin(feature_subclass_cd)), 
                                        F.lit(brand_list[0]))
                                 .otherwise(F.col("brand_name")))
+            )
 
     pass
 
