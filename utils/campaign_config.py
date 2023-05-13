@@ -134,6 +134,7 @@ class CampaignEval(CampaignParams):
         self.load_control_store()
         self.load_store_dim_adjusted()
         self.load_prod()
+        self.load_product_dim_adjusted()
         self.load_aisle()
         # self.load_txn()
 
@@ -332,12 +333,46 @@ class CampaignEval(CampaignParams):
                 _rest()
         pass
 
+    def load_store_dim_adjusted(self):
+        """Create internal store dim with adjusted store region & combine "West" & "Central" -> West+Central"""
+        store_dim = (
+            self.spark.table("tdm.v_store_dim")
+            .select(
+                "store_id",
+                "format_id",
+                "store_name",
+                "date_opened",
+                "date_closed",
+                "status",
+                F.lower(F.col("region")).alias("store_region_orig"),
+            )
+            .drop_duplicates()
+        )
+        self.store_dim = store_dim.withColumn(
+            "store_region",
+            F.when(
+                (F.col("format_id").isin(5))
+                & (F.col("store_region_orig").isin(["West", "Central"])),
+                F.lit("West+Central"),
+            )
+            .when(F.col("store_region_orig").isNull(), F.lit("Unidentified"))
+            .otherwise(F.col("store_region_orig")),
+        ).withColumn(
+            "store_format_name",
+            F.when(F.col("format_id").isin([1, 2, 3]), "hde")
+            .when(F.col("format_id").isin([4]), "talad")
+            .when(F.col("format_id").isin([5]), "gofresh")
+            .otherwise("other_fmt"),
+        )
+
+        pass
+
     def load_prod(self):
         """Load feature product, feature brand name, feature subclass, feature subclass"""
         self.feat_sku = self.spark.read.csv(
             (self.sku_file).spark_api(), header=True, inferSchema=True
         ).withColumnRenamed("feature", "upc_id")
-        prd_dim_c = self.spark.table("tdm.v_prod_dim_c")
+        prd_dim_c = self.spark.table("tdm.v_prod_dim_c").fillna("Unidentified", subset="brand_name")
         self.feat_subclass_code = (
             prd_dim_c.join(self.feat_sku, "upc_id", "inner")
             .select("subclass_code")
@@ -372,6 +407,7 @@ class CampaignEval(CampaignParams):
                 "brand_name").drop_duplicates()
             self.feat_brand_sku = prd_dim_c.join(self.feat_cate_cd_brand_nm, [
                                                  "class_code", "brand_name"]).select("upc_id").drop_duplicates()
+            
         elif self.params["cate_lvl"].lower() in ["subclass"]:
             self.feat_cate_sku = self.feat_subclass_sku
             self.feat_cate_cd_brand_nm = \
@@ -384,13 +420,49 @@ class CampaignEval(CampaignParams):
             self.feat_brand_nm = self.feat_cate_cd_brand_nm.select(
                 "brand_name").drop_duplicates()
             self.feat_brand_sku = prd_dim_c.join(self.feat_cate_cd_brand_nm, [
-                                                 "subclass_code", "brand_name"]).select("upc_id").drop_duplicates()
+                                                 "subclass_code", "brand_name"]).select("upc_id").drop_duplicates()            
         else:
             self.feat_cate_sku = None
             self.feat_brand_nm = None
             self.feat_brand_sku = None
         pass
 
+    def load_product_dim_adjusted(self):
+        """Create product_dim with adjustment
+            1) Mulitiple feature brand name -> Single brand name 
+        """
+        prd_dim_c = self.spark.table("tdm.v_prod_dim_c").fillna("Unidentified", subset="brand_name")
+        brand_list = self.feat_brand_nm.toPandas()["brand_name"].tolist()
+        brand_list.sort()
+        main_brand = brand_list[0]
+
+        if self.params["cate_lvl"].lower() in ["class"]:
+            
+            feature_class_cd = list(set(self.feat_brand_nm.toPandas()["class_code"].tolist()))
+            self.product_dim = \
+                (prd_dim_c
+                 .withColumn("brand_name", 
+                             F.when(
+                                 (F.col("brand_name").isin(brand_list)) 
+                                 & (F.col("class_code").isin(feature_class_cd))
+                                 , F.lit(main_brand)
+                                 ).otherwise(F.col("brand_name"))
+                 )
+                )
+        elif self.params["cate_lvl"].lower() in ["subclass"]:
+            feature_subclass_cd = list(set(self.feat_brand_nm.toPandas()["subclass_code"].tolist()))
+            self.product_dim = \
+                (prd_dim_c
+                 .withColumn("brand_name", 
+                             F.when(
+                                 (F.col("brand_name").isin(brand_list)) 
+                                 & (F.col("subclass_code").isin(feature_subclass_cd))
+                                 , F.lit(main_brand)
+                                 ).otherwise(F.col("brand_name"))
+                 )
+                )        
+        pass
+        
     def load_aisle(self, aisle_mode: str = ""):
         """Load aisle for exposure calculation
 
@@ -410,7 +482,7 @@ class CampaignEval(CampaignParams):
                 self.adjacency_file.spark_api(), header=True, inferSchema=True
             )
             feat_subclass = (
-                prd_dim_c.join(self.feat_sku, "upc_id", "inner")
+                self.product_dim.join(self.feat_sku, "upc_id", "inner")
                 .select("subclass_code")
                 .drop_duplicates()
             )
@@ -425,7 +497,7 @@ class CampaignEval(CampaignParams):
                 .drop_duplicates()
             )
             self.aisle_sku = (
-                prd_dim_c.join(aisle_subclass, "subclass_code", "inner")
+                self.product_dim.join(aisle_subclass, "subclass_code", "inner")
                 .select("upc_id")
                 .drop_duplicates()
             )
@@ -461,7 +533,7 @@ class CampaignEval(CampaignParams):
                 .drop_duplicates()
             )
             self.aisle_sku = (
-                prd_dim_c.join(aisle_subclass, "subclass_code", "inner")
+                self.product_dim.join(aisle_subclass, "subclass_code", "inner")
                 .select("upc_id")
                 .drop_duplicates()
             )
@@ -480,7 +552,7 @@ class CampaignEval(CampaignParams):
 
         def _store():
             self.params["aisle_mode"] = "total_store"
-            self.aisle_sku = prd_dim_c.select("upc_id").drop_duplicates()
+            self.aisle_sku = self.product_dim.select("upc_id").drop_duplicates()
             date_dim = self.spark.table("tdm.date_dim").select(
                 "date_id", "week_id").drop_duplicates()
             avg_media_fee = self.media_fee / self.target_store.count()
@@ -502,7 +574,7 @@ class CampaignEval(CampaignParams):
 
             adj_tbl = self.spark.read.csv(self.adjacency_file.spark_api(
             ), header=True, inferSchema=True).select("subclass_code", "group").drop_duplicates()
-            prd_dim_c = self.spark.table("tdm.v_prod_dim_c").select(
+            prd_dim = self.product_dim.select(
                 "upc_id", "subclass_code").drop_duplicates()
             date_dim = self.spark.table("tdm.date_dim").select(
                 "date_id", "week_id").drop_duplicates()
@@ -512,7 +584,7 @@ class CampaignEval(CampaignParams):
                  .join(adj_tbl, self.target_store.aisle_subclass_cd == adj_tbl.subclass_code)
                  .drop("subclass_code")
                  .join(adj_tbl, "group")
-                 .join(prd_dim_c, "subclass_code")
+                 .join(prd_dim, "subclass_code")
                  .join(date_dim)
                  .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
                  )
@@ -520,7 +592,6 @@ class CampaignEval(CampaignParams):
             pass
 
         self.load_prod()
-        prd_dim_c = self.spark.table("tdm.v_prod_dim_c")
         self.cross_cate_cd_list = self.convert_param_to_list("cross_cate_cd")
 
         if aisle_mode == "":
@@ -537,40 +608,6 @@ class CampaignEval(CampaignParams):
                 _store()
             else:
                 _target_store_config()
-        pass
-
-    def load_store_dim_adjusted(self):
-        """Create internal store dim with adjusted store region & combine "West" & "Central" -> West+Central"""
-        store_dim = (
-            self.spark.table("tdm.v_store_dim")
-            .select(
-                "store_id",
-                "format_id",
-                "store_name",
-                "date_opened",
-                "date_closed",
-                "status",
-                F.lower(F.col("region")).alias("store_region_orig"),
-            )
-            .drop_duplicates()
-        )
-        self.store_dim = store_dim.withColumn(
-            "store_region",
-            F.when(
-                (F.col("format_id").isin(5))
-                & (F.col("store_region_orig").isin(["West", "Central"])),
-                F.lit("West+Central"),
-            )
-            .when(F.col("store_region_orig").isNull(), F.lit("Unidentified"))
-            .otherwise(F.col("store_region_orig")),
-        ).withColumn(
-            "store_format_name",
-            F.when(F.col("format_id").isin([1, 2, 3]), "hde")
-            .when(F.col("format_id").isin([4]), "talad")
-            .when(F.col("format_id").isin([5]), "gofresh")
-            .otherwise("other_fmt"),
-        )
-
         pass
 
     def _get_prod_df(self):

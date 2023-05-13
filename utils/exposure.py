@@ -12,6 +12,8 @@ from pyspark.sql import DataFrame as SparkDataFrame
 from utils.DBPath import DBPath
 from utils.campaign_config import CampaignEval
 
+spark = SparkSession.builder.appName("campaingEval").getOrCreate()
+
 def create_txn_x_store_mech(cmp: CampaignEval):
     
     STORE_FMT_FAMILY_SIZE = cmp.spark.createDataFrame([("hde", 2.2), ("talad", 1.5), ("gofresh", 1.0)],["store_format_name", "family_size"])
