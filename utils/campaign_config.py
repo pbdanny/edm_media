@@ -80,8 +80,8 @@ class CampaignParams:
     def display_details(self):
         pprint.pp(self.params)
         pass
-
-
+    
+class CampaignEval(CampaignParams):
 
     def convert_param_to_list(self, param_name: str) -> List:
         if self.params[param_name] is not None:
