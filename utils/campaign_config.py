@@ -82,7 +82,6 @@ class CampaignParams:
         pass
 
 
-class CampaignEval(CampaignParams):
 
     def convert_param_to_list(self, param_name: str) -> List:
         if self.params[param_name] is not None:
@@ -437,26 +436,25 @@ class CampaignEval(CampaignParams):
         main_brand = brand_list[0]
 
         if self.params["cate_lvl"].lower() in ["class"]:
-            
-            feature_class_cd = list(set(self.feat_brand_nm.toPandas()["class_code"].tolist()))
+            feature_class_list = list(set(self.feat_class_code.toPandas()["class_code"].tolist()))
             self.product_dim = \
                 (prd_dim_c
                  .withColumn("brand_name", 
                              F.when(
                                  (F.col("brand_name").isin(brand_list)) 
-                                 & (F.col("class_code").isin(feature_class_cd))
+                                 & (F.col("class_code").isin(feature_class_list))
                                  , F.lit(main_brand)
                                  ).otherwise(F.col("brand_name"))
                  )
                 )
         elif self.params["cate_lvl"].lower() in ["subclass"]:
-            feature_subclass_cd = list(set(self.feat_brand_nm.toPandas()["subclass_code"].tolist()))
+            feature_subclass_list = list(set(self.feat_subclass_code.toPandas()["subclass_code"].tolist()))
             self.product_dim = \
                 (prd_dim_c
                  .withColumn("brand_name", 
                              F.when(
                                  (F.col("brand_name").isin(brand_list)) 
-                                 & (F.col("subclass_code").isin(feature_subclass_cd))
+                                 & (F.col("subclass_code").isin(feature_subclass_list))
                                  , F.lit(main_brand)
                                  ).otherwise(F.col("brand_name"))
                  )
