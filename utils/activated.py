@@ -14,6 +14,18 @@ from pyspark.sql import Window
 
 from .DBPath import DBPath
 from .campaign_config import CampaignEval
+from .exposure import create_txn_x_store_mech
+
+def get_cust_exposed(cmp: CampaignEval):
+    create_txn_x_store_mech(cmp)
+    cmp.cust_exposed = \
+        (cmp.txn_x_store_mech
+         .where(F.col("household_id").isNotNull())
+         .groupBy("household_id")
+         .agg(F.min("date_id").alias("first_exposed_date"))
+        )
+    
+    pass
 
 def get_cust_activated(cmp: CampaignEval):
     """Get customer exposed & unexposed / shopped, not shop
