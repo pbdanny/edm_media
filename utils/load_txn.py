@@ -129,17 +129,6 @@ def create_period_col(cmp: CampaignEval):
 
     pass
 
-def get_period_wk_col_nm_in_txn(wk_type: str) -> str:
-    """Column name for period week identification
-    """
-    if wk_type in ["promo_week"]:
-        period_wk_col_nm = "period_promo_wk"
-    elif wk_type in ["promozone"]:
-        period_wk_col_nm = "period_promo_mv_wk"
-    else:
-        period_wk_col_nm = "period_fis_wk"
-    return period_wk_col_nm
-
 def replace_store_region(cmp: CampaignEval):
     """Remapping txn store_region follow cmp.store_dim
     """
