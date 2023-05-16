@@ -22,9 +22,11 @@ def get_cust_exposed(cmp: CampaignEval):
         (cmp.txn_x_store_mech
          .where(F.col("household_id").isNotNull())
          .groupBy("household_id")
-         .agg(F.min("date_id").alias("first_exposed_date"))
+         .select('household_id', 'transaction_uid', 'tran_datetime', 'mech_name').drop_duplicates()
+         .withColumnRenamed('transaction_uid', 'other_transaction_uid')
+         .withColumnRenamed('tran_datetime', 'other_tran_datetime')
         )
-    
+        
     pass
 
 def get_cust_activated(cmp: CampaignEval):
