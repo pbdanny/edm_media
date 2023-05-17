@@ -249,36 +249,40 @@ class CampaignEval(CampaignParams):
             self.wk_tp = "promowk"
             self.week_type = "promo_week"
         
-        # create period_date_id
+        # create period_fis_wk, period_promo_wk, period_promo_mv_wk
+        
         date_dim = self.spark.table("tdm.v_date_dim").select("date_id", "week_id", "promoweek_id").drop_duplicates()
         
-        _period_date_id = \
-            (date_dim
-                .withColumn('period_fis_wk', 
-                            F.when(F.col('week_id').between(self.cmp_st_wk, self.cmp_en_wk), F.lit('cmp'))
-                            .when(F.col('week_id').between(self.pre_st_wk, self.pre_en_wk), F.lit('pre'))
-                            .when(F.col('week_id').between(self.ppp_st_wk, self.ppp_en_wk), F.lit('ppp'))
-                            .otherwise(F.lit('NA')))
-                .withColumn('period_promo_wk',
-                            F.when(F.col('promoweek_id').between(self.cmp_st_promo_wk, self.cmp_en_promo_wk), F.lit('cmp'))
-                            .when(F.col('promoweek_id').between(self.pre_st_promo_wk, self.pre_en_promo_wk), F.lit('pre'))
-                            .when(F.col('promoweek_id').between(self.ppp_st_promo_wk, self.ppp_en_promo_wk), F.lit('ppp'))
-                            .otherwise(F.lit('NA')))
-                .withColumn('period_promo_mv_wk',
-                            F.when(F.col('promoweek_id').between(self.cmp_st_promo_wk, self.cmp_en_promo_wk), F.lit('cmp'))
-                            .when(F.col('promoweek_id').between(self.pre_st_promo_mv_wk, self.pre_en_promo_mv_wk), F.lit('pre'))
-                            .when(F.col('promoweek_id').between(self.ppp_st_promo_mv_wk, self.ppp_en_promo_mv_wk), F.lit('ppp'))
-                            .otherwise(F.lit('NA')))
-            )
+        period_fis_wk = date_dim.withColumn("period", 
+                                            F.when(F.col('week_id').between(self.cmp_st_wk, self.cmp_en_wk), F.lit('cmp'))
+                                            .when(F.col('week_id').between(self.pre_st_wk, self.pre_en_wk), F.lit('pre'))
+                                            .when(F.col('week_id').between(self.ppp_st_wk, self.ppp_en_wk), F.lit('ppp'))
+                                            .otherwise(F.lit(None))
+                                            )
+        
+        period_promo_wk = date_dim.withColumn("period", 
+                                           F.when(F.col('promoweek_id').between(self.cmp_st_promo_wk, self.cmp_en_promo_wk), F.lit('cmp'))
+                                            .when(F.col('promoweek_id').between(self.pre_st_promo_wk, self.pre_en_promo_wk), F.lit('pre'))
+                                            .when(F.col('promoweek_id').between(self.ppp_st_promo_wk, self.ppp_en_promo_wk), F.lit('ppp'))
+                                            .otherwise(F.lit(None))
+                                            )
+
+        period_promo_mv_wk = date_dim.withColumn("period", 
+                                            F.when(F.col('promoweek_id').between(self.cmp_st_promo_wk, self.cmp_en_promo_wk), F.lit('cmp'))
+                                            .when(F.col('promoweek_id').between(self.pre_st_promo_mv_wk, self.pre_en_promo_mv_wk), F.lit('pre'))
+                                            .when(F.col('promoweek_id').between(self.ppp_st_promo_mv_wk, self.ppp_en_promo_mv_wk), F.lit('ppp'))
+                                            .otherwise(F.lit(None))
+                                            )
+        
         if self.gap_flag:
-            self.period_date_id = \
-                (_period_date_id
-                 .withColumn('period_fis_wk',F.when(F.col('week_id').between(self.gap_st_wk, self.gap_en_wk), F.lit('gap')).otherwise(F.col("period_fis_wk")))
-                 .withColumn('period_promo_wk',F.when(F.col('promoweek_id').between(self.gap_st_promo_wk, self.gap_en_promo_wk), F.lit('gap')).otherwise(F.col("period_promo_wk")))
-                 .withColumn('period_promo_mv_wk',F.when(F.col('promoweek_id').between(self.gap_st_promo_wk, self.gap_en_promo_wk), F.lit('gap')).otherwise(F.col("period_promo_mv_wk")))
-                )
+            self.period_fis_wk = period_fis_wk.withColumn("period", F.when(F.col('week_id').between(self.gap_st_wk, self.gap_en_wk), F.lit('gap')).otherwise(F.col("period"))).dropna("period")
+            self.period_promo_wk = period_promo_wk.withColumn("period", F.when(F.col('promoweek_id').between(self.gap_st_wk, self.gap_en_wk), F.lit('gap')).otherwise(F.col("period"))).dropna("period")
+            self.period_promo_mv_wk = period_promo_mv_wk.withColumn("period", F.when(F.col('promoweek_id').between(self.gap_st_promo_wk, self.gap_en_promo_wk), F.lit('gap')).otherwise(F.col("period"))).dropna("period")
+            
         else:
-            self.period_date_id = _period_date_id
+            self.period_fis_wk = period_fis_wk.dropna("period")
+            self.period_promo_wk = period_promo_wk.dropna("period")
+            self.period_promo_mv_wk = period_promo_mv_wk.dropna("period")
        
         pass
 
