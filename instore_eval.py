@@ -93,8 +93,11 @@ def check_combine_region(store_format_group: str,
 
         adjusted_store_region =  \
         (spark.table('tdm.v_store_dim')
-         .withColumn('store_region', F.when(F.col('region').isin(['West','Central']), F.lit('West+Central'))
-                                      .when(F.col('region').isNull(), F.lit('Unidentified'))
+        #  .withColumn('store_region', F.when(F.col('region').isin(['West','Central']), F.lit('West+Central'))
+        #                               .when(F.col('region').isNull(), F.lit('Unidentified'))
+        #                               .otherwise(F.col('region')))
+        ## change to use Lotuss region directly 17 May 2023 as Lotuss region combine (central + west + east) already -- Pat
+         .withColumn('store_region', F.when(F.col('region').isNull(), F.lit('Unidentified'))
                                       .otherwise(F.col('region')))
          .drop("region")
          .drop_duplicates()
@@ -3517,7 +3520,7 @@ def get_cust_cltv(txn: SparkDataFrame,
 
         brand_csr_initial_df = _to_pandas(brand_csr_initial)
         cate_nm_initial_lst = brand_csr_initial_df['class_name'].to_list()
-        brand_nm_initial_lst = brand_csr_initial_df['class_name'].to_list()
+        brand_nm_initial_lst = brand_csr_initial_df['brand_name'].to_list()
 
         if len(brand_csr_initial_df) == 0: # use category average instead (call function 'get_avg_cate_svv')
             brand_csr = __get_avg_cate_svv(svv_tbl, lv_svv_pcyc, cate_cd_list)
