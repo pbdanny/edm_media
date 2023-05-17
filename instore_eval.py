@@ -53,18 +53,23 @@ def check_combine_region(store_format_group: str,
         """Get universe store count, based on format definded
         If store region Null -> Not show in count
         """
+        print("Store with 'Null' region => 'Unidentified'")
+
         all_store_count_region = \
         (spark.table('tdm.v_store_dim')
-         .filter(F.col('format_id').isin(str_fmt_id))
-         .select('store_id', 'store_name', F.col('region').alias('store_region')).drop_duplicates()
-         .dropna('all', subset='store_region')
+         .where(F.col('format_id').isin(str_fmt_id))
+         .select('store_id', 'store_name', F.col('region').alias('store_region'))
+         .drop_duplicates()
+         .fillna('Unidentified', subset=['store_region'])
          .groupBy('store_region')
          .agg(F.count('store_id').alias(f'total_{str_fmt_gr_nm}'))
         )
 
         test_store_count_region = \
         (spark.table('tdm.v_store_dim')
-         .select('store_id','store_name',F.col('region').alias('store_region')).drop_duplicates()
+         .select('store_id','store_name',F.col('region').alias('store_region'))
+         .drop_duplicates()
+         .fillna('Unidentified', subset=['store_region'])
          .join(test_store_sf, 'store_id', 'left_semi')
          .groupBy('store_region')
          .agg(F.count('store_id').alias(f'test_store_count'))
@@ -85,12 +90,14 @@ def check_combine_region(store_format_group: str,
 
         #---- Adjust Transaction
         print('GoFresh : Combine store_region West + Central in variable "txn_all"')
-        print("GoFresh : Auto-remove 'Null' region")
 
         adjusted_store_region =  \
         (spark.table('tdm.v_store_dim')
-         .withColumn('store_region', F.when(F.col('region').isin(['West','Central']), F.lit('West+Central'))
-                                      .when(F.col('region').isNull(), F.lit('Unidentified'))
+        #  .withColumn('store_region', F.when(F.col('region').isin(['West','Central']), F.lit('West+Central'))
+        #                               .when(F.col('region').isNull(), F.lit('Unidentified'))
+        #                               .otherwise(F.col('region')))
+        ## change to use Lotuss region directly 17 May 2023 as Lotuss region combine (central + west + east) already -- Pat
+         .withColumn('store_region', F.when(F.col('region').isNull(), F.lit('Unidentified'))
                                       .otherwise(F.col('region')))
          .drop("region")
          .drop_duplicates()
@@ -102,20 +109,20 @@ def check_combine_region(store_format_group: str,
         #---- Count Region
         all_store_count_region = \
         (adjusted_store_region
-         .filter(F.col('format_id').isin(format_id_list))
+         .where(F.col('format_id').isin(format_id_list))
          .select('store_id', 'store_name', 'store_region')
          .drop_duplicates()
-         .dropna('all', subset='store_region')
+         .fillna('Unidentified', subset=['store_region'])
          .groupBy('store_region')
          .agg(F.count('store_id').alias(f'total_{store_format_group}'))
         )
 
         test_store_count_region = \
         (adjusted_store_region
-         .filter(F.col('format_id').isin(format_id_list))
+         .where(F.col('format_id').isin(format_id_list))
          .select('store_id', 'store_name', 'store_region')
          .drop_duplicates()
-         .dropna('all', subset='store_region')
+         .fillna('Unidentified', subset=['store_region'])
          .join(test_store_sf, 'store_id', 'left_semi')
          .groupBy('store_region')
          .agg(F.count('store_id').alias(f'test_store_count'))
@@ -3513,7 +3520,7 @@ def get_cust_cltv(txn: SparkDataFrame,
 
         brand_csr_initial_df = _to_pandas(brand_csr_initial)
         cate_nm_initial_lst = brand_csr_initial_df['class_name'].to_list()
-        brand_nm_initial_lst = brand_csr_initial_df['class_name'].to_list()
+        brand_nm_initial_lst = brand_csr_initial_df['brand_name'].to_list()
 
         if len(brand_csr_initial_df) == 0: # use category average instead (call function 'get_avg_cate_svv')
             brand_csr = __get_avg_cate_svv(svv_tbl, lv_svv_pcyc, cate_cd_list)
