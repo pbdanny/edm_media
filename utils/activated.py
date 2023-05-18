@@ -304,19 +304,19 @@ def get_cust_activated_sales_dev(cmp: CampaignEval,
         )
 
     cst_txn_dur = txn_dur.join( prd_scope_df, "upc_id", 'left_semi')\
-                                .join  ( cmp.cust_first_prd_shop,  "household_id", 'inner')\
+                                .join  ( cmp.cust_activated,  "household_id", 'inner')\
                                 .select( txn_dur.date_id
                                         ,txn_dur.household_id
-                                        ,cmp.cust_first_prd_shop.first_shp_date
+                                        ,cmp.cust_activated.first_shp_date
                                         ,txn_dur.upc_id
                                         ,txn_dur.net_spend_amt.alias('sales_orig')
-                                        ,F.when(txn_dur.date_id >= cmp.cust_first_prd_shop.first_shp_date, txn_dur.net_spend_amt)
-                                            .when(txn_dur.date_id <  cmp.cust_first_prd_shop.first_shp_date, F.lit(0))
+                                        ,F.when(txn_dur.date_id >= cmp.cust_activated.first_shp_date, txn_dur.net_spend_amt)
+                                            .when(txn_dur.date_id <  cmp.cust_activated.first_shp_date, F.lit(0))
                                             .otherwise(F.lit(None))
                                             .alias('actv_sales')
                                         ,txn_dur.pkg_weight_unit.alias('pkg_weight_unit_orig')
-                                        ,F.when(txn_dur.date_id >= cmp.cust_first_prd_shop.first_shp_date, txn_dur.pkg_weight_unit)
-                                            .when(txn_dur.date_id <  cmp.cust_first_prd_shop.first_shp_date, F.lit(0))
+                                        ,F.when(txn_dur.date_id >= cmp.cust_activated.first_shp_date, txn_dur.pkg_weight_unit)
+                                            .when(txn_dur.date_id <  cmp.cust_activated.first_shp_date, F.lit(0))
                                             .otherwise(F.lit(None))
                                             .alias('actv_qty')
                                         )
