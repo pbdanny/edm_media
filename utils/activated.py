@@ -303,8 +303,8 @@ def get_cust_activated_sales_dev(cmp: CampaignEval,
          .where(F.col("household_id").isNotNull())
         )
 
-    cst_txn_dur = txn_dur.join( prd_scope_df, txn_dur.upc_id == prd_scope_df.upc_id, 'left_semi')\
-                                .join  ( cmp.cust_first_prd_shop,  txn_dur.household_id == cmp.cust_first_prd_shop.cust_id, 'inner')\
+    cst_txn_dur = txn_dur.join( prd_scope_df, "upc_id", 'left_semi')\
+                                .join  ( cmp.cust_first_prd_shop,  "household_id", 'inner')\
                                 .select( txn_dur.date_id
                                         ,txn_dur.household_id
                                         ,cmp.cust_first_prd_shop.first_shp_date
