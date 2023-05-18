@@ -298,7 +298,7 @@ def get_cust_activated_sales_dev(cmp: CampaignEval,
     period_wk_col_nm = _get_period_wk_col_nm(cmp)
 
     txn_dur = \
-        (cmp
+        (cmp.txn
          .where(F.col(period_wk_col_nm).isin(["cmp"]))
          .where(F.col("household_id").isNotNull())
         )
