@@ -292,8 +292,7 @@ def get_cust_activated_sales_dev(cmp: CampaignEval,
                                  prd_scope_df: SparkDataFrame,
                                  prd_scope_nm: str):
     
-    get_cust_first_exposed_any_mech(cmp)
-    get_cust_first_prod_shop_date(cmp, prd_scope_df)
+    get_activated_dev(cmp, prd_scope_df)
     
     period_wk_col_nm = _get_period_wk_col_nm(cmp)
 
