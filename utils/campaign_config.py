@@ -612,16 +612,28 @@ class CampaignEval(CampaignParams):
                 "upc_id", "subclass_code").drop_duplicates()
             date_dim = self.spark.table("tdm.date_dim").select(
                 "date_id", "week_id").drop_duplicates()
+            
+            self.load_target_store()
 
-            self.aisle_target_store_conf = \
+            aisle_target_store_w_subclass_aisle_scope = \
                 (self.target_store
-                 .join(adj_tbl, self.target_store.aisle_subclass_cd == adj_tbl.subclass_code)
+                 .where(~F.col("aisle_scope").isin(["store"]))
+                 .join(adj_tbl, self.target_store.aisle_subclass == adj_tbl.subclass_code)
                  .drop("subclass_code")
                  .join(adj_tbl, "group")
                  .join(prd_dim, "subclass_code")
                  .join(date_dim)
                  .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
                  )
+                
+            aisle_target_store_w_store_aisle_scope = \
+                (self.target_store
+                 .where(F.col("aisle_scope").isin(["store"]))
+                 .join(prd_dim)
+                 .join(date_dim)
+                 .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
+                 )
+            self.aisle_target_store_conf = aisle_target_store_w_subclass_aisle_scope.unionByName(aisle_target_store_w_store_aisle_scope, allowMissingColumns=True)
 
             pass
 
