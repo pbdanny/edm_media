@@ -12,10 +12,9 @@ from pyspark.sql import functions as F
 from pyspark.sql import DataFrame as SparkDataFrame
 from pyspark.sql import Window
 
-from .DBPath import DBPath
-from .campaign_config import CampaignEval
-from .exposure import create_txn_x_store_mech
-
+from utils.DBPath import DBPath
+from utils.campaign_config import CampaignEval
+from utils.exposure import create_txn_x_store_mech
 def _get_period_wk_col_nm(cmp: CampaignEval) -> str:
         """Column name for period week identification
         """
@@ -27,34 +26,6 @@ def _get_period_wk_col_nm(cmp: CampaignEval) -> str:
             period_wk_col_nm = "period_fis_wk"
             
         return period_wk_col_nm
-
-def get_cust_first_exposed_any_mech(cmp: CampaignEval):
-    create_txn_x_store_mech(cmp)
-    cmp.cust_first_exposed = \
-        (cmp.txn_x_store_mech
-         .where(F.col("household_id").isNotNull())
-         .groupBy("household_id")
-         .agg(F.min("date_id").alias("first_exposed_date"))
-        )
-    pass
-
-def get_cust_first_prod_shop_date(cmp: CampaignEval,
-                                  prd_scope_df: SparkDataFrame):
-        """Get first brand shopped date or feature shopped date, based on input upc_id
-        Shopper in campaign period at any store format & any channel
-        """
-        period_wk_col_nm = _get_period_wk_col_nm(cmp)
-
-        cmp.cust_first_prd_shop = \
-            (cmp.txn
-             .where(F.col('household_id').isNotNull())
-             .where(F.col(period_wk_col_nm).isin(["cmp"]))
-             .join(prd_scope_df, 'upc_id')
-             .groupBy('household_id')
-             .agg(F.min('date_id').alias('first_shp_date'))
-             .drop_duplicates()
-            )
-        pass
 
 def get_cust_activated(cmp: CampaignEval):
     """Get customer exposed & unexposed / shopped, not shop
@@ -212,130 +183,6 @@ def get_cust_activated(cmp: CampaignEval):
 
         return actv_sales_df, sum_actv_sales_df
 
-    #---- Main
-    print("-"*80)
-    print("Customer Media Exposed -> Activated")
-    print("Media Exposed = shopped in media aisle within campaign period (base on target input file) at target store , channel OFFLINE ")
-    print("Activate = Exposed & Shop (Feature SKU/Feature Brand) in campaign period at any store format and any channel")
-    print("-"*80)
-    if adj_prod_sf is None:
-        print("Media exposed use total store level (all products)")
-        adj_prod_sf = _create_adj_prod_df(txn)
-    print("-"*80)
-    period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
-    print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
-    print("-"*80)
-
-    # Brand activate
-    target_str             = _create_test_store_sf(test_store_sf=test_store_sf, cp_start_date=cp_start_date, cp_end_date=cp_end_date)
-    cmp_exposed            = _get_exposed_cust(txn=txn, test_store_sf=target_str, adj_prod_sf=adj_prod_sf)
-    cmp_brand_shppr        = _get_shppr(txn=txn, period_wk_col_nm=period_wk_col, prd_scope_df=brand_sf)
-    cmp_brand_activated    = _get_activated(exposed_cust=cmp_exposed, shppr_cust=cmp_brand_shppr)
-
-    #nmbr_brand_activated  = cmp_brand_activated.count()
-    #print(f'\n Total exposed and Feature Brand (in Category scope) shopper (Brand Activated) : {nmbr_brand_activated:,d}')
-
-    brand_activated_info, brand_activated_sum =  _get_activated_sales( txn=txn
-                                                                      , shppr_actv   = cmp_brand_activated
-                                                                      , prd_scope_df = brand_sf
-                                                                      , prd_scope_nm = 'brand'
-                                                                      , period_wk_col_nm = period_wk_col)
-    #nmbr_brand_activated  = brand_activated_sales
-    #brand_sales_amt       = brand_activated_sales.collect()[0].actv_sales
-    print('\n Total exposed and Feature Brand (in Category scope) shopper (Brand Activated) Display below' )
-
-    brand_activated_sum.display()
-
-    #print('\n Sales from exposed shopper (Brand Activated)                                  : ' + str(brand_sales_amt) + ' THB' )
-
-    # Sku Activated
-    cmp_sku_shppr         = _get_shppr(txn=txn, period_wk_col_nm=period_wk_col, prd_scope_df=feat_sf)
-    cmp_sku_activated     = _get_activated(exposed_cust=cmp_exposed, shppr_cust=cmp_sku_shppr)
-
-    #nmbr_sku_activated    = cmp_sku_activated.count()
-    #print(f'\n Total exposed and Features SKU shopper (Features SKU Activated) : {nmbr_sku_activated:,d}')
-
-    sku_activated_info, sku_activated_sum   =  _get_activated_sales( txn=txn
-                                                                    , shppr_actv   = cmp_sku_activated
-                                                                    , prd_scope_df = feat_sf
-                                                                    , prd_scope_nm = 'sku'
-                                                                    , period_wk_col_nm = period_wk_col)
-
-    #sku_sales_amt         = sku_activated_sales.collect()[0].actv_sales
-
-    print('\n Total exposed and Feature SKU shopper (SKU Activated) Display below' )
-
-    sku_activated_sum.display()
-
-    return brand_activated_info, sku_activated_info, brand_activated_sum, sku_activated_sum
-
-def get_activated_dev(cmp: CampaignEval,
-                      prd_scope_df: SparkDataFrame):
-        
-    get_cust_first_exposed_any_mech(cmp)
-    get_cust_first_prod_shop_date(cmp, prd_scope_df)
-    
-    cmp.cust_activated = \
-        (cmp.cust_first_exposed
-         .join(cmp.cust_first_prd_shop, "household_id", "left")
-             .where(F.col('first_exposed_date').isNotNull())
-             .where(F.col('first_shp_date').isNotNull())
-             .where(F.col('first_exposed_date') <= F.col('first_shp_date'))
-             .select(F.col("household_id").alias('cust_id'),
-                     F.col("household_id"),
-                     F.col("first_shp_date").alias('first_shp_date')
-                    )
-             .drop_duplicates()
-             )
-    pass
-
-def get_cust_activated_sales_dev(cmp: CampaignEval,
-                                 prd_scope_df: SparkDataFrame,
-                                 prd_scope_nm: str):
-    
-    get_activated_dev(cmp, prd_scope_df)
-    
-    period_wk_col_nm = _get_period_wk_col_nm(cmp)
-
-    txn_dur = \
-        (cmp.txn
-         .where(F.col(period_wk_col_nm).isin(["cmp"]))
-         .where(F.col("household_id").isNotNull())
-        )
-
-    cst_txn_dur = txn_dur.join( prd_scope_df, "upc_id", 'left_semi')\
-                                .join  ( cmp.cust_activated,  "household_id", 'inner')\
-                                .select( txn_dur.date_id
-                                        ,txn_dur.household_id
-                                        ,cmp.cust_activated.first_shp_date
-                                        ,txn_dur.upc_id
-                                        ,txn_dur.net_spend_amt.alias('sales_orig')
-                                        ,F.when(txn_dur.date_id >= cmp.cust_activated.first_shp_date, txn_dur.net_spend_amt)
-                                            .when(txn_dur.date_id <  cmp.cust_activated.first_shp_date, F.lit(0))
-                                            .otherwise(F.lit(None))
-                                            .alias('actv_sales')
-                                        ,txn_dur.pkg_weight_unit.alias('pkg_weight_unit_orig')
-                                        ,F.when(txn_dur.date_id >= cmp.cust_activated.first_shp_date, txn_dur.pkg_weight_unit)
-                                            .when(txn_dur.date_id <  cmp.cust_activated.first_shp_date, F.lit(0))
-                                            .otherwise(F.lit(None))
-                                            .alias('actv_qty')
-                                        )
-    actv_sales_df     = cst_txn_dur.groupBy(cst_txn_dur.household_id)\
-                                    .agg    ( F.max( cst_txn_dur.first_shp_date).alias('first_shp_date')
-                                            ,F.sum( cst_txn_dur.actv_sales).alias('actv_spend')
-                                            ,F.sum( cst_txn_dur.actv_qty).alias('actv_qty')
-                                            )
-
-
-    sum_actv_sales_df = actv_sales_df.agg( F.sum(F.lit(1)).alias(prd_scope_nm + '_activated_cust_cnt')
-                                            , F.sum(actv_sales_df.actv_spend).alias(prd_scope_nm + '_actv_spend')
-                                            , F.avg(actv_sales_df.actv_spend).alias(prd_scope_nm + '_avg_spc')
-                                            , F.sum(actv_sales_df.actv_qty).alias(prd_scope_nm + '_actv_qty')
-                                            , F.avg(actv_sales_df.actv_qty).alias(prd_scope_nm + '_avg_upc')
-                                            )
-
-    return actv_sales_df, sum_actv_sales_df
-    
     #---- Main
     print("-"*80)
     print("Customer Media Exposed -> Activated")
@@ -620,3 +467,154 @@ def get_cust_activated_by_mech(cmp: CampaignEval,
     activated_both_num.show()
 
     return cmp_shppr_last_seen_brand_tag, cmp_shppr_last_seen_sku_tag, activated_both_num
+
+def get_cust_first_exposed_any_mech(cmp: CampaignEval):
+    create_txn_x_store_mech(cmp)
+    cmp.cust_first_exposed = \
+        (cmp.txn_x_store_mech
+         .where(F.col("household_id").isNotNull())
+         .groupBy("household_id")
+         .agg(F.min("date_id").alias("first_exposed_date"))
+        )
+    pass
+
+def get_cust_first_prod_shop_date(cmp: CampaignEval,
+                                  prd_scope_df: SparkDataFrame):
+        """Get first brand shopped date or feature shopped date, based on input upc_id
+        Shopper in campaign period at any store format & any channel
+        """
+        period_wk_col_nm = _get_period_wk_col_nm(cmp)
+
+        cmp.cust_first_prd_shop = \
+            (cmp.txn
+             .where(F.col('household_id').isNotNull())
+             .where(F.col(period_wk_col_nm).isin(["cmp"]))
+             .join(prd_scope_df, 'upc_id')
+             .groupBy('household_id')
+             .agg(F.min('date_id').alias('first_shp_date'))
+             .drop_duplicates()
+            )
+        pass
+    
+def get_activated_dev(cmp: CampaignEval,
+                      prd_scope_df: SparkDataFrame):
+        
+    get_cust_first_exposed_any_mech(cmp)
+    get_cust_first_prod_shop_date(cmp, prd_scope_df)
+    
+    cmp.cust_activated = \
+        (cmp.cust_first_exposed
+         .join(cmp.cust_first_prd_shop, "household_id", "left")
+             .where(F.col('first_exposed_date').isNotNull())
+             .where(F.col('first_shp_date').isNotNull())
+             .where(F.col('first_exposed_date') <= F.col('first_shp_date'))
+             .select(F.col("household_id"),
+                     F.col("first_shp_date").alias('first_shp_date')
+                    )
+             .drop_duplicates()
+             )
+    pass
+
+def get_cust_activated_sales_dev(cmp: CampaignEval,
+                                 prd_scope_df: SparkDataFrame,
+                                 prd_scope_nm: str):
+    
+    get_activated_dev(cmp, prd_scope_df)
+    
+    period_wk_col_nm = _get_period_wk_col_nm(cmp)
+
+    txn_dur = \
+        (cmp.txn
+         .where(F.col(period_wk_col_nm).isin(["cmp"]))
+         .where(F.col("household_id").isNotNull())
+        )
+
+    cst_txn_dur = txn_dur.join( prd_scope_df, "upc_id", 'left_semi')\
+                                .join  ( cmp.cust_activated,  "household_id", 'inner')\
+                                .select( txn_dur.date_id
+                                        ,txn_dur.household_id
+                                        ,cmp.cust_activated.first_shp_date
+                                        ,txn_dur.upc_id
+                                        ,txn_dur.net_spend_amt.alias('sales_orig')
+                                        ,F.when(txn_dur.date_id >= cmp.cust_activated.first_shp_date, txn_dur.net_spend_amt)
+                                            .when(txn_dur.date_id <  cmp.cust_activated.first_shp_date, F.lit(0))
+                                            .otherwise(F.lit(None))
+                                            .alias('actv_sales')
+                                        ,txn_dur.pkg_weight_unit.alias('pkg_weight_unit_orig')
+                                        ,F.when(txn_dur.date_id >= cmp.cust_activated.first_shp_date, txn_dur.pkg_weight_unit)
+                                            .when(txn_dur.date_id <  cmp.cust_activated.first_shp_date, F.lit(0))
+                                            .otherwise(F.lit(None))
+                                            .alias('actv_qty')
+                                        )
+    actv_sales_df     = cst_txn_dur.groupBy(cst_txn_dur.household_id)\
+                                    .agg    ( F.max( cst_txn_dur.first_shp_date).alias('first_shp_date')
+                                            ,F.sum( cst_txn_dur.actv_sales).alias('actv_spend')
+                                            ,F.sum( cst_txn_dur.actv_qty).alias('actv_qty')
+                                            )
+
+
+    sum_actv_sales_df = actv_sales_df.agg( F.sum(F.lit(1)).alias(prd_scope_nm + '_activated_cust_cnt')
+                                            , F.sum(actv_sales_df.actv_spend).alias(prd_scope_nm + '_actv_spend')
+                                            , F.avg(actv_sales_df.actv_spend).alias(prd_scope_nm + '_avg_spc')
+                                            , F.sum(actv_sales_df.actv_qty).alias(prd_scope_nm + '_actv_qty')
+                                            , F.avg(actv_sales_df.actv_qty).alias(prd_scope_nm + '_avg_upc')
+                                            )
+
+    return actv_sales_df, sum_actv_sales_df
+    
+    #---- Main
+    print("-"*80)
+    print("Customer Media Exposed -> Activated")
+    print("Media Exposed = shopped in media aisle within campaign period (base on target input file) at target store , channel OFFLINE ")
+    print("Activate = Exposed & Shop (Feature SKU/Feature Brand) in campaign period at any store format and any channel")
+    print("-"*80)
+    if adj_prod_sf is None:
+        print("Media exposed use total store level (all products)")
+        adj_prod_sf = _create_adj_prod_df(txn)
+    print("-"*80)
+    period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
+    print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
+    print("-"*80)
+
+    # Brand activate
+    target_str             = _create_test_store_sf(test_store_sf=test_store_sf, cp_start_date=cp_start_date, cp_end_date=cp_end_date)
+    cmp_exposed            = _get_exposed_cust(txn=txn, test_store_sf=target_str, adj_prod_sf=adj_prod_sf)
+    cmp_brand_shppr        = _get_shppr(txn=txn, period_wk_col_nm=period_wk_col, prd_scope_df=brand_sf)
+    cmp_brand_activated    = _get_activated(exposed_cust=cmp_exposed, shppr_cust=cmp_brand_shppr)
+
+    #nmbr_brand_activated  = cmp_brand_activated.count()
+    #print(f'\n Total exposed and Feature Brand (in Category scope) shopper (Brand Activated) : {nmbr_brand_activated:,d}')
+
+    brand_activated_info, brand_activated_sum =  _get_activated_sales( txn=txn
+                                                                      , shppr_actv   = cmp_brand_activated
+                                                                      , prd_scope_df = brand_sf
+                                                                      , prd_scope_nm = 'brand'
+                                                                      , period_wk_col_nm = period_wk_col)
+    #nmbr_brand_activated  = brand_activated_sales
+    #brand_sales_amt       = brand_activated_sales.collect()[0].actv_sales
+    print('\n Total exposed and Feature Brand (in Category scope) shopper (Brand Activated) Display below' )
+
+    brand_activated_sum.display()
+
+    #print('\n Sales from exposed shopper (Brand Activated)                                  : ' + str(brand_sales_amt) + ' THB' )
+
+    # Sku Activated
+    cmp_sku_shppr         = _get_shppr(txn=txn, period_wk_col_nm=period_wk_col, prd_scope_df=feat_sf)
+    cmp_sku_activated     = _get_activated(exposed_cust=cmp_exposed, shppr_cust=cmp_sku_shppr)
+
+    #nmbr_sku_activated    = cmp_sku_activated.count()
+    #print(f'\n Total exposed and Features SKU shopper (Features SKU Activated) : {nmbr_sku_activated:,d}')
+
+    sku_activated_info, sku_activated_sum   =  _get_activated_sales( txn=txn
+                                                                    , shppr_actv   = cmp_sku_activated
+                                                                    , prd_scope_df = feat_sf
+                                                                    , prd_scope_nm = 'sku'
+                                                                    , period_wk_col_nm = period_wk_col)
+
+    #sku_sales_amt         = sku_activated_sales.collect()[0].actv_sales
+
+    print('\n Total exposed and Feature SKU shopper (SKU Activated) Display below' )
+
+    sku_activated_sum.display()
+
+    return brand_activated_info, sku_activated_info, brand_activated_sum, sku_activated_sum
