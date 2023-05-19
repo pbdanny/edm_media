@@ -282,6 +282,7 @@ def get_activated_dev(cmp: CampaignEval,
              .where(F.col('first_shp_date').isNotNull())
              .where(F.col('first_exposed_date') <= F.col('first_shp_date'))
              .select(F.col("household_id").alias('cust_id'),
+                     F.col("household_id"),
                      F.col("first_shp_date").alias('first_shp_date')
                     )
              .drop_duplicates()
