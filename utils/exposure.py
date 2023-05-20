@@ -14,21 +14,21 @@ from utils.campaign_config import CampaignEval
 
 spark = SparkSession.builder.appName("campaingEval").getOrCreate()
 
-def create_txn_x_store_mech(cmp: CampaignEval):
+def create_txn_x_aisle_target_store(cmp: CampaignEval):
     
     STORE_FMT_FAMILY_SIZE = cmp.spark.createDataFrame([("hde", 2.2), ("talad", 1.5), ("gofresh", 1.0)],["store_format_name", "family_size"])
     family_size = STORE_FMT_FAMILY_SIZE.where(F.col("store_format_name")==cmp.store_fmt.lower())
     
-    cmp.txn_x_store_mech = \
+    cmp.txn_x_aisle_target_store = \
         (cmp.txn.join(cmp.aisle_target_store_conf, ["store_id", "upc_id", "date_id"])
          .where(F.col("offline_online_other_channel")=="OFFLINE")
         )
     
     str_mech_visits = \
-        (cmp.txn_x_store_mech
+        (cmp.txn_x_aisle_target_store
             .groupBy("store_id", "store_region", "mech_name", "store_format_name")
             .agg(F.avg(F.col("mech_count")).alias("mech_count"),
-                F.avg(F.col("media_fee")).alias("media_fee"),
+                F.avg(F.col("media_fee_psto")).alias("media_fee"),
                 F.count_distinct('transaction_uid').alias('epos_visits'),
                 F.count_distinct((F.when(F.col('customer_id').isNotNull(), F.col(
                 'transaction_uid')).otherwise(None))).alias('carded_visits'),
@@ -47,7 +47,6 @@ def create_txn_x_store_mech(cmp: CampaignEval):
         )
     pass
 
-
 def _exposure_all(cmp: CampaignEval):
             
     #---- Overall Exposure    
@@ -64,7 +63,7 @@ def _exposure_all(cmp: CampaignEval):
             )
         )
 
-    all_store_customer = cmp.txn_x_store_mech.agg(F.count_distinct(F.col('household_id')).alias('carded_customers')).collect()[0][0]
+    all_store_customer = cmp.txn_x_aisle_target_store.agg(F.count_distinct(F.col('household_id')).alias('carded_customers')).collect()[0][0]
     
     exposure_all = \
     (all_impression
@@ -80,7 +79,7 @@ def _exposure_all(cmp: CampaignEval):
 
 def _exposure_region(cmp: CampaignEval):
     
-    customer_by_region = cmp.txn_x_store_mech.groupBy('store_region').agg(
+    customer_by_region = cmp.txn_x_aisle_target_store.groupBy('store_region').agg(
         F.countDistinct(F.col('household_id')).alias('carded_customers'))
     
     region_impression = \
@@ -108,21 +107,21 @@ def get_exposure(cmp: CampaignEval):
         
     if cmp.params["aisle_mode"] in ["total_store"]:
         cmp.params["exposure_type"] = "store_lv"
-        create_txn_x_store_mech(cmp)
+        create_txn_x_aisle_target_store(cmp)
         exposure_all = _exposure_all(cmp)
         exposure_region = _exposure_region(cmp)
         return exposure_all, exposure_region
 
     elif cmp.params["aisle_mode"] in ["homeshelf", "cross_cate"]:
         cmp.params["exposure_type"] = "aisle_lv"
-        create_txn_x_store_mech(cmp)
+        create_txn_x_aisle_target_store(cmp)
         exposure_all = _exposure_all(cmp)
         exposure_region = _exposure_region(cmp)
         return exposure_all, exposure_region
 
     elif cmp.params["aisle_mode"] in ["target_store_config"]:
         cmp.params["exposure_type"] = "target_store_config"
-        create_txn_x_store_mech(cmp)
+        create_txn_x_aisle_target_store(cmp)
         exposure_all = _exposure_all(cmp)
         exposure_region = _exposure_region(cmp)
         return exposure_all, exposure_region

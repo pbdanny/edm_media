@@ -14,7 +14,7 @@ from pyspark.sql import Window
 
 from utils.DBPath import DBPath
 from utils.campaign_config import CampaignEval
-from utils.exposure import create_txn_x_store_mech
+from utils.exposure import create_txn_x_aisle_target_store
 def _get_period_wk_col_nm(cmp: CampaignEval) -> str:
         """Column name for period week identification
         """
@@ -468,10 +468,11 @@ def get_cust_activated_by_mech(cmp: CampaignEval,
 
     return cmp_shppr_last_seen_brand_tag, cmp_shppr_last_seen_sku_tag, activated_both_num
 
+#---- Developing 
 def get_cust_first_exposed_any_mech(cmp: CampaignEval):
-    create_txn_x_store_mech(cmp)
+    create_txn_x_aisle_target_store(cmp)
     cmp.cust_first_exposed = \
-        (cmp.txn_x_store_mech
+        (cmp.txn_x_aisle_target_store
          .where(F.col("household_id").isNotNull())
          .groupBy("household_id")
          .agg(F.min("date_id").alias("first_exposed_date"))

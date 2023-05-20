@@ -509,32 +509,47 @@ class CampaignEval(CampaignParams):
             "total_store" : total store product
             "target_store_config" : Aisle defined at target store file
         """
-
-        def _homeshelf():
-            self.params["aisle_mode"] = "homeshelf"
+        
+        def __create_aisle_sku_from_subclass_cd(subclass_cd: SparkDataFrame):
+            """Create aisle upc_id of defined subclass_code
+            """
             aisle_master = self.spark.read.csv(
                 self.adjacency_file.spark_api(), header=True, inferSchema=True
             )
-            feat_subclass = (
-                self.product_dim.join(self.feat_sku, "upc_id", "inner")
-                .select("subclass_code")
-                .drop_duplicates()
-            )
+            
             aisle_group = (
-                aisle_master.join(feat_subclass, "subclass_code", "inner")
+                aisle_master.join(subclass_cd, "subclass_code", "inner")
                 .select("group")
                 .drop_duplicates()
             )
+            
             aisle_subclass = (
                 aisle_master.join(aisle_group, "group", "inner")
                 .select("subclass_code")
                 .drop_duplicates()
             )
-            self.aisle_sku = (
+            
+            aisle_sku = (
                 self.product_dim.join(aisle_subclass, "subclass_code", "inner")
                 .select("upc_id")
                 .drop_duplicates()
             )
+            
+            return aisle_sku
+
+        def _homeshelf():
+            self.params["aisle_mode"] = "homeshelf"
+            
+            feat_subclass = (
+                self.product_dim.join(self.feat_sku, "upc_id", "inner")
+                .select("subclass_code")
+                .drop_duplicates()
+            )
+            
+            homeshelf_aisle_sku = __create_aisle_sku_from_subclass_cd(feat_subclass)
+            
+            self.aisle_sku = homeshelf_aisle_sku
+            
             date_dim = self.spark.table("tdm.date_dim").select(
                 "date_id", "week_id").drop_duplicates()
             avg_media_fee = self.media_fee / self.target_store.count()
@@ -549,28 +564,16 @@ class CampaignEval(CampaignParams):
 
         def _x_cat():
             self.params["aisle_mode"] = "cross_cate"
-            aisle_master = self.spark.read.csv(
-                self.adjacency_file.spark_api(), header=True, inferSchema=True
-            )
+            
             x_subclass = self.spark.createDataFrame(
                 pd.DataFrame(data=self.cross_cate_cd_list,
                              columns=["subclass_code"])
             ).drop_duplicates()
-            aisle_group = (
-                aisle_master.join(x_subclass, "subclass_code", "inner")
-                .select("group")
-                .drop_duplicates()
-            )
-            aisle_subclass = (
-                aisle_master.join(aisle_group, "group", "inner")
-                .select("subclass_code")
-                .drop_duplicates()
-            )
-            self.aisle_sku = (
-                self.product_dim.join(aisle_subclass, "subclass_code", "inner")
-                .select("upc_id")
-                .drop_duplicates()
-            )
+            
+            x_cate_aisle_sku = __create_aisle_sku_from_subclass_cd(x_subclass)
+            
+            self.aisle_sku = x_cate_aisle_sku
+            
             date_dim = self.spark.table("tdm.date_dim").select(
                 "date_id", "week_id").drop_duplicates()
             avg_media_fee = self.media_fee / self.target_store.count()
@@ -614,11 +617,31 @@ class CampaignEval(CampaignParams):
                 "date_id", "week_id").drop_duplicates()
             
             self.load_target_store()
-
-            aisle_target_store_w_subclass_aisle_scope = \
+            
+            feat_subclass = (
+                self.product_dim.join(self.feat_sku, "upc_id", "inner")
+                .select("subclass_code")
+                .drop_duplicates()
+            )
+            
+            aisle_target_store_media_homeshelf = \
                 (self.target_store
-                 .where(~F.col("aisle_scope").isin(["store"]))
-                 .join(adj_tbl, self.target_store.aisle_subclass == adj_tbl.subclass_code)
+                 .where(F.col("aisle_scope").isin(["homeshelf"]))
+                 .drop("aisle_subclass")
+                 .join(feat_subclass)
+                 .withColumn("aisle_subclass", F.col("subclass_code"))
+                 .join(adj_tbl, "subclass_code")
+                 .drop("subclass_code")
+                 .join(adj_tbl, "group")
+                 .join(prd_dim, "subclass_code")
+                 .join(date_dim)
+                 .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
+                 )
+            
+            aisle_target_store_media_x_cate = \
+                (self.target_store.alias("a")
+                 .where(F.col("aisle_scope").isin(["cross_cate"]))
+                 .join(adj_tbl.alias("b"), F.col("a.aisle_subclass") == F.col("b.subclass_code"))
                  .drop("subclass_code")
                  .join(adj_tbl, "group")
                  .join(prd_dim, "subclass_code")
@@ -626,14 +649,18 @@ class CampaignEval(CampaignParams):
                  .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
                  )
                 
-            aisle_target_store_w_store_aisle_scope = \
+            aisle_target_store_media_promozone = \
                 (self.target_store
                  .where(F.col("aisle_scope").isin(["store"]))
                  .join(prd_dim)
                  .join(date_dim)
                  .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
                  )
-            self.aisle_target_store_conf = aisle_target_store_w_subclass_aisle_scope.unionByName(aisle_target_store_w_store_aisle_scope, allowMissingColumns=True)
+            self.aisle_target_store_conf = \
+                (aisle_target_store_media_homeshelf
+                 .unionByName(aisle_target_store_media_x_cate, allowMissingColumns=True)
+                 .unionByName(aisle_target_store_media_promozone, allowMissingColumns=True)
+                )
 
             pass
 
