@@ -12,9 +12,9 @@ from pyspark.sql import functions as F
 from pyspark.sql import DataFrame as SparkDataFrame
 from pyspark.sql import Window
 
-from .DBPath import DBPath
-from .campaign_config import CampaignEval
-from .exposure import create_txn_x_store_mech
+from ..utils.DBPath import DBPath
+from ..utils.campaign_config import CampaignEval
+from ..exposure.exposed import create_txn_x_store_mech
 
 def get_cust_movement(cmp: CampaignEval,
                       sku_activated: SparkDataFrame):

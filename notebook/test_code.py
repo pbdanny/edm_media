@@ -33,9 +33,9 @@ cmp.params
 
 # COMMAND ----------
 
-from utils import exposure
+from exposure import exposed
 from utils import load_txn
-from utils import activated
+from activate import activated
 
 load_txn.load_txn(cmp, txn_mode="pre_generated_118wk")
 

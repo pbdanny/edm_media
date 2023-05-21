@@ -14,7 +14,7 @@ from pyspark.sql import Window
 
 from utils.DBPath import DBPath
 from utils.campaign_config import CampaignEval
-from utils.exposure import create_txn_x_aisle_target_store
+from exposure.exposed import create_txn_x_aisle_target_store
 
 def _get_period_wk_col_nm(cmp: CampaignEval) -> str:
         """Column name for period week identification
