@@ -14,19 +14,8 @@ from pyspark.sql import Window
 
 from utils.DBPath import DBPath
 from utils.campaign_config import CampaignEval
+from utils import period_cal
 from exposure.exposed import create_txn_x_aisle_target_store
-
-def _get_period_wk_col_nm(cmp: CampaignEval) -> str:
-        """Column name for period week identification
-        """
-        if cmp.wk_type in ["promo_week", "promo_wk"]:
-            period_wk_col_nm = "period_promo_wk"
-        elif cmp.wk_type in ["promozone"]:
-            period_wk_col_nm = "period_promo_mv_wk"
-        else:
-            period_wk_col_nm = "period_fis_wk"
-            
-        return period_wk_col_nm
 
 def get_cust_activated(cmp: CampaignEval):
     """Get customer exposed & unexposed / shopped, not shop
@@ -485,7 +474,7 @@ def get_cust_first_prod_purchase_date(cmp: CampaignEval,
         """Get first brand shopped date or feature shopped date, based on input upc_id
         Shopper in campaign period at any store format & any channel
         """
-        period_wk_col_nm = _get_period_wk_col_nm(cmp)
+        period_wk_col_nm = period_cal.get_period_wk_col_nm(cmp)
 
         cmp.cust_first_prod_purchase = \
             (cmp.txn
@@ -523,7 +512,7 @@ def get_cust_activated_sales_dev(cmp: CampaignEval,
     
     get_activated_dev(cmp, prd_scope_df)
     
-    period_wk_col_nm = _get_period_wk_col_nm(cmp)
+    period_wk_col_nm = period_cal.get_period_wk_col_nm(cmp)
 
     txn_dur = \
         (cmp.txn
@@ -581,7 +570,7 @@ def get_cust_all_prod_purchase_date(cmp: CampaignEval,
         """Get all brand shopped date or feature shopped date, based on input upc_id
         Shopper in campaign period at any store format & any channel
         """
-        period_wk_col_nm = _get_period_wk_col_nm(cmp)
+        period_wk_col_nm = period_cal.get_period_wk_col_nm(cmp)
 
         cmp.cust_all_prod_purchase = \
             (cmp.txn

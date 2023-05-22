@@ -1,6 +1,8 @@
 import math
 from datetime import datetime, timedelta
 
+from utils.campaign_config import CampaignEval
+
 def first_date_of_wk(in_dt):
     """
     Description: To get the first date of week from input date
@@ -258,3 +260,27 @@ def promo_week_cal (in_promo_wk, n) :
     out_wk  = wk_of_year_promo_ls(out_dt.strftime('%Y-%m-%d'))
     
     return out_wk
+
+def get_period_wk_col_nm(cmp: CampaignEval) -> str:
+        """Column name for period week identification
+        """
+        if cmp.wk_type in ["promo_week", "promo_wk"]:
+            period_wk_col_nm = "period_promo_wk"
+        elif cmp.wk_type in ["promozone"]:
+            period_wk_col_nm = "period_promo_mv_wk"
+        else:
+            period_wk_col_nm = "period_fis_wk"
+            
+        return period_wk_col_nm
+
+def get_wk_id_col_nm(cmp: CampaignEval) -> str:
+    """Column name for period week identification
+    """
+    if cmp.wk_type in ["promo_week", "promo_wk"]:
+        wk_id_col_nm = "promoweek_id"
+    elif cmp.wk_type in ["promozone"]:
+        wk_id_col_nm = "promoweek_id"
+    else:
+        wk_id_col_nm = "week_id"
+
+    return wk_id_col_nm
