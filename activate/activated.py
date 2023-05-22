@@ -558,7 +558,7 @@ def get_cust_all_exposed_by_mech(cmp: CampaignEval):
     cmp.cust_all_exposed = \
         (cmp.txn_x_aisle_target_store
          .where(F.col("household_id").isNotNull())
-         .select('household_id', 'transaction_uid', 'tran_datetime', 'mech_name')
+         .select('household_id', 'transaction_uid', 'tran_datetime', 'mech_name', 'aisle_scope')
          .drop_duplicates()
          .withColumnRenamed('transaction_uid', 'exposed_transaction_uid')
          .withColumnRenamed('tran_datetime', 'exposed_tran_datetime')
@@ -583,7 +583,7 @@ def get_cust_all_prod_purchase_date(cmp: CampaignEval,
              .drop_duplicates()
             )
         pass
-    
+
 def get_cust_by_mech_last_seen_activated(cmp: CampaignEval,
                                  prd_scope_df: SparkDataFrame,
                                  prd_scope_nm: str):
@@ -663,3 +663,22 @@ def get_cust_activated_by_mech_dev(cmp: CampaignEval):
     activated_both_num.show()
 
     return cmp_shppr_last_seen_brand_tag, cmp_shppr_last_seen_sku_tag, activated_both_num
+
+def get_bask_by_aisle_last_seen_activated(cmp: CampaignEval,
+                                          prd_scope_df: SparkDataFrame,
+                                          prd_scope_nm: str):
+    """
+    """
+    get_cust_all_exposed_by_mech(cmp)
+    get_cust_all_prod_purchase_date(cmp, prd_scope_df)
+
+    txn_each_purchase_most_recent_media_exposed = \
+    (cmp.cust_all_exposed
+    .join(cmp.cust_all_prod_purchase, on='household_id', how='inner')
+    .where(F.col('exposed_tran_datetime') <= F.col('purchase_tran_datetime'))
+    .withColumn('time_diff', F.col('purchase_tran_datetime') - F.col('exposed_tran_datetime'))
+    .withColumn('recency_rank', F.dense_rank().over(Window.partitionBy('purchase_transaction_uid').orderBy(F.col('time_diff'))))
+    .where(F.col('recency_rank') == 1).drop_duplicates()
+    )
+        
+    return txn_each_purchase_most_recent_media_exposed

@@ -17,7 +17,7 @@ from pyspark.sql import Window
 sys.path.append(os.path.abspath(
     "/Workspace/Repos/thanakrit.boonquarmdee@lotuss.com/edm_util"))
 
-from edm_helper import to_pandas, pandas_to_csv_filestore
+import edm_helper
 
 from utils.DBPath import DBPath
 from utils import period_cal
@@ -158,8 +158,8 @@ def get_store_matching_across_region(
         sales = txn.groupBy("store_id").pivot(wk_id_col_nm).agg(F.sum('net_spend_amt').alias('sales')).fillna(0)
         custs = txn.groupBy("store_id").pivot(wk_id_col_nm).agg(F.count_distinct('household_id').alias('custs')).fillna(0)
 
-        sales_df = to_pandas(sales).astype({'store_id':str}).set_index("store_id")
-        custs_df = to_pandas(custs).astype({'store_id':str}).set_index("store_id")
+        sales_df = edm_helper.to_pandas(sales).astype({'store_id':str}).set_index("store_id")
+        custs_df = edm_helper.to_pandas(custs).astype({'store_id':str}).set_index("store_id")
 
         sales_scaled_df = __get_std(sales_df)
         custs_scaled_df = __get_std(custs_df)
@@ -435,9 +435,9 @@ def get_store_matching_across_region(
 
     # If specific projoect path, save composite score, outlier score to 'output'
     if dbfs_project_path != "":
-        pandas_to_csv_filestore(store_comp_score, "store_matching_composite_score.csv", prefix=os.path.join(dbfs_project_path, 'output'))
-        pandas_to_csv_filestore(all_dist, "store_matching_all_distance_before_rm_outlier.csv", prefix=os.path.join(dbfs_project_path, 'output'))
-        pandas_to_csv_filestore(flag_outlier, "store_matching_before_rm_outlier.csv", prefix=os.path.join(dbfs_project_path, 'output'))
+        edm_helper.pandas_to_csv_filestore(store_comp_score, "store_matching_composite_score.csv", prefix=os.path.join(dbfs_project_path, 'output'))
+        edm_helper.pandas_to_csv_filestore(all_dist, "store_matching_all_distance_before_rm_outlier.csv", prefix=os.path.join(dbfs_project_path, 'output'))
+        edm_helper.pandas_to_csv_filestore(flag_outlier, "store_matching_before_rm_outlier.csv", prefix=os.path.join(dbfs_project_path, 'output'))
 
     return ctr_store_list, matching_df
 
@@ -567,8 +567,8 @@ def get_store_matching_across_region_dev(cmp: CampaignEval,
         sales = txn.groupBy("store_id").pivot(wk_id_col_nm).agg(F.sum('net_spend_amt').alias('sales')).fillna(0)
         custs = txn.groupBy("store_id").pivot(wk_id_col_nm).agg(F.count_distinct('household_id').alias('custs')).fillna(0)
 
-        sales_df = to_pandas(sales).astype({'store_id':str}).set_index("store_id")
-        custs_df = to_pandas(custs).astype({'store_id':str}).set_index("store_id")
+        sales_df = edm_helper.to_pandas(sales).astype({'store_id':str}).set_index("store_id")
+        custs_df = edm_helper.to_pandas(custs).astype({'store_id':str}).set_index("store_id")
 
         sales_scaled_df = __get_std(sales_df)
         custs_scaled_df = __get_std(custs_df)
@@ -712,11 +712,11 @@ def get_store_matching_across_region_dev(cmp: CampaignEval,
     #--------------
 
     print("-"*80)
-    wk_id_col_nm = period_cal.get_wk_id_col_nm(wk_type=wk_type)
+    wk_id_col_nm = period_cal.get_wk_id_col_nm(cmp)
     print(f"Week_id based on column '{wk_id_col_nm}'")
     print('Matching performance only "OFFLINE" channel')
 
-    pre_st_wk  = period_cal.get_lag_wk_id(wk_id=pre_en_wk, lag_num=13, inclusive=True)
+    pre_st_wk  = edm_helper.get_lag_wk_id(wk_id=pre_en_wk, lag_num=13, inclusive=True)
 
     # Find level for matching : feature sku / (feature) brand / (feature) subclass
     trg_min_wk, txn_match_trg, ctl_min_wk, txn_match_ctl = _get_min_wk_sales(feat_sf)
@@ -844,8 +844,8 @@ def get_store_matching_across_region_dev(cmp: CampaignEval,
 
     # If specific projoect path, save composite score, outlier score to 'output'
     if dbfs_project_path != "":
-        pandas_to_csv_filestore(store_comp_score, "store_matching_composite_score.csv", prefix=os.path.join(dbfs_project_path, 'output'))
-        pandas_to_csv_filestore(all_dist, "store_matching_all_distance_before_rm_outlier.csv", prefix=os.path.join(dbfs_project_path, 'output'))
-        pandas_to_csv_filestore(flag_outlier, "store_matching_before_rm_outlier.csv", prefix=os.path.join(dbfs_project_path, 'output'))
+        edm_helper.pandas_to_csv_filestore(store_comp_score, "store_matching_composite_score.csv", prefix=os.path.join(dbfs_project_path, 'output'))
+        edm_helper.pandas_to_csv_filestore(all_dist, "store_matching_all_distance_before_rm_outlier.csv", prefix=os.path.join(dbfs_project_path, 'output'))
+        edm_helper.pandas_to_csv_filestore(flag_outlier, "store_matching_before_rm_outlier.csv", prefix=os.path.join(dbfs_project_path, 'output'))
 
     return ctr_store_list, matching_df
