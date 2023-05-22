@@ -15,7 +15,7 @@ from pyspark.sql import Window
 from utils.DBPath import DBPath
 from utils.campaign_config import CampaignEval
 from utils import period_cal
-from exposure.exposed import create_txn_x_aisle_target_store
+from exposure.exposed import create_txn_offline_x_aisle_target_store
 
 def get_cust_activated(cmp: CampaignEval):
     """Get customer exposed & unexposed / shopped, not shop
@@ -460,9 +460,9 @@ def get_cust_activated_by_mech(cmp: CampaignEval,
 
 #---- Developing 
 def get_cust_first_exposed_any_mech(cmp: CampaignEval):
-    create_txn_x_aisle_target_store(cmp)
+    create_txn_offline_x_aisle_target_store(cmp)
     cmp.cust_first_exposed = \
-        (cmp.txn_x_aisle_target_store
+        (cmp.create_txn_offline_x_aisle_target_store
          .where(F.col("household_id").isNotNull())
          .groupBy("household_id")
          .agg(F.min("date_id").alias("first_exposed_date"))
@@ -554,9 +554,9 @@ def get_cust_activated_sales_dev(cmp: CampaignEval,
     return actv_sales_df, sum_actv_sales_df
 
 def get_cust_all_exposed_by_mech(cmp: CampaignEval):
-    create_txn_x_aisle_target_store(cmp)
+    create_txn_offline_x_aisle_target_store(cmp)
     cmp.cust_all_exposed = \
-        (cmp.txn_x_aisle_target_store
+        (cmp.create_txn_offline_x_aisle_target_store
          .where(F.col("household_id").isNotNull())
          .select('household_id', 'transaction_uid', 'tran_datetime', 'mech_name', 'aisle_scope')
          .drop_duplicates()
@@ -577,7 +577,7 @@ def get_cust_all_prod_purchase_date(cmp: CampaignEval,
              .where(F.col('household_id').isNotNull())
              .where(F.col(period_wk_col_nm).isin(["cmp"]))
              .join(prd_scope_df, 'upc_id')
-             .select('household_id', 'transaction_uid', 'tran_datetime')
+             .select('household_id', 'transaction_uid', 'tran_datetime', 'net_spend_amt', 'unit')
              .withColumnRenamed('transaction_uid', 'purchase_transaction_uid')
              .withColumnRenamed('tran_datetime', 'purchase_tran_datetime')
              .drop_duplicates()
@@ -678,7 +678,9 @@ def get_bask_by_aisle_last_seen_activated(cmp: CampaignEval,
     .where(F.col('exposed_tran_datetime') <= F.col('purchase_tran_datetime'))
     .withColumn('time_diff', F.col('purchase_tran_datetime') - F.col('exposed_tran_datetime'))
     .withColumn('recency_rank', F.dense_rank().over(Window.partitionBy('purchase_transaction_uid').orderBy(F.col('time_diff'))))
-    .where(F.col('recency_rank') == 1).drop_duplicates()
+    .where(F.col('recency_rank') == 1)
+    .drop_duplicates()
+    .select('household_id', 'exposed_transaction_uid', 'mech_name','aisle_scope','purchase_transaction_uid')
     )
         
     return txn_each_purchase_most_recent_media_exposed
