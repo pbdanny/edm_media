@@ -24,6 +24,8 @@ from utils import period_cal
 from utils.campaign_config import CampaignEval
 from exposure.exposed import create_txn_x_aisle_target_store
 
+from utils import period_cal
+
 def get_store_matching_across_region(
         txn: SparkDataFrame,
         wk_type: str,
@@ -493,13 +495,15 @@ def get_store_matching_across_region_dev(cmp: CampaignEval,
 
     txn = cmp.txn
     wk_type = cmp.wk_type
-    
+    pre_st_wk = cmp.pre_st_wk
     pre_en_wk = cmp.pre_en_wk
     feat_sf = cmp.feat_sku
     brand_df = cmp.feat_brand_sku
     sclass_df = cmp.feat_subclass_sku
     test_store_sf = cmp.target_store
     control_store = cmp.control_store
+       
+    wk_id_col_nm = period_cal.get_wk_id_col_nm(wk_type)
        
     #---- Helper fn
 
