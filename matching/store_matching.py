@@ -22,7 +22,7 @@ import edm_helper
 from utils.DBPath import DBPath
 from utils import period_cal
 from utils.campaign_config import CampaignEval
-from exposure.exposed import create_txn_x_aisle_target_store
+from exposure.exposed import create_txn_offline_x_aisle_target_store
 
 from utils import period_cal
 
@@ -503,7 +503,7 @@ def get_store_matching_across_region_dev(cmp: CampaignEval,
     test_store_sf = cmp.target_store
     control_store = cmp.control_store
        
-    wk_id_col_nm = period_cal.get_wk_id_col_nm(wk_type)
+    wk_id_col_nm = period_cal.get_wk_id_col_nm(cmp)
        
     #---- Helper fn
 
