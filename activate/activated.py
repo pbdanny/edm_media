@@ -462,7 +462,7 @@ def get_cust_activated_by_mech(cmp: CampaignEval,
 def get_cust_first_exposed_any_mech(cmp: CampaignEval):
     create_txn_offline_x_aisle_target_store(cmp)
     cmp.cust_first_exposed = \
-        (cmp.create_txn_offline_x_aisle_target_store
+        (cmp.txn_offline_x_aisle_target_store
          .where(F.col("household_id").isNotNull())
          .groupBy("household_id")
          .agg(F.min("date_id").alias("first_exposed_date"))
@@ -556,7 +556,7 @@ def get_cust_activated_sales_dev(cmp: CampaignEval,
 def get_cust_all_exposed_by_mech(cmp: CampaignEval):
     create_txn_offline_x_aisle_target_store(cmp)
     cmp.cust_all_exposed = \
-        (cmp.create_txn_offline_x_aisle_target_store
+        (cmp.txn_offline_x_aisle_target_store
          .where(F.col("household_id").isNotNull())
          .select('household_id', 'transaction_uid', 'tran_datetime', 'mech_name', 'aisle_scope')
          .drop_duplicates()
