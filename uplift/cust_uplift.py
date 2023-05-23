@@ -16,35 +16,11 @@ spark = SparkSession.builder.appName("campaingEval").getOrCreate()
 
 def create_txn_offline_x_aisle_target_store(cmp: CampaignEval):
     
-    STORE_FMT_FAMILY_SIZE = cmp.spark.createDataFrame([("hde", 2.2), ("talad", 1.5), ("gofresh", 1.0)],["store_format_name", "family_size"])
-    family_size = STORE_FMT_FAMILY_SIZE.where(F.col("store_format_name")==cmp.store_fmt.lower())
-    
     cmp.txn_offline_x_aisle_target_store = \
         (cmp.txn.join(cmp.aisle_target_store_conf, ["store_id", "upc_id", "date_id"])
          .where(F.col("offline_online_other_channel")=="OFFLINE")
         )
-    
-    str_mech_visits = \
-        (cmp.txn_offline_x_aisle_target_store
-            .groupBy("store_id", "store_region", "mech_name", "store_format_name")
-            .agg(F.avg(F.col("mech_count")).alias("mech_count"),
-                F.avg(F.col("media_fee_psto")).alias("media_fee"),
-                F.count_distinct('transaction_uid').alias('epos_visits'),
-                F.count_distinct((F.when(F.col('customer_id').isNotNull(), F.col(
-                'transaction_uid')).otherwise(None))).alias('carded_visits'),
-                F.count_distinct((F.when(F.col('customer_id').isNull(), F.col(
-                'transaction_uid')).otherwise(None))).alias('non_carded_visits')
-                )
-        )
-            
-    cmp.str_mech_exposure_cmp = \
-        (str_mech_visits
-            .join(STORE_FMT_FAMILY_SIZE, "store_format_name", "left")
-            .withColumn('epos_impression', F.col('epos_visits')*F.col("family_size")*F.col('mech_count'))
-            .withColumn('carded_impression', F.col('carded_visits')*F.col("family_size")*F.col('mech_count'))
-            .withColumn('non_carded_impression', F.col('non_carded_visits')*F.col("family_size")*F.col('mech_count'))
-            .withColumn("cpm", F.col("media_fee")/ (F.col('epos_visits')*F.col("family_size")*F.col('mech_count')/1000) )
-        )
+        
     pass
 
 def _exposure_all(cmp: CampaignEval):

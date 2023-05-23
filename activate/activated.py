@@ -458,7 +458,7 @@ def get_cust_activated_by_mech(cmp: CampaignEval,
 
     return cmp_shppr_last_seen_brand_tag, cmp_shppr_last_seen_sku_tag, activated_both_num
 
-#---- Developing 
+#---- Exposure any mechnaics 
 def get_cust_first_exposed_any_mech(cmp: CampaignEval):
     create_txn_offline_x_aisle_target_store(cmp)
     cmp.cust_first_exposed = \
@@ -486,8 +486,8 @@ def get_cust_first_prod_purchase_date(cmp: CampaignEval,
              .drop_duplicates()
             )
         pass
-    
-def get_activated_dev(cmp: CampaignEval,
+
+def get_cust_any_mech_activated(cmp: CampaignEval,
                       prd_scope_df: SparkDataFrame):
         
     get_cust_first_exposed_any_mech(cmp)
@@ -506,11 +506,11 @@ def get_activated_dev(cmp: CampaignEval,
              )
     pass
 
-def get_cust_activated_sales_dev(cmp: CampaignEval,
+def get_cust_any_mech_activated_sales(cmp: CampaignEval,
                                  prd_scope_df: SparkDataFrame,
                                  prd_scope_nm: str):
     
-    get_activated_dev(cmp, prd_scope_df)
+    get_cust_any_mech_activated(cmp, prd_scope_df)
     
     period_wk_col_nm = period_cal.get_period_wk_col_nm(cmp)
 
@@ -553,6 +553,7 @@ def get_cust_activated_sales_dev(cmp: CampaignEval,
 
     return actv_sales_df, sum_actv_sales_df
 
+#---- Exposure by mechanics
 def get_cust_all_exposed_by_mech(cmp: CampaignEval):
     create_txn_offline_x_aisle_target_store(cmp)
     cmp.cust_all_exposed = \
@@ -584,7 +585,7 @@ def get_cust_all_prod_purchase_date(cmp: CampaignEval,
             )
         pass
 
-def get_cust_by_mech_last_seen_activated(cmp: CampaignEval,
+def get_cust_by_mech_last_seen_tag(cmp: CampaignEval,
                                  prd_scope_df: SparkDataFrame,
                                  prd_scope_nm: str):
     """
@@ -626,12 +627,12 @@ def get_cust_by_mech_last_seen_activated(cmp: CampaignEval,
         
     return total_purchased_exposure_flagged_by_cust
 
-def get_cust_activated_by_mech_dev(cmp: CampaignEval):
+def get_cust_by_mach_activated(cmp: CampaignEval):
     mechanic_list = cmp.target_store.select('mech_name').drop_duplicates().rdd.flatMap(lambda x: x).collect()
     num_of_mechanics = len(mechanic_list)
 
-    cmp_shppr_last_seen_sku_tag = get_cust_by_mech_last_seen_activated(cmp, cmp.feat_sku, prd_scope_nm="sku")
-    cmp_shppr_last_seen_brand_tag = get_cust_by_mech_last_seen_activated(cmp, cmp.feat_brand_sku, prd_scope_nm="brand")
+    cmp_shppr_last_seen_sku_tag = get_cust_by_mech_last_seen_tag(cmp, cmp.feat_sku, prd_scope_nm="sku")
+    cmp_shppr_last_seen_brand_tag = get_cust_by_mech_last_seen_tag(cmp, cmp.feat_brand_sku, prd_scope_nm="brand")
     
     # Get numbers of activated customers for all mechanics for brand and SKU levels
     activated_brand_num = cmp_shppr_last_seen_brand_tag.groupBy('level').agg(F.countDistinct(F.col('household_id')).alias('num_activated')) \
@@ -664,7 +665,8 @@ def get_cust_activated_by_mech_dev(cmp: CampaignEval):
 
     return cmp_shppr_last_seen_brand_tag, cmp_shppr_last_seen_sku_tag, activated_both_num
 
-def get_bask_by_aisle_last_seen_activated(cmp: CampaignEval,
+#---- Cross categoy exposure
+def get_bask_by_aisle_scope_last_seen(cmp: CampaignEval,
                                           prd_scope_df: SparkDataFrame,
                                           prd_scope_nm: str):
     """

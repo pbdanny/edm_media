@@ -16,14 +16,20 @@ spark = SparkSession.builder.appName("campaingEval").getOrCreate()
 
 def create_txn_offline_x_aisle_target_store(cmp: CampaignEval):
     
-    STORE_FMT_FAMILY_SIZE = cmp.spark.createDataFrame([("hde", 2.2), ("talad", 1.5), ("gofresh", 1.0)],["store_format_name", "family_size"])
-    family_size = STORE_FMT_FAMILY_SIZE.where(F.col("store_format_name")==cmp.store_fmt.lower())
-    
     cmp.txn_offline_x_aisle_target_store = \
         (cmp.txn.join(cmp.aisle_target_store_conf, ["store_id", "upc_id", "date_id"])
          .where(F.col("offline_online_other_channel")=="OFFLINE")
         )
     
+    pass
+
+def get_store_mech_exposure_cmp(cmp: CampaignEval):
+    
+    create_txn_offline_x_aisle_target_store(cmp)
+    
+    STORE_FMT_FAMILY_SIZE = cmp.spark.createDataFrame([("hde", 2.2), ("talad", 1.5), ("gofresh", 1.0)],["store_format_name", "family_size"])
+    family_size = STORE_FMT_FAMILY_SIZE.where(F.col("store_format_name")==cmp.store_fmt.lower())
+
     str_mech_visits = \
         (cmp.txn_offline_x_aisle_target_store
             .groupBy("store_id", "store_region", "mech_name", "store_format_name")
