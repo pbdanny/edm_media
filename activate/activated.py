@@ -680,7 +680,7 @@ def get_bask_by_aisle_last_seen_activated(cmp: CampaignEval,
     .withColumn('recency_rank', F.dense_rank().over(Window.partitionBy('purchase_transaction_uid').orderBy(F.col('time_diff'))))
     .where(F.col('recency_rank') == 1)
     .drop_duplicates()
-    .select('household_id', 'exposed_transaction_uid', 'mech_name','aisle_scope','purchase_transaction_uid')
+    .select('household_id', 'exposed_transaction_uid', 'mech_name','aisle_scope','purchase_transaction_uid', "net_spend_amt", "unit")
     )
         
     return txn_each_purchase_most_recent_media_exposed
