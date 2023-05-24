@@ -407,12 +407,12 @@ def get_cust_activated_by_mech(cmp: CampaignEval,
     # Add view to test
     cmp_shppr_last_seen_brand.show()
 
-    cmp_shppr_last_seen_brand_tag = cmp_shppr_last_seen_brand.withColumn('level', F.lit('brand')) \
+    cmp_shppr_last_seen_brand_exposed_tag = cmp_shppr_last_seen_brand.withColumn('level', F.lit('brand')) \
                                                              .withColumn('total_mechanics_exposed',
                                                                          np.sum(cmp_shppr_last_seen_brand[col] for col in cmp_shppr_last_seen_brand.columns[1:num_of_mechanics+1]))
     
     print('Activated customers at brand level by number of mechanics exposed:')
-    cmp_shppr_last_seen_brand_tag.groupBy('level').pivot('total_mechanics_exposed').agg(F.countDistinct(F.col('household_id'))).show()
+    cmp_shppr_last_seen_brand_exposed_tag.groupBy('level').pivot('total_mechanics_exposed').agg(F.countDistinct(F.col('household_id'))).show()
     
     # Get activated customers at SKU level using "last seen" method
     cmp_shppr_last_seen_sku  = _get_activ_mech_last_seen(txn=txn, test_store_sf=target_str, adj_prod_sf=adj_prod_sf, 
@@ -420,18 +420,18 @@ def get_cust_activated_by_mech(cmp: CampaignEval,
                                                          cp_start_date=cp_start_date, cp_end_date=cp_end_date,
                                                          promozone_flag=promozone_flag)
     
-    cmp_shppr_last_seen_sku_tag = cmp_shppr_last_seen_sku.withColumn('level', F.lit('sku')) \
+    cmp_shppr_last_seen_sku_exposed_tag = cmp_shppr_last_seen_sku.withColumn('level', F.lit('sku')) \
                                                          .withColumn('total_mechanics_exposed',
                                                                      np.sum(cmp_shppr_last_seen_sku[col] for col in cmp_shppr_last_seen_sku.columns[1:num_of_mechanics+1]))
     
     print('Activated customers at SKU level by number of mechanics exposed:')
-    cmp_shppr_last_seen_sku_tag.groupBy('level').pivot('total_mechanics_exposed').agg(F.countDistinct(F.col('household_id'))).show()
+    cmp_shppr_last_seen_sku_exposed_tag.groupBy('level').pivot('total_mechanics_exposed').agg(F.countDistinct(F.col('household_id'))).show()
 
     # Get numbers of activated customers for all mechanics for brand and SKU levels
-    activated_brand_num = cmp_shppr_last_seen_brand_tag.groupBy('level').agg(F.countDistinct(F.col('household_id')).alias('num_activated')) \
+    activated_brand_num = cmp_shppr_last_seen_brand_exposed_tag.groupBy('level').agg(F.countDistinct(F.col('household_id')).alias('num_activated')) \
                                                        .withColumn('mechanic', F.lit('all'))
     
-    activated_sku_num = cmp_shppr_last_seen_sku_tag.groupBy('level').agg(F.countDistinct(F.col('household_id')).alias('num_activated')) \
+    activated_sku_num = cmp_shppr_last_seen_sku_exposed_tag.groupBy('level').agg(F.countDistinct(F.col('household_id')).alias('num_activated')) \
                                                    .withColumn('mechanic', F.lit('all'))
     
     # Add by mech if there are more than 1 mechanic
@@ -440,11 +440,11 @@ def get_cust_activated_by_mech(cmp: CampaignEval,
         mech_result_sku = {}
         
         for mech in mechanic_list:
-            mech_result_brand[mech] = cmp_shppr_last_seen_brand_tag.filter(F.col(mech) == 1) \
+            mech_result_brand[mech] = cmp_shppr_last_seen_brand_exposed_tag.filter(F.col(mech) == 1) \
                                                                    .groupBy('level').agg(F.countDistinct(F.col('household_id')).alias('num_activated')) \
                                                                    .withColumn('mechanic', F.lit(mech))
             
-            mech_result_sku[mech] = cmp_shppr_last_seen_sku_tag.filter(F.col(mech) == 1) \
+            mech_result_sku[mech] = cmp_shppr_last_seen_sku_exposed_tag.filter(F.col(mech) == 1) \
                                                                .groupBy('level').agg(F.countDistinct(F.col('household_id')).alias('num_activated')) \
                                                                .withColumn('mechanic', F.lit(mech))
 
@@ -456,7 +456,7 @@ def get_cust_activated_by_mech(cmp: CampaignEval,
     print('Number of customers activated by each mechanic: ')
     activated_both_num.show()
 
-    return cmp_shppr_last_seen_brand_tag, cmp_shppr_last_seen_sku_tag, activated_both_num
+    return cmp_shppr_last_seen_brand_exposed_tag, cmp_shppr_last_seen_sku_exposed_tag, activated_both_num
 
 #---- Exposure any mechnaics 
 def get_cust_first_exposed_any_mech(cmp: CampaignEval):
@@ -585,7 +585,7 @@ def get_cust_all_prod_purchase_date(cmp: CampaignEval,
             )
         pass
 
-def get_cust_by_mech_last_seen_tag(cmp: CampaignEval,
+def get_cust_by_mech_last_seen_exposed_tag(cmp: CampaignEval,
                                  prd_scope_df: SparkDataFrame,
                                  prd_scope_nm: str):
     """
@@ -631,14 +631,14 @@ def get_cust_by_mach_activated(cmp: CampaignEval):
     mechanic_list = cmp.target_store.select('mech_name').drop_duplicates().rdd.flatMap(lambda x: x).collect()
     num_of_mechanics = len(mechanic_list)
 
-    cmp_shppr_last_seen_sku_tag = get_cust_by_mech_last_seen_tag(cmp, cmp.feat_sku, prd_scope_nm="sku")
-    cmp_shppr_last_seen_brand_tag = get_cust_by_mech_last_seen_tag(cmp, cmp.feat_brand_sku, prd_scope_nm="brand")
+    cmp_shppr_last_seen_sku_exposed_tag = get_cust_by_mech_last_seen_exposed_tag(cmp, cmp.feat_sku, prd_scope_nm="sku")
+    cmp_shppr_last_seen_brand_exposed_tag = get_cust_by_mech_last_seen_exposed_tag(cmp, cmp.feat_brand_sku, prd_scope_nm="brand")
     
     # Get numbers of activated customers for all mechanics for brand and SKU levels
-    activated_brand_num = cmp_shppr_last_seen_brand_tag.groupBy('level').agg(F.countDistinct(F.col('household_id')).alias('num_activated')) \
+    activated_brand_num = cmp_shppr_last_seen_brand_exposed_tag.groupBy('level').agg(F.countDistinct(F.col('household_id')).alias('num_activated')) \
                                                        .withColumn('mechanic', F.lit('all'))
     
-    activated_sku_num = cmp_shppr_last_seen_sku_tag.groupBy('level').agg(F.countDistinct(F.col('household_id')).alias('num_activated')) \
+    activated_sku_num = cmp_shppr_last_seen_sku_exposed_tag.groupBy('level').agg(F.countDistinct(F.col('household_id')).alias('num_activated')) \
                                                    .withColumn('mechanic', F.lit('all'))
     
     # Add by mech if there are more than 1 mechanic
@@ -647,11 +647,11 @@ def get_cust_by_mach_activated(cmp: CampaignEval):
         mech_result_sku = {}
         
         for mech in mechanic_list:
-            mech_result_brand[mech] = cmp_shppr_last_seen_brand_tag.filter(F.col(mech) == 1) \
+            mech_result_brand[mech] = cmp_shppr_last_seen_brand_exposed_tag.filter(F.col(mech) == 1) \
                                                                    .groupBy('level').agg(F.countDistinct(F.col('household_id')).alias('num_activated')) \
                                                                    .withColumn('mechanic', F.lit(mech))
             
-            mech_result_sku[mech] = cmp_shppr_last_seen_sku_tag.filter(F.col(mech) == 1) \
+            mech_result_sku[mech] = cmp_shppr_last_seen_sku_exposed_tag.filter(F.col(mech) == 1) \
                                                                .groupBy('level').agg(F.countDistinct(F.col('household_id')).alias('num_activated')) \
                                                                .withColumn('mechanic', F.lit(mech))
 
@@ -663,7 +663,7 @@ def get_cust_by_mach_activated(cmp: CampaignEval):
     print('Number of customers activated by each mechanic: ')
     activated_both_num.show()
 
-    return cmp_shppr_last_seen_brand_tag, cmp_shppr_last_seen_sku_tag, activated_both_num
+    return cmp_shppr_last_seen_brand_exposed_tag, cmp_shppr_last_seen_sku_exposed_tag, activated_both_num
 
 #---- Cross categoy exposure
 def get_bask_by_aisle_scope_last_seen(cmp: CampaignEval,
