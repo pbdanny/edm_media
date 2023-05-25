@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql import DataFrame as SparkDataFrame
+from pyspark.dbutils import DBUtils
 
 import pandas as pd
 import numpy as np
@@ -14,7 +15,6 @@ from pathlib import Path
 from utils import period_cal
 from utils.DBPath import DBPath
 from utils import logger
-
 
 class CampaignConfigFile:
     def __init__(self, source_file):
@@ -40,7 +40,6 @@ class CampaignConfigFile:
 
     def search_details(self, column: str, search_key: str):
         return self.cmp_config_df[self.cmp_config_df[column].str.contains(search_key)]
-
 
 class CampaignParams:
     def __init__(self, config_file, cmp_row_no):
@@ -98,6 +97,8 @@ class CampaignEval(CampaignParams):
     def __init__(self, config_file, cmp_row_no):
         super().__init__(config_file, cmp_row_no)
         self.spark = SparkSession.builder.appName("campaignEval").getOrCreate()
+        self.spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
+        dbutils = DBUtils(self.spark)
 
         self.store_fmt = self.params["store_fmt"].lower()
         self.wk_type = self.params["wk_type"]
@@ -681,6 +682,9 @@ class CampaignEval(CampaignParams):
                 _store()
             else:
                 _target_store_config()
+                
+        # checkpoint for aisle_target_store_conf
+        self.aisle_target_store_conf =  self.aisle_target_store_conf.checkpoint()
         pass
 
     def _get_prod_df(self):

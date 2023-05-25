@@ -12,15 +12,13 @@ from pyspark.sql import DataFrame as SparkDataFrame
 from utils.DBPath import DBPath
 from utils.campaign_config import CampaignEval
 
-spark = SparkSession.builder.appName("campaingEval").getOrCreate()
-
 def create_txn_offline_x_aisle_target_store(cmp: CampaignEval):
     
     cmp.txn_offline_x_aisle_target_store = \
         (cmp.txn.join(cmp.aisle_target_store_conf, ["store_id", "upc_id", "date_id"])
          .where(F.col("offline_online_other_channel")=="OFFLINE")
         )
-    
+    cmp.txn_offline_x_aisle_target_store = cmp.txn_offline_x_aisle_target_store.checkpoint()
     pass
 
 def get_store_mech_exposure_cmp(cmp: CampaignEval):
