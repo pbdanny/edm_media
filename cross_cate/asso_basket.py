@@ -15,7 +15,6 @@ from utils.campaign_config import CampaignEval
 
 from exposure import exposed
 from utils import period_cal
-from matching import store_matching
 
 from functools import reduce
 
@@ -77,7 +76,7 @@ def asso_score(cmp: CampaignEval,
     asso_by_aisle = n_bask_asso/n_bask_aisle
     asso_by_feat = n_bask_asso/n_bask_feat
 
-    score_df = cmp.spark.createDataFrame([("test","dur", n_bask_aisle, n_bask_feat, n_bask_asso, asso_by_aisle, asso_by_feat)],
+    score_df = spark.createDataFrame([("test","dur", n_bask_aisle, n_bask_feat, n_bask_asso, asso_by_aisle, asso_by_feat)],
                                      ["store_type","period", "n_bask_aisle", "n_bask_feat", "n_bask_asso", "asso_by_aisle", "asso_by_feat"])
 
     return score_df
@@ -199,7 +198,7 @@ def asso_score_pre(cmp: CampaignEval,
     asso_by_aisle = n_bask_asso/n_bask_aisle
     asso_by_feat = n_bask_asso/n_bask_feat
 
-    score_df = cmp.spark.createDataFrame([("test", "pre", n_bask_aisle, n_bask_feat, n_bask_asso, asso_by_aisle, asso_by_feat)],
+    score_df = spark.createDataFrame([("test", "pre", n_bask_aisle, n_bask_feat, n_bask_asso, asso_by_aisle, asso_by_feat)],
                                      ["store_type","period", "n_bask_aisle", "n_bask_feat", "n_bask_asso", "asso_by_aisle", "asso_by_feat"])
 
     return score_df
@@ -350,7 +349,7 @@ def asso_score_ctrl(cmp: CampaignEval,
     asso_by_aisle = n_bask_asso/n_bask_aisle
     asso_by_feat = n_bask_asso/n_bask_feat
 
-    score_df = cmp.spark.createDataFrame([("ctrl","dur", n_bask_aisle, n_bask_feat, n_bask_asso, asso_by_aisle, asso_by_feat)],
+    score_df = spark.createDataFrame([("ctrl","dur", n_bask_aisle, n_bask_feat, n_bask_asso, asso_by_aisle, asso_by_feat)],
                                      ["store_type","period", "n_bask_aisle", "n_bask_feat", "n_bask_asso", "asso_by_aisle", "asso_by_feat"])
 
     return score_df
@@ -359,9 +358,9 @@ def asso_size_ctrl(cmp: CampaignEval,
               prd_scope_df: SparkDataFrame):
     """
     """
-    aisle_txn = get_txn_aisle_cross_cate(cmp)
-    feat_txn = get_txn_target_store_feature(cmp, prd_scope_df)
-    bask_asso = get_bask_asso(cmp, prd_scope_df)
+    aisle_txn = get_txn_aisle_cross_cate_ctrl(cmp)
+    feat_txn = get_txn_ctrl_store_feature(cmp, prd_scope_df)
+    bask_asso = get_bask_asso_ctrl(cmp, prd_scope_df)
 
     size_feat_in_asso = \
         (feat_txn
