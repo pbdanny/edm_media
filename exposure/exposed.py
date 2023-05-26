@@ -18,7 +18,8 @@ def create_txn_offline_x_aisle_target_store(cmp: CampaignEval):
         (cmp.txn.join(cmp.aisle_target_store_conf, ["store_id", "upc_id", "date_id"])
          .where(F.col("offline_online_other_channel")=="OFFLINE")
         )
-    cmp.txn_offline_x_aisle_target_store = cmp.txn_offline_x_aisle_target_store.checkpoint()
+    # test checkpoint
+    # cmp.txn_offline_x_aisle_target_store = cmp.txn_offline_x_aisle_target_store.checkpoint()
     pass
 
 def get_store_mech_exposure_cmp(cmp: CampaignEval):

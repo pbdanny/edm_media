@@ -70,7 +70,7 @@ def get_cust_activated(cmp: CampaignEval):
     def _create_adj_prod_df(txn: SparkDataFrame) -> SparkDataFrame:
         """If adj_prod_sf is None, create from all upc_id in txn
         """
-        out = txn.select("upc_id").drop_duplicates().checkpoint()
+        out = txn.select("upc_id").drop_duplicates()
         return out
 
     def _get_exposed_cust(txn: SparkDataFrame,
@@ -287,7 +287,7 @@ def get_cust_activated_by_mech(cmp: CampaignEval,
     def _create_adj_prod_df(txn: SparkDataFrame) -> SparkDataFrame:
         """If adj_prod_sf is None, create from all upc_id in txn
         """
-        out = txn.select("upc_id").drop_duplicates().checkpoint()
+        out = txn.select("upc_id").drop_duplicates() #.checkpoint()
         return out
       
     def _get_all_feat_trans(txn: SparkDataFrame,
