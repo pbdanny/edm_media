@@ -77,7 +77,7 @@ def asso_score(cmp: CampaignEval,
     asso_by_aisle = n_bask_asso/n_bask_aisle
     asso_by_feat = n_bask_asso/n_bask_feat
 
-    score_df = cmp.spark.createDataFrame([("test","dur", n_bask_aisle, n_bask_feat, n_bask_asso, asso_by_aisle, asso_by_feat)],
+    score_df = cmp.spark.createDataFrame([("test","cmp", n_bask_aisle, n_bask_feat, n_bask_asso, asso_by_aisle, asso_by_feat)],
                                      ["store_type","period", "n_bask_aisle", "n_bask_feat", "n_bask_asso", "asso_by_aisle", "asso_by_feat"])
 
     return score_df
@@ -98,7 +98,7 @@ def asso_size(cmp: CampaignEval,
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
          )
         .withColumn("bask_type", F.lit("feat_in_asso"))
-        .withColumn("period", F.lit("dur"))
+        .withColumn("period", F.lit("cmp"))
         .withColumn("store_type", F.lit("test"))
         )
     size_feat = \
@@ -108,7 +108,7 @@ def asso_size(cmp: CampaignEval,
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
          )
          .withColumn("bask_type", F.lit("feat"))
-         .withColumn("period", F.lit("dur"))
+         .withColumn("period", F.lit("cmp"))
          .withColumn("store_type", F.lit("test"))
         )
 
@@ -120,7 +120,7 @@ def asso_size(cmp: CampaignEval,
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
          )
          .withColumn("bask_type", F.lit("aisle_in_asso"))
-         .withColumn("period", F.lit("dur"))
+         .withColumn("period", F.lit("cmp"))
          .withColumn("store_type", F.lit("test"))
         )
     size_aisle = \
@@ -130,7 +130,7 @@ def asso_size(cmp: CampaignEval,
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
             )
          .withColumn("bask_type", F.lit("aisle"))
-         .withColumn("period", F.lit("dur"))
+         .withColumn("period", F.lit("cmp"))
          .withColumn("store_type", F.lit("test"))
         )
 
@@ -292,7 +292,7 @@ def get_txn_aisle_cross_cate_ctrl(cmp: CampaignEval):
 
     txn_aisle_cross_cate_ctrl = \
         (cmp.txn
-         .where(F.col(period_wk_col_nm).isin(["dur"]))
+         .where(F.col(period_wk_col_nm).isin(["cmp"]))
          .join(cross_cate_ctrl_store, ["store_id", "upc_id"])
          )
     
@@ -350,7 +350,7 @@ def asso_score_ctrl(cmp: CampaignEval,
     asso_by_aisle = n_bask_asso/n_bask_aisle
     asso_by_feat = n_bask_asso/n_bask_feat
 
-    score_df = cmp.spark.createDataFrame([("ctrl","dur", n_bask_aisle, n_bask_feat, n_bask_asso, asso_by_aisle, asso_by_feat)],
+    score_df = cmp.spark.createDataFrame([("ctrl","cmp", n_bask_aisle, n_bask_feat, n_bask_asso, asso_by_aisle, asso_by_feat)],
                                      ["store_type","period", "n_bask_aisle", "n_bask_feat", "n_bask_asso", "asso_by_aisle", "asso_by_feat"])
 
     return score_df
@@ -371,7 +371,7 @@ def asso_size_ctrl(cmp: CampaignEval,
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
          )
         .withColumn("bask_type", F.lit("feat_in_asso"))
-        .withColumn("period", F.lit("dur"))
+        .withColumn("period", F.lit("cmp"))
         .withColumn("store_type", F.lit("ctrl"))
         )
     size_feat = \
@@ -381,7 +381,7 @@ def asso_size_ctrl(cmp: CampaignEval,
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
          )
          .withColumn("bask_type", F.lit("feat"))
-         .withColumn("period", F.lit("dur"))
+         .withColumn("period", F.lit("cmp"))
          .withColumn("store_type", F.lit("ctrl"))
         )
 
@@ -393,7 +393,7 @@ def asso_size_ctrl(cmp: CampaignEval,
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
          )
          .withColumn("bask_type", F.lit("aisle_in_asso"))
-         .withColumn("period", F.lit("dur"))
+         .withColumn("period", F.lit("cmp"))
          .withColumn("store_type", F.lit("ctrl"))
         )
     size_aisle = \
@@ -403,7 +403,7 @@ def asso_size_ctrl(cmp: CampaignEval,
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
             )
          .withColumn("bask_type", F.lit("aisle"))
-         .withColumn("period", F.lit("dur"))
+         .withColumn("period", F.lit("cmp"))
          .withColumn("store_type", F.lit("ctrl"))
         )
 
