@@ -44,7 +44,7 @@ def get_txn_target_store_feature_dur(cmp: CampaignEval,
         (cmp.txn
          .where(F.col("offline_online_other_channel")=="OFFLINE")
          .join(cmp.target_store.select("store_id").drop_duplicates(), "store_id")
-         .where(F.col(period_wk_col_nm).isin(["cmp"]))
+         .where(F.col(period_wk_col_nm).isin(["dur"]))
          .join(prd_scope_df, 'upc_id')  
         )
     return txn_target_store_feature
@@ -290,7 +290,7 @@ def get_txn_ctrl_store_aisle_cross_cate_dur(cmp: CampaignEval):
     txn_aisle_cross_cate_ctrl = \
         (cmp.txn
          .where(F.col("offline_online_other_channel")=="OFFLINE")
-         .where(F.col(period_wk_col_nm).isin(["cmp"]))
+         .where(F.col(period_wk_col_nm).isin(["dur"]))
          .join(cross_cate_ctrl_store, ["store_id", "upc_id"])
          )
     
@@ -313,7 +313,7 @@ def get_txn_ctrl_store_feature_dur(cmp: CampaignEval,
         (cmp.txn
          .where(F.col("offline_online_other_channel")=="OFFLINE")
          .join(matched_ctrl_store_id, "store_id")
-         .where(F.col(period_wk_col_nm).isin(["cmp"]))
+         .where(F.col(period_wk_col_nm).isin(["dur"]))
          .join(prd_scope_df, 'upc_id')  
         )
 
