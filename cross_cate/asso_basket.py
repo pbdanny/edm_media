@@ -23,7 +23,7 @@ from functools import reduce
 def union_frame(left, right):
     return left.unionByName(right, allowMissingColumns=True)
 
-def get_txn_aisle_cross_cate(cmp: CampaignEval):
+def get_txn_target_store_aisle_cross_cate(cmp: CampaignEval):
     """
     """
     exposed.create_txn_offline_x_aisle_target_store(cmp)
@@ -41,6 +41,7 @@ def get_txn_target_store_feature(cmp: CampaignEval,
 
     txn_target_store_feature = \
         (cmp.txn
+         .where(F.col("offline_online_other_channel")=="OFFLINE")
          .join(cmp.target_store.select("store_id").drop_duplicates(), "store_id")
          .where(F.col(period_wk_col_nm).isin(["cmp"]))
          .join(prd_scope_df, 'upc_id')  
@@ -51,7 +52,7 @@ def get_bask_asso(cmp: CampaignEval,
                   prd_scope_df: SparkDataFrame):
     """
     """
-    aisle_txn = get_txn_aisle_cross_cate(cmp)
+    aisle_txn = get_txn_target_store_aisle_cross_cate(cmp)
     feat_txn = get_txn_target_store_feature(cmp, prd_scope_df)
 
     bask_asso = (aisle_txn
@@ -66,7 +67,7 @@ def get_bask_asso(cmp: CampaignEval,
 def asso_score(cmp: CampaignEval,
                prd_scope_df: SparkDataFrame):
     
-    aisle_txn = get_txn_aisle_cross_cate(cmp)
+    aisle_txn = get_txn_target_store_aisle_cross_cate(cmp)
     feat_txn = get_txn_target_store_feature(cmp, prd_scope_df)
     bask_asso = get_bask_asso(cmp, prd_scope_df)
 
@@ -86,7 +87,7 @@ def asso_size(cmp: CampaignEval,
               prd_scope_df: SparkDataFrame):
     """
     """
-    aisle_txn = get_txn_aisle_cross_cate(cmp)
+    aisle_txn = get_txn_target_store_aisle_cross_cate(cmp)
     feat_txn = get_txn_target_store_feature(cmp, prd_scope_df)
     bask_asso = get_bask_asso(cmp, prd_scope_df)
 
@@ -138,7 +139,7 @@ def asso_size(cmp: CampaignEval,
 
     return combine_size
 
-def get_txn_aisle_cross_cate_pre(cmp: CampaignEval):
+def get_txn_target_store_aisle_cross_cate_pre(cmp: CampaignEval):
     """
     """
     period_wk_col_nm = period_cal.get_period_wk_col_nm(cmp)
@@ -150,6 +151,7 @@ def get_txn_aisle_cross_cate_pre(cmp: CampaignEval):
 
     txn_aisle_cross_cate_pre = \
         (cmp.txn
+         .where(F.col("offline_online_other_channel")=="OFFLINE")
          .where(F.col(period_wk_col_nm).isin(["pre"]))
          .join(cross_cate_target_store, ["store_id", "upc_id"])
          )
@@ -163,6 +165,7 @@ def get_txn_target_store_feature_pre(cmp: CampaignEval,
 
     txn_target_store_feature_pre = \
         (cmp.txn
+         .where(F.col("offline_online_other_channel")=="OFFLINE")
          .join(cmp.target_store.select("store_id").drop_duplicates(), "store_id")
          .where(F.col(period_wk_col_nm).isin(["pre"]))
          .join(prd_scope_df, 'upc_id')  
@@ -173,7 +176,7 @@ def get_bask_asso_pre(cmp: CampaignEval,
                   prd_scope_df: SparkDataFrame):
     """
     """
-    aisle_txn = get_txn_aisle_cross_cate_pre(cmp)
+    aisle_txn = get_txn_target_store_aisle_cross_cate_pre(cmp)
     feat_txn = get_txn_target_store_feature_pre(cmp, prd_scope_df)
 
     bask_asso = (aisle_txn
@@ -188,7 +191,7 @@ def get_bask_asso_pre(cmp: CampaignEval,
 def asso_score_pre(cmp: CampaignEval,
                prd_scope_df: SparkDataFrame):
     
-    aisle_txn = get_txn_aisle_cross_cate_pre(cmp)
+    aisle_txn = get_txn_target_store_aisle_cross_cate_pre(cmp)
     feat_txn = get_txn_target_store_feature_pre(cmp, prd_scope_df)
     bask_asso = get_bask_asso_pre(cmp, prd_scope_df)
 
@@ -208,7 +211,7 @@ def asso_size_pre(cmp: CampaignEval,
                   prd_scope_df: SparkDataFrame):
     """
     """
-    aisle_txn = get_txn_aisle_cross_cate_pre(cmp)
+    aisle_txn = get_txn_target_store_aisle_cross_cate_pre(cmp)
     feat_txn = get_txn_target_store_feature_pre(cmp, prd_scope_df)
     bask_asso = get_bask_asso_pre(cmp, prd_scope_df)
 
@@ -264,7 +267,7 @@ def asso_size_pre(cmp: CampaignEval,
 
     return combine_size
 
-def get_txn_aisle_cross_cate_ctrl(cmp: CampaignEval):
+def get_txn_ctrl_store_aisle_cross_cate(cmp: CampaignEval):
     """
     """
     store_matching.get_store_matching_across_region(cmp)
@@ -292,6 +295,7 @@ def get_txn_aisle_cross_cate_ctrl(cmp: CampaignEval):
 
     txn_aisle_cross_cate_ctrl = \
         (cmp.txn
+         .where(F.col("offline_online_other_channel")=="OFFLINE")
          .where(F.col(period_wk_col_nm).isin(["cmp"]))
          .join(cross_cate_ctrl_store, ["store_id", "upc_id"])
          )
@@ -313,6 +317,7 @@ def get_txn_ctrl_store_feature(cmp: CampaignEval,
 
     txn_ctrl_store_feature = \
         (cmp.txn
+         .where(F.col("offline_online_other_channel")=="OFFLINE")
          .join(matched_ctrl_store_id, "store_id")
          .where(F.col(period_wk_col_nm).isin(["cmp"]))
          .join(prd_scope_df, 'upc_id')  
@@ -324,7 +329,7 @@ def get_bask_asso_ctrl(cmp: CampaignEval,
                        prd_scope_df: SparkDataFrame):
     """
     """
-    aisle_txn = get_txn_aisle_cross_cate_ctrl(cmp)
+    aisle_txn = get_txn_ctrl_store_aisle_cross_cate(cmp)
     feat_txn = get_txn_ctrl_store_feature(cmp, prd_scope_df)
 
     bask_asso = (aisle_txn
@@ -339,7 +344,7 @@ def get_bask_asso_ctrl(cmp: CampaignEval,
 def asso_score_ctrl(cmp: CampaignEval,
                     prd_scope_df: SparkDataFrame):
     
-    aisle_txn = get_txn_aisle_cross_cate_ctrl(cmp)
+    aisle_txn = get_txn_ctrl_store_aisle_cross_cate(cmp)
     feat_txn = get_txn_ctrl_store_feature(cmp, prd_scope_df)
     bask_asso = get_bask_asso_ctrl(cmp, prd_scope_df)
 
@@ -359,7 +364,7 @@ def asso_size_ctrl(cmp: CampaignEval,
               prd_scope_df: SparkDataFrame):
     """
     """
-    aisle_txn = get_txn_aisle_cross_cate_ctrl(cmp)
+    aisle_txn = get_txn_ctrl_store_aisle_cross_cate(cmp)
     feat_txn = get_txn_ctrl_store_feature(cmp, prd_scope_df)
     bask_asso = get_bask_asso_ctrl(cmp, prd_scope_df)
 
