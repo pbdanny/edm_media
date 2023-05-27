@@ -86,21 +86,21 @@ def create_period_col(cmp: CampaignEval):
     if cmp.gap_flag:
         cmp.txn = (cmp.txn.withColumn('period_fis_wk',
                                       F.when(F.col('week_id').between(
-                                          cmp.cmp_st_wk, cmp.cmp_en_wk), F.lit('cmp'))
+                                          cmp.cmp_st_wk, cmp.cmp_en_wk), F.lit('dur'))
                                       .when(F.col('week_id').between(cmp.gap_st_wk, cmp.gap_en_wk), F.lit('gap'))
                                       .when(F.col('week_id').between(cmp.pre_st_wk, cmp.pre_en_wk), F.lit('pre'))
                                       .when(F.col('week_id').between(cmp.ppp_st_wk, cmp.ppp_en_wk), F.lit('ppp'))
                                       .otherwise(F.lit('NA')))
                    .withColumn('period_promo_wk',
                                F.when(F.col('promoweek_id').between(
-                                   cmp.cmp_st_promo_wk, cmp.cmp_en_promo_wk), F.lit('cmp'))
+                                   cmp.cmp_st_promo_wk, cmp.cmp_en_promo_wk), F.lit('dur'))
                                .when(F.col('promoweek_id').between(cmp.gap_st_promo_wk, cmp.gap_en_promo_wk), F.lit('gap'))
                                .when(F.col('promoweek_id').between(cmp.pre_st_promo_wk, cmp.pre_en_promo_wk), F.lit('pre'))
                                .when(F.col('promoweek_id').between(cmp.ppp_st_promo_wk, cmp.ppp_en_promo_wk), F.lit('ppp'))
                                .otherwise(F.lit('NA')))
                    .withColumn('period_promo_mv_wk',
                                F.when(F.col('promoweek_id').between(
-                                   cmp.cmp_st_promo_wk, cmp.cmp_en_promo_wk), F.lit('cmp'))
+                                   cmp.cmp_st_promo_wk, cmp.cmp_en_promo_wk), F.lit('dur'))
                                .when(F.col('promoweek_id').between(cmp.gap_st_promo_wk, cmp.gap_en_promo_wk), F.lit('gap'))
                                .when(F.col('promoweek_id').between(cmp.pre_st_promo_mv_wk, cmp.pre_en_promo_mv_wk), F.lit('pre'))
                                .when(F.col('promoweek_id').between(cmp.ppp_st_promo_mv_wk, cmp.ppp_en_promo_mv_wk), F.lit('ppp'))
@@ -109,19 +109,19 @@ def create_period_col(cmp: CampaignEval):
     else:
         cmp.txn = (cmp.txn.withColumn('period_fis_wk',
                                       F.when(F.col('week_id').between(
-                                          cmp.cmp_st_wk, cmp.cmp_en_wk), F.lit('cmp'))
+                                          cmp.cmp_st_wk, cmp.cmp_en_wk), F.lit('dur'))
                                       .when(F.col('week_id').between(cmp.pre_st_wk, cmp.pre_en_wk), F.lit('pre'))
                                       .when(F.col('week_id').between(cmp.ppp_st_wk, cmp.ppp_en_wk), F.lit('ppp'))
                                       .otherwise(F.lit('NA')))
                    .withColumn('period_promo_wk',
                                F.when(F.col('promoweek_id').between(
-                                   cmp.cmp_st_promo_wk, cmp.cmp_en_promo_wk), F.lit('cmp'))
+                                   cmp.cmp_st_promo_wk, cmp.cmp_en_promo_wk), F.lit('dur'))
                                .when(F.col('promoweek_id').between(cmp.pre_st_promo_wk, cmp.pre_en_promo_wk), F.lit('pre'))
                                .when(F.col('promoweek_id').between(cmp.ppp_st_promo_wk, cmp.ppp_en_promo_wk), F.lit('ppp'))
                                .otherwise(F.lit('NA')))
                    .withColumn('period_promo_mv_wk',
                                F.when(F.col('promoweek_id').between(
-                                   cmp.cmp_st_promo_wk, cmp.cmp_en_promo_wk), F.lit('cmp'))
+                                   cmp.cmp_st_promo_wk, cmp.cmp_en_promo_wk), F.lit('dur'))
                                .when(F.col('promoweek_id').between(cmp.pre_st_promo_mv_wk, cmp.pre_en_promo_mv_wk), F.lit('pre'))
                                .when(F.col('promoweek_id').between(cmp.ppp_st_promo_mv_wk, cmp.ppp_en_promo_mv_wk), F.lit('ppp'))
                                .otherwise(F.lit('NA')))
@@ -153,9 +153,9 @@ def scope_txn(cmp: CampaignEval):
     cmp.txn = \
         (cmp.txn
          .where(F.col("week_id").between(min_wk_id, max_wk_id))
-         .where((F.col("period_fis_wk").isin(["cmp", "gap", "pre", "ppp"])) |
-                (F.col("period_promo_wk").isin(["cmp", "gap", "pre", "ppp"])) |
-                (F.col("period_promo_mv_wk").isin(["cmp", "gap", "pre", "ppp"])))
+         .where((F.col("period_fis_wk").isin(["dur", "gap", "pre", "ppp"])) |
+                (F.col("period_promo_wk").isin(["dur", "gap", "pre", "ppp"])) |
+                (F.col("period_promo_mv_wk").isin(["dur", "gap", "pre", "ppp"])))
          )
     pass
 

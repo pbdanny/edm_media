@@ -103,7 +103,7 @@ def get_cust_activated(cmp: CampaignEval):
         out = \
             (txn
              .where(F.col('household_id').isNotNull())
-             .where(F.col(period_wk_col_nm).isin(["cmp"]))
+             .where(F.col(period_wk_col_nm).isin(["dur"]))
              .join(prd_scope_df, 'upc_id')
              .groupBy('household_id')
              .agg(F.min('date_id').alias('first_shp_date'))
@@ -137,7 +137,7 @@ def get_cust_activated(cmp: CampaignEval):
         """ Get featured product's Sales values from activated customers (have seen media before buy product)
             return sales values of activated customers
         """
-        txn_dur       = txn.where ( (F.col(period_wk_col_nm) == 'cmp') & (txn.household_id.isNotNull()) )
+        txn_dur       = txn.where ( (F.col(period_wk_col_nm) == 'dur') & (txn.household_id.isNotNull()) )
 
         cst_txn_dur   = txn_dur.join  ( prd_scope_df, txn_dur.upc_id == prd_scope_df.upc_id, 'left_semi')\
                                .join  ( shppr_actv,  txn_dur.household_id == shppr_actv.cust_id, 'inner')\
@@ -300,7 +300,7 @@ def get_cust_activated_by_mech(cmp: CampaignEval,
         out = \
             (txn
              .where(F.col('household_id').isNotNull())
-             .where(F.col(period_wk_col_nm).isin(["cmp"]))
+             .where(F.col(period_wk_col_nm).isin(["dur"]))
              .filter(F.col('offline_online_other_channel') == 'OFFLINE')
              .join(prd_scope_df, 'upc_id')
              .select('household_id', 'transaction_uid', 'tran_datetime', 'store_id', 'date_id')
@@ -336,7 +336,7 @@ def get_cust_activated_by_mech(cmp: CampaignEval,
         filled_test_store_sf = _create_test_store_sf(test_store_sf=test_store_sf, cp_start_date=cp_start_date, cp_end_date=cp_end_date)
 
         txn_test_store_media_aisles = (txn.where(F.col('household_id').isNotNull())
-                                          .where(F.col(period_wk_col).isin(["cmp"]))
+                                          .where(F.col(period_wk_col).isin(["dur"]))
                                           .filter(F.col('date_id').between(cp_start_date, cp_end_date))
                                           .join(filled_test_store_sf.select('store_id', 'c_start', 'c_end', 'mech_name'), on='store_id', how='inner')
                                           .join(adj_prod_sf.select('upc_id'), on='upc_id', how='inner')
@@ -479,7 +479,7 @@ def get_cust_first_prod_purchase_date(cmp: CampaignEval,
         cmp.cust_first_prod_purchase = \
             (cmp.txn
              .where(F.col('household_id').isNotNull())
-             .where(F.col(period_wk_col_nm).isin(["cmp"]))
+             .where(F.col(period_wk_col_nm).isin(["dur"]))
              .join(prd_scope_df, 'upc_id')
              .groupBy('household_id')
              .agg(F.min('date_id').alias('first_purchase_date'))
@@ -516,7 +516,7 @@ def get_cust_any_mech_activated_sales(cmp: CampaignEval,
 
     txn_dur = \
         (cmp.txn
-         .where(F.col(period_wk_col_nm).isin(["cmp"]))
+         .where(F.col(period_wk_col_nm).isin(["dur"]))
          .where(F.col("household_id").isNotNull())
         )
 
@@ -576,7 +576,7 @@ def get_cust_all_prod_purchase_date(cmp: CampaignEval,
         cmp.cust_all_prod_purchase = \
             (cmp.txn
              .where(F.col('household_id').isNotNull())
-             .where(F.col(period_wk_col_nm).isin(["cmp"]))
+             .where(F.col(period_wk_col_nm).isin(["dur"]))
              .join(prd_scope_df, 'upc_id')
              .select('household_id', 'transaction_uid', 'tran_datetime', 'net_spend_amt', 'unit')
              .withColumnRenamed('transaction_uid', 'purchase_transaction_uid')

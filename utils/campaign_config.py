@@ -255,21 +255,21 @@ class CampaignEval(CampaignParams):
         date_dim = self.spark.table("tdm.v_date_dim").select("date_id", "week_id", "promoweek_id").drop_duplicates()
         
         period_fis_wk = date_dim.withColumn("period", 
-                                            F.when(F.col('week_id').between(self.cmp_st_wk, self.cmp_en_wk), F.lit('cmp'))
+                                            F.when(F.col('week_id').between(self.cmp_st_wk, self.cmp_en_wk), F.lit('dur'))
                                             .when(F.col('week_id').between(self.pre_st_wk, self.pre_en_wk), F.lit('pre'))
                                             .when(F.col('week_id').between(self.ppp_st_wk, self.ppp_en_wk), F.lit('ppp'))
                                             .otherwise(F.lit(None))
                                             )
         
         period_promo_wk = date_dim.withColumn("period", 
-                                           F.when(F.col('promoweek_id').between(self.cmp_st_promo_wk, self.cmp_en_promo_wk), F.lit('cmp'))
+                                           F.when(F.col('promoweek_id').between(self.cmp_st_promo_wk, self.cmp_en_promo_wk), F.lit('dur'))
                                             .when(F.col('promoweek_id').between(self.pre_st_promo_wk, self.pre_en_promo_wk), F.lit('pre'))
                                             .when(F.col('promoweek_id').between(self.ppp_st_promo_wk, self.ppp_en_promo_wk), F.lit('ppp'))
                                             .otherwise(F.lit(None))
                                             )
 
         period_promo_mv_wk = date_dim.withColumn("period", 
-                                            F.when(F.col('promoweek_id').between(self.cmp_st_promo_wk, self.cmp_en_promo_wk), F.lit('cmp'))
+                                            F.when(F.col('promoweek_id').between(self.cmp_st_promo_wk, self.cmp_en_promo_wk), F.lit('dur'))
                                             .when(F.col('promoweek_id').between(self.pre_st_promo_mv_wk, self.pre_en_promo_mv_wk), F.lit('pre'))
                                             .when(F.col('promoweek_id').between(self.ppp_st_promo_mv_wk, self.ppp_en_promo_mv_wk), F.lit('ppp'))
                                             .otherwise(F.lit(None))

@@ -361,7 +361,7 @@ def get_cust_brand_switching_and_penetration(cmp: CampaignEval,
         dur_cc_txn_prd_scope = \
         (txn
          .where(F.col('household_id').isNotNull())
-         .where(F.col(period_wk_col).isin(['cmp']))
+         .where(F.col(period_wk_col).isin(['dur']))
          .join(prd_scope_df, "upc_id", "inner")
         )
 
@@ -556,10 +556,10 @@ def get_cust_sku_switching(cmp: CampaignEval,
     txn_per_dur_cat_sale = \
         (txn
             .where(F.col('household_id').isNotNull())
-            .where(F.col(period_wk_col).isin(['pre', 'ppp', 'cmp']))
+            .where(F.col(period_wk_col).isin(['pre', 'ppp', 'dur']))
             .join(cat_df, "upc_id", "inner")
             .withColumn('pre_cat_sales', F.when( F.col(period_wk_col).isin(['ppp', 'pre']) , F.col('net_spend_amt') ).otherwise(0) )
-            .withColumn('dur_cat_sales', F.when( F.col(period_wk_col).isin(['cmp']), F.col('net_spend_amt') ).otherwise(0) )
+            .withColumn('dur_cat_sales', F.when( F.col(period_wk_col).isin(['dur']), F.col('net_spend_amt') ).otherwise(0) )
             .withColumn('cust_tt_pre_cat_sales', F.sum(F.col('pre_cat_sales')).over(Window.partitionBy('household_id') ))
             .withColumn('cust_tt_dur_cat_sales', F.sum(F.col('dur_cat_sales')).over(Window.partitionBy('household_id') ))
             )
@@ -571,7 +571,7 @@ def get_cust_sku_switching(cmp: CampaignEval,
         .withColumn('pre_sku_sales',
                     F.when( (F.col(period_wk_col).isin(['ppp', 'pre'])) & (F.col('upc_id').isin(feat_list)), F.col('net_spend_amt') ).otherwise(0) )
         .withColumn('dur_sku_sales',
-                    F.when( (F.col(period_wk_col).isin(['cmp'])) & (F.col('upc_id').isin(feat_list)), F.col('net_spend_amt') ).otherwise(0) )
+                    F.when( (F.col(period_wk_col).isin(['dur'])) & (F.col('upc_id').isin(feat_list)), F.col('net_spend_amt') ).otherwise(0) )
         .withColumn('cust_tt_pre_sku_sales', F.sum(F.col('pre_sku_sales')).over(Window.partitionBy('household_id') ))
         .withColumn('cust_tt_dur_sku_sales', F.sum(F.col('dur_sku_sales')).over(Window.partitionBy('household_id') ))
         .where( (F.col('cust_tt_pre_sku_sales')<=0) & (F.col('cust_tt_dur_sku_sales')>0) )

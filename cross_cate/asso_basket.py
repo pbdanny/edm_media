@@ -79,7 +79,7 @@ def asso_score_target_dur(cmp: CampaignEval,
     asso_by_aisle = n_bask_asso/n_bask_aisle
     asso_by_feat = n_bask_asso/n_bask_feat
 
-    score_df = cmp.spark.createDataFrame([("test","cmp", n_bask_aisle, n_bask_feat, n_bask_asso, asso_by_aisle, asso_by_feat)],
+    score_df = cmp.spark.createDataFrame([("test","dur", n_bask_aisle, n_bask_feat, n_bask_asso, asso_by_aisle, asso_by_feat)],
                                      ["store_type","period", "n_bask_aisle", "n_bask_feat", "n_bask_asso", "asso_by_aisle", "asso_by_feat"])
 
     return score_df
@@ -349,7 +349,7 @@ def asso_score_ctrl_dur(cmp: CampaignEval,
     asso_by_aisle = n_bask_asso/n_bask_aisle
     asso_by_feat = n_bask_asso/n_bask_feat
 
-    score_df = cmp.spark.createDataFrame([("ctrl","cmp", n_bask_aisle, n_bask_feat, n_bask_asso, asso_by_aisle, asso_by_feat)],
+    score_df = cmp.spark.createDataFrame([("ctrl","dur", n_bask_aisle, n_bask_feat, n_bask_asso, asso_by_aisle, asso_by_feat)],
                                      ["store_type","period", "n_bask_aisle", "n_bask_feat", "n_bask_asso", "asso_by_aisle", "asso_by_feat"])
 
     return score_df
@@ -399,7 +399,7 @@ def asso_size_ctrl_dur(cmp: CampaignEval,
         )
 
     combine = reduce(union_frame, [size_feat_in_asso, size_feat, size_aisle_in_asso, size_aisle])
-    combine_add_col = (combine.withColumn("period", F.lit("cmp"))
+    combine_add_col = (combine.withColumn("period", F.lit("dur"))
                        .withColumn("store_type", F.lit("ctrl"))
     )
 
