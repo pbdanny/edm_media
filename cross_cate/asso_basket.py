@@ -45,7 +45,7 @@ def get_txn_target_store_feature_dur(cmp: CampaignEval,
          .where(F.col("offline_online_other_channel")=="OFFLINE")
          .join(cmp.target_store.select("store_id").drop_duplicates(), "store_id")
          .where(F.col(period_wk_col_nm).isin(["dur"]))
-         .join(prd_scope_df, 'upc_id')  
+         .join(prd_scope_df, 'upc_id')
         )
     return txn_target_store_feature
 
@@ -71,7 +71,7 @@ def get_bask_asso_target_dur(cmp: CampaignEval,
 
     bask_asso = (aisle_txn
                  .select("transaction_uid").drop_duplicates()
-                 .join(feat_txn.select("transaction_uid").drop_duplicates(), 
+                 .join(feat_txn.select("transaction_uid").drop_duplicates(),
                        "transaction_uid", "inner")
                  .select("transaction_uid")
                  ).drop_duplicates()
@@ -133,14 +133,14 @@ def asso_size_target_dur(cmp: CampaignEval,
          .withColumn("bask_type", F.lit("total"))
         )
     total_store_visits = total_store.select("visits").collect()[0][0]
-        
+
     combine = reduce(union_frame, [size_feat_in_asso, size_feat, size_aisle_in_asso, size_aisle, total_store])
     combine_add_col = (combine
                        .withColumn("period", F.lit("dur"))
                        .withColumn("store_type", F.lit("test"))
                        .withColumn("visit_pen", F.col("visits")/total_store_visits)
     )
-    
+
     return combine_add_col
 
 #---- target pre
@@ -173,7 +173,7 @@ def get_txn_target_store_feature_pre(cmp: CampaignEval,
          .where(F.col("offline_online_other_channel")=="OFFLINE")
          .join(cmp.target_store.select("store_id").drop_duplicates(), "store_id")
          .where(F.col(period_wk_col_nm).isin(["pre"]))
-         .join(prd_scope_df, 'upc_id')  
+         .join(prd_scope_df, 'upc_id')
         )
     return txn_target_store_feature_pre
 
@@ -199,7 +199,7 @@ def get_bask_target_asso_pre(cmp: CampaignEval,
 
     bask_asso = (aisle_txn
                  .select("transaction_uid").drop_duplicates()
-                 .join(feat_txn.select("transaction_uid").drop_duplicates(), 
+                 .join(feat_txn.select("transaction_uid").drop_duplicates(),
                        "transaction_uid", "inner")
                  .select("transaction_uid")
                  ).drop_duplicates()
@@ -251,7 +251,7 @@ def asso_size_target_pre(cmp: CampaignEval,
             )
          .withColumn("bask_type", F.lit("aisle"))
         )
-        
+
     total_store = \
         (total_txn
          .agg(F.sum("net_spend_amt").alias("sales"),
@@ -277,7 +277,7 @@ def get_txn_ctrl_store_aisle_cross_cate_dur(cmp: CampaignEval):
     """
     store_matching.get_store_matching_across_region(cmp)
     period_wk_col_nm = period_cal.get_period_wk_col_nm(cmp)
-    
+
     cross_cate_target_store = \
         (cmp.aisle_target_store_conf
         .where(F.col("aisle_scope").isin(["cross_cate"]))
@@ -304,7 +304,7 @@ def get_txn_ctrl_store_aisle_cross_cate_dur(cmp: CampaignEval):
          .where(F.col(period_wk_col_nm).isin(["dur"]))
          .join(cross_cate_ctrl_store, ["store_id", "upc_id"])
          )
-    
+
     return txn_aisle_cross_cate_ctrl
 
 def get_txn_ctrl_store_feature_dur(cmp: CampaignEval,
@@ -325,7 +325,7 @@ def get_txn_ctrl_store_feature_dur(cmp: CampaignEval,
          .where(F.col("offline_online_other_channel")=="OFFLINE")
          .join(matched_ctrl_store_id, "store_id")
          .where(F.col(period_wk_col_nm).isin(["dur"]))
-         .join(prd_scope_df, 'upc_id')  
+         .join(prd_scope_df, 'upc_id')
         )
 
     return txn_ctrl_store_feature
@@ -360,7 +360,7 @@ def get_bask_asso_ctrl_dur(cmp: CampaignEval,
 
     bask_asso = (aisle_txn
                  .select("transaction_uid").drop_duplicates()
-                 .join(feat_txn.select("transaction_uid").drop_duplicates(), 
+                 .join(feat_txn.select("transaction_uid").drop_duplicates(),
                        "transaction_uid", "inner")
                  .select("transaction_uid")
                  ).drop_duplicates()
@@ -436,7 +436,7 @@ def get_txn_ctrl_store_aisle_cross_cate_pre(cmp: CampaignEval):
     """
     store_matching.get_store_matching_across_region(cmp)
     period_wk_col_nm = period_cal.get_period_wk_col_nm(cmp)
-    
+
     cross_cate_target_store = \
         (cmp.aisle_target_store_conf
         .where(F.col("aisle_scope").isin(["cross_cate"]))
@@ -463,7 +463,7 @@ def get_txn_ctrl_store_aisle_cross_cate_pre(cmp: CampaignEval):
          .where(F.col(period_wk_col_nm).isin(["pre"]))
          .join(cross_cate_ctrl_store, ["store_id", "upc_id"])
          )
-    
+
     return txn_aisle_cross_cate_ctrl
 
 def get_txn_ctrl_store_feature_pre(cmp: CampaignEval,
@@ -484,7 +484,7 @@ def get_txn_ctrl_store_feature_pre(cmp: CampaignEval,
          .where(F.col("offline_online_other_channel")=="OFFLINE")
          .join(matched_ctrl_store_id, "store_id")
          .where(F.col(period_wk_col_nm).isin(["pre"]))
-         .join(prd_scope_df, 'upc_id')  
+         .join(prd_scope_df, 'upc_id')
         )
 
     return txn_ctrl_store_feature
@@ -519,7 +519,7 @@ def get_bask_asso_ctrl_pre(cmp: CampaignEval,
 
     bask_asso = (aisle_txn
                  .select("transaction_uid").drop_duplicates()
-                 .join(feat_txn.select("transaction_uid").drop_duplicates(), 
+                 .join(feat_txn.select("transaction_uid").drop_duplicates(),
                        "transaction_uid", "inner")
                  .select("transaction_uid")
                  ).drop_duplicates()
@@ -578,7 +578,7 @@ def asso_size_ctrl_pre(cmp: CampaignEval,
             )
          .withColumn("bask_type", F.lit("total"))
         )
-           
+
     total_store_visits = total_store.select("visits").collect()[0][0]
 
     combine = reduce(union_frame, [size_feat_in_asso, size_feat, size_aisle_in_asso, size_aisle, total_store])
@@ -600,7 +600,7 @@ def get_asso_kpi(cmp: CampaignEval,
     test_pre = asso_size_target_pre(cmp, prd_scope_df)
     ctrl_dur = asso_size_ctrl_dur(cmp, prd_scope_df)
     ctrl_pre = asso_size_ctrl_pre(cmp, prd_scope_df)
-    
+
     combine = reduce(union_frame, [test_dur, test_pre, ctrl_dur, ctrl_pre])
     lift = (combine
             .groupBy("store_type", "period")
@@ -608,23 +608,19 @@ def get_asso_kpi(cmp: CampaignEval,
             .agg(F.first("visit_pen"))
             .withColumn("lift", F.col("feat_is_asso") / (F.col("feat") * F.col("aisle")))
     )
-    
+
     growth = (lift
             .groupBy("store_type")
             .pivot("period")
             .agg(F.first("lift"))
             .withColumn("lift_growth", F.col("dur") - F.col("pre"))
     )
-    
+
     ctrl_factor = growth.where(F.col("store_type").isin(["ctrl"])).select("lift_growth").collect()[0][0]
-    
+
     uplift = (growth
               .withColumn("ctrl_factor", F.lit(ctrl_factor))
               .withColumn("uplift", F.col("lift_growth") - F.col("ctrl_factor"))
     )
-    
-    return uplift
 
-    
-    
-    
+    return uplift
