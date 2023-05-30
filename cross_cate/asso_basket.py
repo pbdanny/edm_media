@@ -275,7 +275,8 @@ def asso_size_target_pre(cmp: CampaignEval,
 def get_txn_ctrl_store_aisle_cross_cate_dur(cmp: CampaignEval):
     """
     """
-    store_matching.get_store_matching_across_region(cmp)
+    if not hasattr(cmp, "store_matching"):
+        store_matching.get_store_matching_across_region(cmp)
     period_wk_col_nm = period_cal.get_period_wk_col_nm(cmp)
 
     cross_cate_target_store = \
@@ -311,6 +312,9 @@ def get_txn_ctrl_store_feature_dur(cmp: CampaignEval,
                                prd_scope_df: SparkDataFrame):
     """
     """
+    if not hasattr(cmp, "store_matching"):
+        store_matching.get_store_matching_across_region(cmp)
+
     period_wk_col_nm = period_cal.get_period_wk_col_nm(cmp)
 
     matched_ctrl_store_id = \
@@ -333,6 +337,8 @@ def get_txn_ctrl_store_feature_dur(cmp: CampaignEval,
 def get_txn_ctrl_store_total_dur(cmp: CampaignEval):
     """
     """
+    if not hasattr(cmp, "store_matching"):
+        store_matching.get_store_matching_across_region(cmp)    
     period_wk_col_nm = period_cal.get_period_wk_col_nm(cmp)
 
     matched_ctrl_store_id = \
@@ -434,7 +440,9 @@ def asso_size_ctrl_dur(cmp: CampaignEval,
 def get_txn_ctrl_store_aisle_cross_cate_pre(cmp: CampaignEval):
     """
     """
-    store_matching.get_store_matching_across_region(cmp)
+    if not hasattr(cmp, "store_matching"):
+        store_matching.get_store_matching_across_region(cmp)
+        
     period_wk_col_nm = period_cal.get_period_wk_col_nm(cmp)
 
     cross_cate_target_store = \
@@ -470,6 +478,9 @@ def get_txn_ctrl_store_feature_pre(cmp: CampaignEval,
                                prd_scope_df: SparkDataFrame):
     """
     """
+    if not hasattr(cmp, "store_matching"):
+        store_matching.get_store_matching_across_region(cmp)
+    
     period_wk_col_nm = period_cal.get_period_wk_col_nm(cmp)
 
     matched_ctrl_store_id = \
@@ -492,6 +503,9 @@ def get_txn_ctrl_store_feature_pre(cmp: CampaignEval,
 def get_txn_ctrl_store_total_pre(cmp: CampaignEval):
     """
     """
+    if not hasattr(cmp, "store_matching"):
+        store_matching.get_store_matching_across_region(cmp)
+    
     period_wk_col_nm = period_cal.get_period_wk_col_nm(cmp)
 
     matched_ctrl_store_id = \
