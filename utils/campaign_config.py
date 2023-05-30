@@ -556,7 +556,7 @@ class CampaignEval(CampaignParams):
             avg_media_fee = self.media_fee / self.target_store.count()
             self.aisle_target_store_conf = \
                 (self.target_store
-                 .join(date_dim)
+                 .join(date_dim.hint("range_join", 7))
                  .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
                  .join(self.aisle_sku)
                  .withColumn("media_fee", F.lit(avg_media_fee))
