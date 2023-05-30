@@ -90,7 +90,10 @@ def asso_size_target_dur(cmp: CampaignEval,
     size_feat_in_asso = \
         (feat_txn
          .join(bask_asso, "transaction_uid")
-         .agg(F.sum("net_spend_amt").alias("sales"),
+         .agg(F.count_distinct("store_id").alias("store_selling"),
+              F.count_distinct("week_id").alias("week_selling"),
+              F.sum("net_spend_amt").alias("sales"),
+              F.sum("unit").alias("units"),
               F.count_distinct("transaction_uid").alias("visits"),
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
          )
@@ -98,18 +101,23 @@ def asso_size_target_dur(cmp: CampaignEval,
         )
     size_feat = \
         (feat_txn
-         .agg(F.sum("net_spend_amt").alias("sales"),
+         .agg(F.count_distinct("store_id").alias("store_selling"),
+              F.count_distinct("week_id").alias("week_selling"),
+              F.sum("net_spend_amt").alias("sales"),
+              F.sum("unit").alias("units"),
               F.count_distinct("transaction_uid").alias("visits"),
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
          )
          .withColumn("bask_type", F.lit("feat"))
-
         )
 
     size_aisle_in_asso = \
         (aisle_txn
          .join(bask_asso, "transaction_uid")
-         .agg(F.sum("net_spend_amt").alias("sales"),
+         .agg(F.count_distinct("store_id").alias("store_selling"),
+              F.count_distinct("week_id").alias("week_selling"),
+              F.sum("net_spend_amt").alias("sales"),
+              F.sum("unit").alias("units"),
               F.count_distinct("transaction_uid").alias("visits"),
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
          )
@@ -118,7 +126,10 @@ def asso_size_target_dur(cmp: CampaignEval,
         )
     size_aisle = \
         (aisle_txn
-         .agg(F.sum("net_spend_amt").alias("sales"),
+         .agg(F.count_distinct("store_id").alias("store_selling"),
+              F.count_distinct("week_id").alias("week_selling"),
+              F.sum("net_spend_amt").alias("sales"),
+              F.sum("unit").alias("units"),
               F.count_distinct("transaction_uid").alias("visits"),
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
             )
@@ -126,7 +137,10 @@ def asso_size_target_dur(cmp: CampaignEval,
         )
     total_store = \
         (total_txn
-         .agg(F.sum("net_spend_amt").alias("sales"),
+         .agg(F.count_distinct("store_id").alias("store_selling"),
+              F.count_distinct("week_id").alias("week_selling"),
+              F.sum("net_spend_amt").alias("sales"),
+              F.sum("unit").alias("units"),
               F.count_distinct("transaction_uid").alias("visits"),
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
             )
@@ -219,7 +233,10 @@ def asso_size_target_pre(cmp: CampaignEval,
     size_feat_in_asso = \
         (feat_txn
          .join(bask_asso, "transaction_uid")
-         .agg(F.sum("net_spend_amt").alias("sales"),
+         .agg(F.count_distinct("store_id").alias("store_selling"),
+              F.count_distinct("week_id").alias("week_selling"),
+              F.sum("net_spend_amt").alias("sales"),
+              F.sum("unit").alias("units"),
               F.count_distinct("transaction_uid").alias("visits"),
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
          )
@@ -227,7 +244,10 @@ def asso_size_target_pre(cmp: CampaignEval,
         )
     size_feat = \
         (feat_txn
-         .agg(F.sum("net_spend_amt").alias("sales"),
+         .agg(F.count_distinct("store_id").alias("store_selling"),
+              F.count_distinct("week_id").alias("week_selling"),
+              F.sum("net_spend_amt").alias("sales"),
+              F.sum("unit").alias("units"),
               F.count_distinct("transaction_uid").alias("visits"),
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
          )
@@ -237,7 +257,10 @@ def asso_size_target_pre(cmp: CampaignEval,
     size_aisle_in_asso = \
         (aisle_txn
          .join(bask_asso, "transaction_uid")
-         .agg(F.sum("net_spend_amt").alias("sales"),
+         .agg(F.count_distinct("store_id").alias("store_selling"),
+              F.count_distinct("week_id").alias("week_selling"),
+              F.sum("net_spend_amt").alias("sales"),
+              F.sum("unit").alias("units"),
               F.count_distinct("transaction_uid").alias("visits"),
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
          )
@@ -245,7 +268,10 @@ def asso_size_target_pre(cmp: CampaignEval,
         )
     size_aisle = \
         (aisle_txn
-         .agg(F.sum("net_spend_amt").alias("sales"),
+         .agg(F.count_distinct("store_id").alias("store_selling"),
+              F.count_distinct("week_id").alias("week_selling"),
+              F.sum("net_spend_amt").alias("sales"),
+              F.sum("unit").alias("units"),
               F.count_distinct("transaction_uid").alias("visits"),
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
             )
@@ -254,7 +280,10 @@ def asso_size_target_pre(cmp: CampaignEval,
 
     total_store = \
         (total_txn
-         .agg(F.sum("net_spend_amt").alias("sales"),
+         .agg(F.count_distinct("store_id").alias("store_selling"),
+              F.count_distinct("week_id").alias("week_selling"),
+              F.sum("net_spend_amt").alias("sales"),
+              F.sum("unit").alias("units"),
               F.count_distinct("transaction_uid").alias("visits"),
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
             )
@@ -275,7 +304,7 @@ def asso_size_target_pre(cmp: CampaignEval,
 def get_txn_ctrl_store_aisle_cross_cate_dur(cmp: CampaignEval):
     """
     """
-    if not hasattr(cmp, "store_matching"):
+    if not hasattr(cmp, "matched_store"):
         store_matching.get_store_matching_across_region(cmp)
     period_wk_col_nm = period_cal.get_period_wk_col_nm(cmp)
 
@@ -312,7 +341,7 @@ def get_txn_ctrl_store_feature_dur(cmp: CampaignEval,
                                prd_scope_df: SparkDataFrame):
     """
     """
-    if not hasattr(cmp, "store_matching"):
+    if not hasattr(cmp, "matched_store"):
         store_matching.get_store_matching_across_region(cmp)
 
     period_wk_col_nm = period_cal.get_period_wk_col_nm(cmp)
@@ -337,7 +366,7 @@ def get_txn_ctrl_store_feature_dur(cmp: CampaignEval,
 def get_txn_ctrl_store_total_dur(cmp: CampaignEval):
     """
     """
-    if not hasattr(cmp, "store_matching"):
+    if not hasattr(cmp, "matched_store"):
         store_matching.get_store_matching_across_region(cmp)    
     period_wk_col_nm = period_cal.get_period_wk_col_nm(cmp)
 
@@ -385,7 +414,10 @@ def asso_size_ctrl_dur(cmp: CampaignEval,
     size_feat_in_asso = \
         (feat_txn
          .join(bask_asso, "transaction_uid")
-         .agg(F.sum("net_spend_amt").alias("sales"),
+         .agg(F.count_distinct("store_id").alias("store_selling"),
+              F.count_distinct("week_id").alias("week_selling"),
+              F.sum("net_spend_amt").alias("sales"),
+              F.sum("unit").alias("units"),
               F.count_distinct("transaction_uid").alias("visits"),
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
          )
@@ -393,7 +425,10 @@ def asso_size_ctrl_dur(cmp: CampaignEval,
         )
     size_feat = \
         (feat_txn
-         .agg(F.sum("net_spend_amt").alias("sales"),
+         .agg(F.count_distinct("store_id").alias("store_selling"),
+              F.count_distinct("week_id").alias("week_selling"),
+              F.sum("net_spend_amt").alias("sales"),
+              F.sum("unit").alias("units"),
               F.count_distinct("transaction_uid").alias("visits"),
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
          )
@@ -403,7 +438,10 @@ def asso_size_ctrl_dur(cmp: CampaignEval,
     size_aisle_in_asso = \
         (aisle_txn
          .join(bask_asso, "transaction_uid")
-         .agg(F.sum("net_spend_amt").alias("sales"),
+         .agg(F.count_distinct("store_id").alias("store_selling"),
+              F.count_distinct("week_id").alias("week_selling"),
+              F.sum("net_spend_amt").alias("sales"),
+              F.sum("unit").alias("units"),
               F.count_distinct("transaction_uid").alias("visits"),
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
          )
@@ -411,7 +449,10 @@ def asso_size_ctrl_dur(cmp: CampaignEval,
         )
     size_aisle = \
         (aisle_txn
-         .agg(F.sum("net_spend_amt").alias("sales"),
+         .agg(F.count_distinct("store_id").alias("store_selling"),
+              F.count_distinct("week_id").alias("week_selling"),
+              F.sum("net_spend_amt").alias("sales"),
+              F.sum("unit").alias("units"),
               F.count_distinct("transaction_uid").alias("visits"),
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
             )
@@ -420,7 +461,10 @@ def asso_size_ctrl_dur(cmp: CampaignEval,
 
     total_store = \
         (total_txn
-         .agg(F.sum("net_spend_amt").alias("sales"),
+         .agg(F.count_distinct("store_id").alias("store_selling"),
+              F.count_distinct("week_id").alias("week_selling"),
+              F.sum("net_spend_amt").alias("sales"),
+              F.sum("unit").alias("units"),
               F.count_distinct("transaction_uid").alias("visits"),
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
             )
@@ -440,7 +484,7 @@ def asso_size_ctrl_dur(cmp: CampaignEval,
 def get_txn_ctrl_store_aisle_cross_cate_pre(cmp: CampaignEval):
     """
     """
-    if not hasattr(cmp, "store_matching"):
+    if not hasattr(cmp, "matched_store"):
         store_matching.get_store_matching_across_region(cmp)
         
     period_wk_col_nm = period_cal.get_period_wk_col_nm(cmp)
@@ -478,7 +522,7 @@ def get_txn_ctrl_store_feature_pre(cmp: CampaignEval,
                                prd_scope_df: SparkDataFrame):
     """
     """
-    if not hasattr(cmp, "store_matching"):
+    if not hasattr(cmp, "matched_store"):
         store_matching.get_store_matching_across_region(cmp)
     
     period_wk_col_nm = period_cal.get_period_wk_col_nm(cmp)
@@ -503,7 +547,7 @@ def get_txn_ctrl_store_feature_pre(cmp: CampaignEval,
 def get_txn_ctrl_store_total_pre(cmp: CampaignEval):
     """
     """
-    if not hasattr(cmp, "store_matching"):
+    if not hasattr(cmp, "matched_store"):
         store_matching.get_store_matching_across_region(cmp)
     
     period_wk_col_nm = period_cal.get_period_wk_col_nm(cmp)
@@ -552,7 +596,10 @@ def asso_size_ctrl_pre(cmp: CampaignEval,
     size_feat_in_asso = \
         (feat_txn
          .join(bask_asso, "transaction_uid")
-         .agg(F.sum("net_spend_amt").alias("sales"),
+         .agg(F.count_distinct("store_id").alias("store_selling"),
+              F.count_distinct("week_id").alias("week_selling"),
+              F.sum("net_spend_amt").alias("sales"),
+              F.sum("unit").alias("units"),
               F.count_distinct("transaction_uid").alias("visits"),
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
          )
@@ -560,7 +607,10 @@ def asso_size_ctrl_pre(cmp: CampaignEval,
         )
     size_feat = \
         (feat_txn
-         .agg(F.sum("net_spend_amt").alias("sales"),
+         .agg(F.count_distinct("store_id").alias("store_selling"),
+              F.count_distinct("week_id").alias("week_selling"),
+              F.sum("net_spend_amt").alias("sales"),
+              F.sum("unit").alias("units"),
               F.count_distinct("transaction_uid").alias("visits"),
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
          )
@@ -570,7 +620,10 @@ def asso_size_ctrl_pre(cmp: CampaignEval,
     size_aisle_in_asso = \
         (aisle_txn
          .join(bask_asso, "transaction_uid")
-         .agg(F.sum("net_spend_amt").alias("sales"),
+         .agg(F.count_distinct("store_id").alias("store_selling"),
+              F.count_distinct("week_id").alias("week_selling"),
+              F.sum("net_spend_amt").alias("sales"),
+              F.sum("unit").alias("units"),
               F.count_distinct("transaction_uid").alias("visits"),
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
          )
@@ -578,7 +631,10 @@ def asso_size_ctrl_pre(cmp: CampaignEval,
         )
     size_aisle = \
         (aisle_txn
-         .agg(F.sum("net_spend_amt").alias("sales"),
+         .agg(F.count_distinct("store_id").alias("store_selling"),
+              F.count_distinct("week_id").alias("week_selling"),
+              F.sum("net_spend_amt").alias("sales"),
+              F.sum("unit").alias("units"),
               F.count_distinct("transaction_uid").alias("visits"),
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
             )
@@ -586,7 +642,10 @@ def asso_size_ctrl_pre(cmp: CampaignEval,
         )
     total_store = \
         (total_txn
-         .agg(F.sum("net_spend_amt").alias("sales"),
+         .agg(F.count_distinct("store_id").alias("store_selling"),
+              F.count_distinct("week_id").alias("week_selling"),
+              F.sum("net_spend_amt").alias("sales"),
+              F.sum("unit").alias("units"),
               F.count_distinct("transaction_uid").alias("visits"),
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
             )
