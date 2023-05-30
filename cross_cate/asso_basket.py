@@ -679,7 +679,7 @@ def get_asso_kpi(cmp: CampaignEval,
             .groupBy("store_type", "period")
             .pivot("bask_type")
             .agg(F.first("visit_pen"))
-            .withColumn("lift", F.col("feat_is_asso") / (F.col("feat") * F.col("aisle")))
+            .withColumn("lift", F.col("feat_in_asso") / (F.col("feat") * F.col("aisle")))
     )
 
     growth = (lift
