@@ -36,7 +36,7 @@ def _agg_total(txn):
     
 def _agg_wkly(txn):
     
-    out = (txn.gropyBy("week_id")
+    out = (txn.groupBy("week_id")
            .agg(F.count_distinct("week_id").alias("week_selling"),
                 F.sum("net_spend_amt").alias("sales"),
                 F.sum("unit").alias("units"),
