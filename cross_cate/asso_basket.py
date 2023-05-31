@@ -501,7 +501,7 @@ def get_asso_kpi(cmp: CampaignEval,
               .withColumn("uplift", F.col("lift_growth") - F.col("ctrl_factor"))
     )
 
-    return uplift
+    return combine, lift, uplift
 
 #---- weekly trend
 def asso_size_target_dur_wkly(cmp: CampaignEval,
