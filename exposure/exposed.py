@@ -53,7 +53,9 @@ def get_store_mech_exposure_cmp(cmp: CampaignEval):
     pass
 
 def _exposure_all(cmp: CampaignEval):
-            
+    if not hasattr(cmp, "str_mech_exposure_cmp"):
+        get_store_mech_exposure_cmp(cmp)
+        
     #---- Overall Exposure    
     all_impression = \
     (cmp.str_mech_exposure_cmp
@@ -83,6 +85,8 @@ def _exposure_all(cmp: CampaignEval):
     return exposure_all
 
 def _exposure_region(cmp: CampaignEval):
+    if not hasattr(cmp, "str_mech_exposure_cmp"):
+        get_store_mech_exposure_cmp(cmp)    
     
     customer_by_region = cmp.txn_x_aisle_target_store.groupBy('store_region').agg(
         F.countDistinct(F.col('household_id')).alias('carded_customers'))
