@@ -72,7 +72,7 @@ def _exposure_all(cmp: CampaignEval):
             )
         )
 
-    all_store_customer = cmp.txn_x_aisle_target_store.agg(F.count_distinct(F.col('household_id')).alias('carded_customers')).collect()[0][0]
+    all_store_customer = cmp.txn_offline_x_aisle_target_store.agg(F.count_distinct(F.col('household_id')).alias('carded_customers')).collect()[0][0]
     
     exposure_all = \
     (all_impression
@@ -92,7 +92,7 @@ def _exposure_region(cmp: CampaignEval):
     if not hasattr(cmp, "txn_offline_x_aisle_target_store"):
         create_txn_offline_x_aisle_target_store(cmp)
             
-    customer_by_region = cmp.txn_x_aisle_target_store.groupBy('store_region').agg(
+    customer_by_region = cmp.txn_offline_x_aisle_target_store.groupBy('store_region').agg(
         F.countDistinct(F.col('household_id')).alias('carded_customers'))
     
     region_impression = \
