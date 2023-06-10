@@ -26,7 +26,10 @@ def get_store_mech_exposure_cmp(cmp: CampaignEval):
     
     create_txn_offline_x_aisle_target_store(cmp)
     
-    STORE_FMT_FAMILY_SIZE = cmp.spark.createDataFrame([("hde", 2.2), ("talad", 1.5), ("gofresh", 1.0)],["store_format_name", "family_size"])
+    STORE_FMT_FAMILY_SIZE = cmp.spark.createDataFrame([("hde", 2.2), ("talad", 1.5), ("gofresh", 1.0),
+                                                       ("HDE", 2.2), ("Talad", 1.5), ("GoFresh", 1.0),
+                                                       ("Hyper", 2.2), ("Super", 1.5), ("Mini Super", 1.0)]
+                                                      ,["store_format_name", "family_size"])
     family_size = STORE_FMT_FAMILY_SIZE.where(F.col("store_format_name")==cmp.store_fmt.lower())
 
     str_mech_visits = \
