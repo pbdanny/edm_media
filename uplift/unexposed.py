@@ -37,6 +37,7 @@ def create_txn_offline_x_aisle_matched_store(cmp: CampaignEval):
            "store_id"
            )
      .drop("store_id")
+     .withColumnRenamed("ctrl_store_id", "store_id")
     )
     
     cmp.txn_offline_x_aisle_matched_store = \
