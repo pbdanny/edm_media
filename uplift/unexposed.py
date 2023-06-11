@@ -96,7 +96,7 @@ def get_cust_any_mech_unexposed_purchased(cmp: CampaignEval,
                      F.col("first_purchase_date")
                     )
              .drop_duplicates()
-             .withColumn("customer_group", F.lit("activated"))
+             .withColumn("customer_group", F.lit("unexposed_purchased"))
              .withColumn('level', F.lit(prd_scope_nm))
 
              )
