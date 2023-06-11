@@ -17,13 +17,17 @@ spark = SparkSession.builder.appName("campaingEval").getOrCreate()
 
 from utils import period_cal
 from activate import activated
+from matching import store_matching
 
 #---- Create txn offline at aisle of matched store
 def create_txn_offline_x_aisle_matched_store(cmp: CampaignEval):
-    
+    """Create txn offline x aisle based on matched store
+    """
+    if not hasattr(cmp, "matched_store"):
+        store_matching.get_store_matching_across_region(cmp)    
+
     cmp.aisle_matched_store = \
-    (cmp
-     .aisle_target_store_conf
+    (cmp.aisle_target_store_conf
      .join(cmp.matched_store.select(F.col("test_store_id").alias("store_id"), "ctrl_store_id").drop_duplicates(),
            "store_id"
            )

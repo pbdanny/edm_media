@@ -28,8 +28,8 @@ from utils import period_cal
 
 #---- Developing
 def get_store_matching_across_region(cmp: CampaignEval,
-                                         matching_methodology: str = 'cosine_distance',
-                                         bad_match_threshold: float = 2.5):
+                                     matching_methodology: str = 'cosine_distance',
+                                     bad_match_threshold: float = 2.5):
     """
     Parameters
     ----------
