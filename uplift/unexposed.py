@@ -88,11 +88,11 @@ def get_cust_any_mech_unexposed_purchased(cmp: CampaignEval,
     cust_unexposed_purchased = \
         (cust_first_unexposed
          .join(cust_first_prod_purchase, "household_id", "left")
-             .where(F.col('first_exposed_date').isNotNull())
+             .where(F.col('first_unexposed_date').isNotNull())
              .where(F.col('first_purchase_date').isNotNull())
-             .where(F.col('first_exposed_date') <= F.col('first_purchase_date'))
+             .where(F.col('first_unexposed_date') <= F.col('first_purchase_date'))
              .select(F.col("household_id"),
-                     F.col('first_exposed_date'),
+                     F.col('first_unexposed_date'),
                      F.col("first_purchase_date")
                     )
              .drop_duplicates()
