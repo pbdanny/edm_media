@@ -14,7 +14,7 @@ from pyspark.sql import Window
 
 from utils.DBPath import DBPath
 from utils.campaign_config import CampaignEval
-from exposure.exposed import create_txn_x_aisle_target_store
+from exposure.exposed import create_txn_offline_x_aisle_target_store
 
 def get_cust_movement(cmp: CampaignEval,
                       sku_activated: SparkDataFrame):
