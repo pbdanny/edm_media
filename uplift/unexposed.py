@@ -22,6 +22,11 @@ from matching import store_matching
 #---- Create txn offline at aisle of matched store
 def create_txn_offline_x_aisle_matched_store(cmp: CampaignEval):
     """Create txn offline x aisle based on matched store
+    UnExposed
+    - Offline channel
+    - Matched store
+    - Aisle definition based on matched target store aisle
+    - Period based on matched target store config
     """
     if not hasattr(cmp, "matched_store"):
         store_matching.get_store_matching_across_region(cmp)    
