@@ -140,7 +140,7 @@ def _exposure_mech(cmp: CampaignEval):
               F.sum('media_fee').alias("media_fee"),
               (F.sum("media_fee") / ( F.sum('epos_impression') / 1000)).alias("cpm"),
               )
-         .join(customer_by_mech, ["store_id", "mech_name"], "left")
+         .join(customer_by_mech, ["mech_name"], "left")
          .withColumn('carded_reach', F.col('carded_customers'))
          .withColumn('avg_carded_freq', F.col('carded_visits')/F.col('carded_reach'))
          .withColumn('est_non_carded_reach', F.col('non_carded_visits')/F.col('avg_carded_freq'))
