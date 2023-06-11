@@ -118,30 +118,56 @@ def _exposure_region(cmp: CampaignEval):
         )
         
     return region_impression
+
+def _exposure_mech(cmp: CampaignEval):
+    if not hasattr(cmp, "str_mech_exposure_cmp"):
+        get_store_mech_exposure_cmp(cmp)    
+    if not hasattr(cmp, "txn_offline_x_aisle_target_store"):
+        create_txn_offline_x_aisle_target_store(cmp)
+            
+    customer_by_mech = cmp.txn_offline_x_aisle_target_store.groupBy('mech_name').agg(
+        F.countDistinct(F.col('household_id')).alias('carded_customers'))
     
+    mech_impression = \
+        (cmp.str_mech_exposure_cmp
+         .groupBy('mech_name')
+         .agg(F.sum('epos_visits').alias('epos_visits'),
+              F.sum('carded_visits').alias('carded_visits'),
+              F.sum('non_carded_visits').alias('non_carded_visits'),
+              F.sum('epos_impression').alias('epos_impression'),
+              F.sum('carded_impression').alias('carded_impression'),
+              F.sum('non_carded_impression').alias('non_carded_impression'),
+              F.sum('media_fee').alias("media_fee"),
+              (F.sum("media_fee") / ( F.sum('epos_impression') / 1000)).alias("cpm"),
+              )
+         .join(customer_by_mech, ["store_id", "mech_name"], "left")
+         .withColumn('carded_reach', F.col('carded_customers'))
+         .withColumn('avg_carded_freq', F.col('carded_visits')/F.col('carded_reach'))
+         .withColumn('est_non_carded_reach', F.col('non_carded_visits')/F.col('avg_carded_freq'))
+         .withColumn('total_reach', F.col('carded_reach') + F.col('est_non_carded_reach'))
+        )
+        
+    return mech_impression
+   
 def get_exposure(cmp: CampaignEval):
         
     if cmp.params["aisle_mode"] in ["total_store"]:
         cmp.params["exposure_type"] = "store_lv"
-        create_txn_offline_x_aisle_target_store(cmp)
-        exposure_all = _exposure_all(cmp)
-        exposure_region = _exposure_region(cmp)
-        return exposure_all, exposure_region
 
     elif cmp.params["aisle_mode"] in ["homeshelf", "cross_cate"]:
         cmp.params["exposure_type"] = "aisle_lv"
-        create_txn_offline_x_aisle_target_store(cmp)
-        exposure_all = _exposure_all(cmp)
-        exposure_region = _exposure_region(cmp)
-        return exposure_all, exposure_region
 
     elif cmp.params["aisle_mode"] in ["target_store_config"]:
         cmp.params["exposure_type"] = "target_store_config"
-        create_txn_offline_x_aisle_target_store(cmp)
-        exposure_all = _exposure_all(cmp)
-        exposure_region = _exposure_region(cmp)
-        return exposure_all, exposure_region
-        
+    
+    else:
+        pass
+    
+    exposure_all = _exposure_all(cmp)
+    exposure_region = _exposure_region(cmp)
+    exposure_mech = _exposure_mech(cmp)
+    return exposure_all, exposure_region, exposure_mech
+
 def get_awareness(cmp: CampaignEval):
     """For Awareness of HDE, Talad
 

@@ -581,7 +581,7 @@ class CampaignEval(CampaignParams):
 
             self.aisle_target_store_conf = \
                 (self.target_store
-                 .join(date_dim)
+                 .join(date_dim.hint("range_join", 14))
                  .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
                  .join(self.aisle_sku)
                  .withColumn("media_fee", F.lit(avg_media_fee))
@@ -597,7 +597,7 @@ class CampaignEval(CampaignParams):
 
             self.aisle_target_store_conf = \
                 (self.target_store
-                 .join(date_dim)
+                 .join(date_dim.hint("range_join", 14))
                  .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
                  .join(self.aisle_sku)
                  .withColumn("media_fee", F.lit(avg_media_fee))
@@ -635,7 +635,7 @@ class CampaignEval(CampaignParams):
                  .drop("subclass_code")
                  .join(adj_tbl, "group")
                  .join(prd_dim, "subclass_code")
-                 .join(date_dim)
+                 .join(date_dim.hint("range_join", 14))
                  .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
                  )
             
@@ -646,7 +646,7 @@ class CampaignEval(CampaignParams):
                  .drop("subclass_code")
                  .join(adj_tbl, "group")
                  .join(prd_dim, "subclass_code")
-                 .join(date_dim)
+                 .join(date_dim.hint("range_join", 14))
                  .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
                  )
                 
@@ -654,7 +654,7 @@ class CampaignEval(CampaignParams):
                 (self.target_store
                  .where(F.col("aisle_scope").isin(["store"]))
                  .join(prd_dim)
-                 .join(date_dim)
+                 .join(date_dim.hint("range_join", 14))
                  .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
                  )
             self.aisle_target_store_conf = \
