@@ -1085,8 +1085,11 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
     # Unexposed
     non_cmp_shppr_exposure_tag = activated.get_cust_by_mech_last_seen_exposed_tag(cmp, prd_scope_df, prd_scope_nm)
     
-    # Add the two lists together
+    # Concat Exposed - Unexposed
     exposed_unexposed_buy_flag_by_mech = cmp_shppr_last_seen_tag.unionByName(non_cmp_shppr_exposure_tag)
+
+
+
 
     # Show summary in cell output
     print('exposure groups new logic:')
