@@ -103,9 +103,9 @@ def get_cust_any_mech_unexposed_purchased(cmp: CampaignEval,
     return cust_unexposed_purchased
 
 #---- Unexposure by mechanics
-def get_cust_all_unexposed_by_mech(cmp: CampaignEval):
+def get_cust_txn_all_unexposed_date_n_mech(cmp: CampaignEval):
     create_txn_offline_x_aisle_matched_store(cmp)
-    cust_all_unexposed = \
+    cust_txn_unexposed_mech = \
         (cmp.txn_offline_x_aisle_matched_store
          .where(F.col("household_id").isNotNull())
          .select('household_id', 'transaction_uid', 'tran_datetime', 'mech_name', 'aisle_scope')
@@ -113,15 +113,13 @@ def get_cust_all_unexposed_by_mech(cmp: CampaignEval):
          .withColumnRenamed('transaction_uid', 'unexposed_transaction_uid')
          .withColumnRenamed('tran_datetime', 'unexposed_tran_datetime')
         )
-    return cust_all_unexposed
+    return cust_txn_unexposed_mech
 
-def get_cust_by_mech_last_seen_unexposed_tag(cmp: CampaignEval,
-                                             prd_scope_df: SparkDataFrame,
-                                             prd_scope_nm: str):
-    """
-    """
-    cust_all_unexposed = get_cust_all_unexposed_by_mech(cmp)
-    cust_all_prod_purchase = activated.get_cust_all_prod_purchase_date(cmp, prd_scope_df)
+def get_cust_by_mech_purchased_unexposed(cmp: CampaignEval,
+                                         prd_scope_df: SparkDataFrame,
+                                         prd_scope_nm: str):
+    cust_all_unexposed = get_cust_txn_all_unexposed_date_n_mech(cmp)
+    cust_all_prod_purchase = activated.get_cust_txn_all_prod_purchase_date(cmp, prd_scope_df)
 
     txn_each_purchase_most_recent_media_unexposed = \
     (cust_all_unexposed
@@ -131,12 +129,19 @@ def get_cust_by_mech_last_seen_unexposed_tag(cmp: CampaignEval,
     .withColumn('recency_rank', F.dense_rank().over(Window.partitionBy('purchase_transaction_uid').orderBy(F.col('time_diff'))))
     .where(F.col('recency_rank') == 1).drop_duplicates()
     )
-    purchased_unexposure_count = \
+    cust_purchased_unexposure_count = \
         (txn_each_purchase_most_recent_media_unexposed
         .groupBy('household_id', 'mech_name')
         .agg(F.count_distinct(F.col('purchase_transaction_uid')).alias("n_visit_purchased_unexposure"))
         )
+    return cust_purchased_unexposure_count
 
+def get_cust_by_mech_last_seen_unexposed_tag(cmp: CampaignEval,
+                                             prd_scope_df: SparkDataFrame,
+                                             prd_scope_nm: str):
+    
+    purchased_unexposure_count = get_cust_by_mech_purchased_unexposed(cmp, prd_scope_df, prd_scope_nm)
+    
     purchased_unexposure_n_mech = purchased_unexposure_count.select("mech_name").drop_duplicates().count()
 
     purchased_unexposure_flagged_pv = \

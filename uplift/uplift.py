@@ -176,22 +176,26 @@ def get_cust_uplift_any_mech(cmp: CampaignEval,
     return uplift_out
 
 #---- Original code
-def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
-                                     cp_start_date: str,
-                                     cp_end_date: str,
-                                     wk_type: str,
-                                     test_store_sf: SparkDataFrame,
-                                     adj_prod_sf: SparkDataFrame,
-                                     brand_sf: SparkDataFrame,
-                                     feat_sf: SparkDataFrame,
-                                     ctr_store_list: List,
-                                     cust_uplift_lv: str,
-                                     store_matching_df_var: SparkDataFrame):
+def get_customer_uplift_per_mechanic(cmp: CampaignEval,
+                                     prd_scope_df: SparkDataFrame,
+                                     prd_scope_nm: str):
+    
     """Customer Uplift : Exposed vs Unexposed
     Exposed : shop adjacency product during campaing in test store
     Unexpose : shop adjacency product during campaing in control store
     In case customer exposed and unexposed -> flag customer as exposed
     """
+    txn = cmp.txn
+    cp_start_date = cmp.cmp_start                                 
+    cp_end_date = cmp.cmp_end
+    wk_type = cmp.wk_type
+    test_store_sf = cmp.target_store
+    adj_prod_sf = cmp.aisle_sku
+    brand_sf = cmp.feat_brand_sku
+    feat_sf = cmp.feat_sku
+    ctr_store_list = cmp.matched_store_list
+    cust_uplift_lv = prd_scope_nm
+    store_matching_df_var = cmp.matched_store
     
     #--- Helper fn
     def _get_period_wk_col_nm(wk_type: str
@@ -1080,49 +1084,37 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
     num_of_mechanics = len(mechanic_list)
 
     # Exposed
-    cmp_shppr_last_seen_tag = activated.get_cust_by_mech_last_seen_exposed_tag(cmp, prd_scope_df, prd_scope_nm)
+    cust_exposed_by_mech = activated.get_cust_txn_all_exposed_date_n_mech(cmp).select("household_id", "mech_name").drop_duplicates()
+    cust_purchased_exposed = activated.get_cust_by_mech_purchased_exposed(cmp, prd_scope_df, prd_scope_nm).drop_duplicates()
     
     # Unexposed
-    non_cmp_shppr_exposure_tag = activated.get_cust_by_mech_last_seen_exposed_tag(cmp, prd_scope_df, prd_scope_nm)
+    cust_unexposed_by_mech = unexposed.get_cust_txn_all_unexposed_date_n_mech(cmp).select("household_id", "mech_name").drop_duplicates()
+    cust_purchased_unexposed = activated.get_cust_by_mech_purchased_unexposed(cmp, prd_scope_df, prd_scope_nm).drop_duplicates()
     
-    # Concat Exposed - Unexposed
-    exposed_unexposed_buy_flag_by_mech = cmp_shppr_last_seen_tag.unionByName(non_cmp_shppr_exposure_tag)
-
-
-
-
-    # Show summary in cell output
-    print('exposure groups new logic:')
-    exposed_unexposed_buy_flag_by_mech.groupBy('group').pivot('total_mechanics_exposed').agg(F.countDistinct(F.col('household_id'))).fillna(0).show()
-
-    ##---- Movement : prior - pre
-    prior_pre = _get_mvmnt_prior_pre(txn=txn, period_wk_col=period_wk_col, prd_scope_df=prd_scope_df)
-
-    ##---- Flag customer movement and exposure
-    movement_and_exposure_by_mech = \
-    (exposed_unexposed_buy_flag_by_mech
-     .join(prior_pre,'household_id', 'left')
-     .withColumn('customer_mv_group',
-                 F.when(F.col('pre_spending')>0,'existing')
-                  .when(F.col('prior_spending')>0,'lapse')
-                  .otherwise('new'))
+    # Combined Exposed - Unexposed
+    cust_exposed_unexposed = (cust_exposed_by_mech.select("household_id")
+                              .unionByName(cust_unexposed_by_mech.select("household_id"))
+                              .drop_duplicates()
     )
     
-    username_str = dbutils.notebook.entry_point.getDbutils().notebook().getContext().userName().get().replace('.', '').replace('@', '')
+    # Cust mechname exposed, mechname unexposed
+     = (cust_exposed_unexposed
+         .join(cust_exposed_by_mech.withColumnRenamed("mech_name", "exposed"), "household_id", "left")
+         .join(cust_unexposed_by_mech.withColumnRenamed("mech_name", "unexposed"),"household_id", "left")
+         .join(cust_purchased_exposed.select("household_id", "mech_name").withColumnRenamed("mech_name", "exposed_purchased"), "left")
+         .join(cust_purchased_unexposed.select("household_id", "mech_name").withColumnRenamed("mech_name", "unexposed_purchased"), "left")
+        )
 
-    # Save and load temp table
-    spark.sql('DROP TABLE IF EXISTS tdm_seg.cust_uplift_by_mech_temp' + username_str)
-    movement_and_exposure_by_mech.write.saveAsTable('tdm_seg.cust_uplift_by_mech_temp' + username_str)
+    # Movement : prior - pre
+    cust_mv = _get_cust_mvmnt_ppp_pre(cmp, prd_scope_df, prd_scope_nm)
+    cust_mv.groupBy('customer_mv_group').agg(F.countDistinct('household_id')).display()
 
-    movement_and_exposure_by_mech = spark.table('tdm_seg.cust_uplift_by_mech_temp' + username_str)
-
-    print('customer movement new logic:')
-    movement_and_exposure_by_mech.groupBy('customer_mv_group').pivot('group').agg(F.countDistinct('household_id')).show()
-
-
-    ##---- Uplift Calculation by mechanic
-
-    # Total customers for each exposure tag (Non-exposed Purchased, Non-exposed Non-purchased, Exposed Purchased, Exposed Non-purchased)
+    # Flag customer movement and exposure
+    movement_and_exposure_by_mech = (cust_exposed_unexposed_purchased
+                                     .join(cust_mv.select("household_id", "customer_mv_group").drop_duplicates(), 'household_id', 'inner')
+                                     )
+    
+    # Uplift Calculation by mechanic
     n_cust_total_non_exposed_purchased = movement_and_exposure_by_mech.filter(F.col('group') == 'Non_exposed_Purchased') \
                                                                       .groupBy('customer_mv_group') \
                                                                       .agg(F.countDistinct(F.col('household_id')).alias('Non_exposed_Purchased_all')) \

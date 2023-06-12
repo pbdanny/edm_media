@@ -581,9 +581,9 @@ def get_cust_any_mech_activated_sales(cmp: CampaignEval,
     return actv_sales_df, sum_actv_sales_df
 
 #---- Exposure by mechanics
-def get_cust_all_exposed_by_mech(cmp: CampaignEval):
+def get_cust_txn_all_exposed_date_n_mech(cmp: CampaignEval):
     create_txn_offline_x_aisle_target_store(cmp)
-    cust_all_exposed = \
+    cust_txn_exposed_mech = \
         (cmp.txn_offline_x_aisle_target_store
          .where(F.col("household_id").isNotNull())
          .select('household_id', 'transaction_uid', 'tran_datetime', 'mech_name', 'aisle_scope')
@@ -591,9 +591,9 @@ def get_cust_all_exposed_by_mech(cmp: CampaignEval):
          .withColumnRenamed('transaction_uid', 'exposed_transaction_uid')
          .withColumnRenamed('tran_datetime', 'exposed_tran_datetime')
         )
-    return cust_all_exposed
+    return cust_txn_exposed_mech
 
-def get_cust_all_prod_purchase_date(cmp: CampaignEval,
+def get_cust_txn_all_prod_purchase_date(cmp: CampaignEval,
                                 prd_scope_df: SparkDataFrame):
     """Get all brand shopped date or feature shopped date, based on input upc_id
     Shopper in campaign period at any store format & any channel
@@ -612,13 +612,11 @@ def get_cust_all_prod_purchase_date(cmp: CampaignEval,
         )
     return cust_all_prod_purchase
 
-def get_cust_by_mech_last_seen_exposed_tag(cmp: CampaignEval,
-                                 prd_scope_df: SparkDataFrame,
-                                 prd_scope_nm: str):
-    """
-    """
-    cust_all_exposed = get_cust_all_exposed_by_mech(cmp)
-    cust_all_prod_purchase = get_cust_all_prod_purchase_date(cmp, prd_scope_df)
+def get_cust_by_mech_purchased_exposed(cmp: CampaignEval,
+                               prd_scope_df: SparkDataFrame,
+                               prd_scope_nm: str):
+    cust_all_exposed = get_cust_txn_all_exposed_date_n_mech(cmp)
+    cust_all_prod_purchase = get_cust_txn_all_prod_purchase_date(cmp, prd_scope_df)
 
     txn_each_purchase_most_recent_media_exposed = \
     (cust_all_exposed
@@ -628,12 +626,18 @@ def get_cust_by_mech_last_seen_exposed_tag(cmp: CampaignEval,
     .withColumn('recency_rank', F.dense_rank().over(Window.partitionBy('purchase_transaction_uid').orderBy(F.col('time_diff'))))
     .where(F.col('recency_rank') == 1).drop_duplicates()
     )
-    purchased_exposure_count = \
+    cust_purchased_exposure_count = \
         (txn_each_purchase_most_recent_media_exposed
         .groupBy('household_id', 'mech_name')
         .agg(F.count_distinct(F.col('purchase_transaction_uid')).alias("n_visit_purchased_exposure"))
         )
+    
+    return cust_purchased_exposure_count
 
+def get_cust_by_mech_last_seen_exposed_tag(cmp: CampaignEval,
+                                 prd_scope_df: SparkDataFrame,
+                                 prd_scope_nm: str):
+    purchased_exposure_count = get_cust_by_mech_purchased_exposed(cmp, prd_scope_df, prd_scope_nm)
     purchased_exposure_n_mech = purchased_exposure_count.select("mech_name").drop_duplicates().count()
 
     purchased_exposure_flagged_pv = \
@@ -698,8 +702,8 @@ def get_bask_by_aisle_scope_last_seen(cmp: CampaignEval,
                                           prd_scope_nm: str):
     """
     """
-    get_cust_all_exposed_by_mech(cmp)
-    get_cust_all_prod_purchase_date(cmp, prd_scope_df)
+    get_cust_txn_all_exposed_date_n_mech(cmp)
+    get_cust_txn_all_prod_purchase_date(cmp, prd_scope_df)
 
     txn_each_purchase_most_recent_media_exposed = \
     (cmp.cust_all_exposed
