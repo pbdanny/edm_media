@@ -70,11 +70,11 @@ def get_cust_uplift_any_mech(cmp: CampaignEval,
     cust_unexposed = unexposed.get_cust_first_unexposed_any_mech(cmp)
     cust_unexposed_purchased = unexposed.get_cust_any_mech_unexposed_purchased(cmp, prd_scope_df, prd_scope_nm)
 
-    exposed_flag = cust_exposed.select("household_id").drop_duplicated().withColumn("exposed_flag", F.lit(1))
-    unexposed_flag = cust_unexposed.select("household_id").drop_duplicated().withColumn("unexposed_flag", F.lit(1))
+    exposed_flag = cust_exposed.select("household_id").drop_duplicates().withColumn("exposed_flag", F.lit(1))
+    unexposed_flag = cust_unexposed.select("household_id").drop_duplicates().withColumn("unexposed_flag", F.lit(1))
     exposed_x_unexposed_flag = exposed_flag.join(unexposed_flag, 'household_id', 'outer').fillna(0)
-    exposed_purchased_flag = cust_exposed_purchased.select("household_id").drop_duplicated().withColumn('exposed_and_purchased_flag', F.lit(1))
-    unexposed_purchased_flag = cust_unexposed_purchased.select("household_id").drop_duplicated().withColumn('unexposed_and_purchased_flag', F.lit(1))
+    exposed_purchased_flag = cust_exposed_purchased.select("household_id").drop_duplicates().withColumn('exposed_and_purchased_flag', F.lit(1))
+    unexposed_purchased_flag = cust_unexposed_purchased.select("household_id").drop_duplicates().withColumn('unexposed_and_purchased_flag', F.lit(1))
     
     # Combine flagged customer Exposed, UnExposed, Exposed-Purchased, UnExposed-Purchased
     exposure_x_purchased_flag = \
