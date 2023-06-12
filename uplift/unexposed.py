@@ -151,7 +151,7 @@ def get_cust_by_mech_last_seen_unexposed_tag(cmp: CampaignEval,
     total_purchased_unexposure_flagged_by_cust = \
         (purchased_unexposure_flagged_pv
          .withColumn('level', F.lit(prd_scope_nm))
-         .withColumn('total_mechanics_exposed',
+         .withColumn('total_mechanics_unexposed',
             sum(purchased_unexposure_flagged_pv[col] for col in purchased_unexposure_flagged_pv.columns[1:purchased_unexposure_n_mech+1]))
          )
         
