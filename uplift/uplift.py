@@ -1099,11 +1099,11 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
 
     # Exposed
     cust_exposed_by_mech = activated.get_cust_txn_all_exposed_date_n_mech(cmp).select("household_id", "mech_name").drop_duplicates()
-    cust_purchased_exposed = activated.get_cust_by_mech_purchased_exposed(cmp, prd_scope_df, prd_scope_nm).drop_duplicates()
+    cust_exposed_purchased = activated.get_cust_by_mech_exposed_purchased(cmp, prd_scope_df, prd_scope_nm).drop_duplicates()
     
     # Unexposed
     cust_unexposed_by_mech = unexposed.get_cust_txn_all_unexposed_date_n_mech(cmp).select("household_id", "mech_name").drop_duplicates()
-    cust_purchased_unexposed = unexposed.get_cust_by_mech_purchased_unexposed(cmp, prd_scope_df, prd_scope_nm).drop_duplicates()
+    cust_unexposed_purchased = unexposed.get_cust_by_mech_unexposed_purchased(cmp, prd_scope_df, prd_scope_nm).drop_duplicates()
     
     # Combined Exposed - Unexposed
     cust_exposed_unexposed = (cust_exposed_by_mech.select("household_id")
@@ -1112,11 +1112,11 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
     )
     
     # Cust mechname exposed, mechname unexposed
-    all_cust = (cust_exposed_unexposed
+    cust_exp_unexp_x_purchased = (cust_exposed_unexposed
          .join(cust_exposed_by_mech.withColumnRenamed("mech_name", "exposed"), "household_id", "left")
          .join(cust_unexposed_by_mech.withColumnRenamed("mech_name", "unexposed"),"household_id", "left")
-         .join(cust_purchased_exposed.select("household_id", "mech_name").withColumnRenamed("mech_name", "exposed_purchased"), "left")
-         .join(cust_purchased_unexposed.select("household_id", "mech_name").withColumnRenamed("mech_name", "unexposed_purchased"), "left")
+         .join(cust_exposed_purchased.select("household_id", "mech_name").withColumnRenamed("mech_name", "exposed_purchased"), "left")
+         .join(cust_unexposed_purchased.select("household_id", "mech_name").withColumnRenamed("mech_name", "unexposed_purchased"), "left")
         )
 
     # Movement : prior - pre
@@ -1124,7 +1124,7 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
     cust_mv.groupBy('customer_mv_group').agg(F.countDistinct('household_id')).display()
 
     # Flag customer movement and exposure
-    movement_and_exposure_by_mech = (cust_exposed_unexposed_purchased
+    movement_and_exposure_by_mech = (cust_exp_unexp_x_purchased
                                      .join(cust_mv.select("household_id", "customer_mv_group").drop_duplicates(), 'household_id', 'inner')
                                      )
     

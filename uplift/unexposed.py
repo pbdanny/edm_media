@@ -115,7 +115,7 @@ def get_cust_txn_all_unexposed_date_n_mech(cmp: CampaignEval):
         )
     return cust_txn_unexposed_mech
 
-def get_cust_by_mech_purchased_unexposed(cmp: CampaignEval,
+def get_cust_by_mech_unexposed_purchased(cmp: CampaignEval,
                                          prd_scope_df: SparkDataFrame,
                                          prd_scope_nm: str):
     cust_all_unexposed = get_cust_txn_all_unexposed_date_n_mech(cmp)
@@ -140,7 +140,7 @@ def get_cust_by_mech_last_seen_unexposed_tag(cmp: CampaignEval,
                                              prd_scope_df: SparkDataFrame,
                                              prd_scope_nm: str):
     
-    purchased_unexposure_count = get_cust_by_mech_purchased_unexposed(cmp, prd_scope_df, prd_scope_nm)
+    purchased_unexposure_count = get_cust_by_mech_unexposed_purchased(cmp, prd_scope_df, prd_scope_nm)
     
     purchased_unexposure_n_mech = purchased_unexposure_count.select("mech_name").drop_duplicates().count()
 

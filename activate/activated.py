@@ -612,7 +612,7 @@ def get_cust_txn_all_prod_purchase_date(cmp: CampaignEval,
         )
     return cust_all_prod_purchase
 
-def get_cust_by_mech_purchased_exposed(cmp: CampaignEval,
+def get_cust_by_mech_exposed_purchased(cmp: CampaignEval,
                                prd_scope_df: SparkDataFrame,
                                prd_scope_nm: str):
     cust_all_exposed = get_cust_txn_all_exposed_date_n_mech(cmp)
@@ -637,7 +637,7 @@ def get_cust_by_mech_purchased_exposed(cmp: CampaignEval,
 def get_cust_by_mech_last_seen_exposed_tag(cmp: CampaignEval,
                                  prd_scope_df: SparkDataFrame,
                                  prd_scope_nm: str):
-    purchased_exposure_count = get_cust_by_mech_purchased_exposed(cmp, prd_scope_df, prd_scope_nm)
+    purchased_exposure_count = get_cust_by_mech_exposed_purchased(cmp, prd_scope_df, prd_scope_nm)
     purchased_exposure_n_mech = purchased_exposure_count.select("mech_name").drop_duplicates().count()
 
     purchased_exposure_flagged_pv = \
