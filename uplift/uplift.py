@@ -1128,6 +1128,11 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
                                      .join(cust_mv.select("household_id", "customer_mv_group").drop_duplicates(), 'household_id', 'inner')
                                      )
     
+    
+    
+    
+    
+    
     # Uplift Calculation by mechanic
     n_cust_total_non_exposed_purchased = movement_and_exposure_by_mech.filter(F.col('group') == 'Non_exposed_Purchased') \
                                                                       .groupBy('customer_mv_group') \
