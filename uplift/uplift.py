@@ -94,9 +94,10 @@ def get_cust_uplift_any_mech(cmp: CampaignEval,
     # Flag customer movement and exposure
     movement_x_exposure = \
     (exposure_x_purchased_flag
-     .join(cust_mv.select("household_id", "customer_mv_group").drop_duplicates(), 'household_id', 'inner')
+     .join(cust_mv.select("household_id", "customer_mv_group").drop_duplicates(), 'household_id', 'left')
+     .fillna(F.lit("new"), subset=["customer_mv_group"])
     )
-
+    
     #---- Uplift Calculation
     # Count customer by group
     n_cust_by_group = \
