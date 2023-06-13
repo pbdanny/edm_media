@@ -65,7 +65,7 @@ def _get_cust_mvmnt_ppp_pre(cmp: CampaignEval,
                   .otherwise('new'))
     )
 
-    return prior_pre
+    return prior_pre_dur
 
 def get_cust_uplift_any_mech(cmp: CampaignEval,
                              prd_scope_df: SparkDataFrame,
