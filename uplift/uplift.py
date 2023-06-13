@@ -28,23 +28,7 @@ def _get_cust_mvmnt_ppp_pre(cmp: CampaignEval,
     product scope
     """
     period_wk_col_nm = period_cal.get_period_wk_col_nm(cmp)
-
-    prior = \
-        (cmp.txn
-         .where(F.col(period_wk_col_nm).isin(['ppp']))
-         .where(F.col('household_id').isNotNull())
-         .join(prd_scope_df, 'upc_id')
-         .groupBy('household_id')
-         .agg(F.sum('net_spend_amt').alias('prior_spending'))
-         )
-    pre = \
-        (cmp.txn
-         .where(F.col(period_wk_col_nm).isin(['pre']))
-         .where(F.col('household_id').isNotNull())
-         .join(prd_scope_df, 'upc_id')
-         .groupBy('household_id')
-         .agg(F.sum('net_spend_amt').alias('pre_spending'))
-         )
+    
     dur = \
         (cmp.txn
          .where(F.col(period_wk_col_nm).isin(['dur']))
@@ -54,18 +38,36 @@ def _get_cust_mvmnt_ppp_pre(cmp: CampaignEval,
          .drop_duplicates()
          )
         
-    prior_pre_dur = (prior
-                     .join(pre, "household_id", "outer")
-                     .join(dur, "household_id", "inner")
+    prior = \
+        (cmp.txn
+         .where(F.col(period_wk_col_nm).isin(['ppp']))
+         .where(F.col('household_id').isNotNull())
+         .join(prd_scope_df, 'upc_id')
+         .groupBy('household_id')
+         .agg(F.sum('net_spend_amt').alias('prior_spending'))
+         )
+        
+    pre = \
+        (cmp.txn
+         .where(F.col(period_wk_col_nm).isin(['pre']))
+         .where(F.col('household_id').isNotNull())
+         .join(prd_scope_df, 'upc_id')
+         .groupBy('household_id')
+         .agg(F.sum('net_spend_amt').alias('pre_spending'))
+         )
+        
+    dur_prior_pre = (dur
+                     .join(prior, "household_id", "left")
+                     .join(pre, "household_id", "left")
                      .fillna(0, subset=["prior_spending", "pre_spending"])
                      .withColumn('level', F.lit(prd_scope_nm))
-                 .withColumn('customer_mv_group',
-                 F.when(F.col('pre_spending')>0,'existing')
-                  .when(F.col('prior_spending')>0,'lapse')
-                  .otherwise('new'))
+                     .withColumn('customer_mv_group',
+                                 F.when(F.col('pre_spending')>0,'existing')
+                                 .when(F.col('prior_spending')>0,'lapse')
+                                 .otherwise('new'))
     )
 
-    return prior_pre_dur
+    return dur_prior_pre
 
 def get_cust_uplift_any_mech(cmp: CampaignEval,
                              prd_scope_df: SparkDataFrame,
