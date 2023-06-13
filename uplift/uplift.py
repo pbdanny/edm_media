@@ -1099,7 +1099,7 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
     )
     
     # Cust mechname exposed, mechname unexposed
-     = (cust_exposed_unexposed
+    all_cust = (cust_exposed_unexposed
          .join(cust_exposed_by_mech.withColumnRenamed("mech_name", "exposed"), "household_id", "left")
          .join(cust_unexposed_by_mech.withColumnRenamed("mech_name", "unexposed"),"household_id", "left")
          .join(cust_purchased_exposed.select("household_id", "mech_name").withColumnRenamed("mech_name", "exposed_purchased"), "left")
