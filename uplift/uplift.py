@@ -45,10 +45,20 @@ def _get_cust_mvmnt_ppp_pre(cmp: CampaignEval,
          .groupBy('household_id')
          .agg(F.sum('net_spend_amt').alias('pre_spending'))
          )
-    prior_pre = (prior
-                 .join(pre, "household_id", "outer")
-                 .fillna(0, subset=["prior_spending", "pre_spending"])
-                 .withColumn('level', F.lit(prd_scope_nm))
+    dur = \
+        (cmp.txn
+         .where(F.col(period_wk_col_nm).isin(['dur']))
+         .where(F.col('household_id').isNotNull())
+         .join(prd_scope_df, 'upc_id')
+         .select("household_id")
+         .drop_duplicates()
+         )
+        
+    prior_pre_dur = (prior
+                     .join(pre, "household_id", "outer")
+                     .join(dur, "household_id", "inner")
+                     .fillna(0, subset=["prior_spending", "pre_spending"])
+                     .withColumn('level', F.lit(prd_scope_nm))
                  .withColumn('customer_mv_group',
                  F.when(F.col('pre_spending')>0,'existing')
                   .when(F.col('prior_spending')>0,'lapse')
@@ -96,7 +106,6 @@ def get_cust_uplift_any_mech(cmp: CampaignEval,
     movement_x_exposure = \
     (exposure_x_purchased_flag
      .join(cust_mv.select("household_id", "customer_mv_group").drop_duplicates(), 'household_id', 'left')
-    #  .withColumn("customer_mv_group", F.col("customer_mv_group").cast(T.StringType()))  # Fix fill na type error
      .fillna(value="new", subset=["customer_mv_group"])
     )
     
@@ -1092,7 +1101,7 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
     
     # Unexposed
     cust_unexposed_by_mech = unexposed.get_cust_txn_all_unexposed_date_n_mech(cmp).select("household_id", "mech_name").drop_duplicates()
-    cust_purchased_unexposed = activated.get_cust_by_mech_purchased_unexposed(cmp, prd_scope_df, prd_scope_nm).drop_duplicates()
+    cust_purchased_unexposed = unexposed.get_cust_by_mech_purchased_unexposed(cmp, prd_scope_df, prd_scope_nm).drop_duplicates()
     
     # Combined Exposed - Unexposed
     cust_exposed_unexposed = (cust_exposed_by_mech.select("household_id")
