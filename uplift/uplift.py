@@ -96,8 +96,8 @@ def get_cust_uplift_any_mech(cmp: CampaignEval,
     movement_x_exposure = \
     (exposure_x_purchased_flag
      .join(cust_mv.select("household_id", "customer_mv_group").drop_duplicates(), 'household_id', 'left')
-     .withColumn("customer_mv_group", F.col("customer_mv_group").cast(T.StringType()))  # Fix fill na type error
-     .fillna(F.lit("new"), subset=["customer_mv_group"])
+    #  .withColumn("customer_mv_group", F.col("customer_mv_group").cast(T.StringType()))  # Fix fill na type error
+     .fillna(value="new", subset=["customer_mv_group"])
     )
     
     #---- Uplift Calculation
