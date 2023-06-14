@@ -94,7 +94,6 @@ def get_cust_uplift_any_mech(cmp: CampaignEval,
     # | no       | no       | new      |  # flag with exposure
     # +----------+----------+----------+
     cust_mv = _get_cust_mvmnt_ppp_pre(cmp, prd_scope_df, prd_scope_nm)
-    cust_mv.groupBy('customer_mv_group').agg(F.countDistinct('household_id')).display()
 
     #---- Flag customer movement and exposure
     movement_x_exposure = \
@@ -1125,7 +1124,6 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
     # | no       | no       | new      |  # flag with exposure
     # +----------+----------+----------+
     cust_mv = _get_cust_mvmnt_ppp_pre(cmp, prd_scope_df, prd_scope_nm)
-    cust_mv.groupBy('customer_mv_group').agg(F.countDistinct('household_id')).display()
 
     # Flag customer movement and exposure
     movement_and_exposure_by_mech = \
