@@ -24,20 +24,10 @@ def _get_cust_mvmnt_ppp_pre(cmp: CampaignEval,
                             prd_scope_df: SparkDataFrame,
                             prd_scope_nm: str
                             ) -> SparkDataFrame:
-    """Get customer movement prior (ppp) / pre (pre) of
-    product scope
+    """Get customer spending for ppp, pre period
     """
-    period_wk_col_nm = period_cal.get_period_wk_col_nm(cmp)
+    period_wk_col_nm = period_cal.get_period_cust_mv_wk_col_nm(cmp)
     
-    dur = \
-        (cmp.txn
-         .where(F.col(period_wk_col_nm).isin(['dur']))
-         .where(F.col('household_id').isNotNull())
-         .join(prd_scope_df, 'upc_id')
-         .select("household_id")
-         .drop_duplicates()
-         )
-        
     prior = \
         (cmp.txn
          .where(F.col(period_wk_col_nm).isin(['ppp']))
@@ -55,19 +45,13 @@ def _get_cust_mvmnt_ppp_pre(cmp: CampaignEval,
          .groupBy('household_id')
          .agg(F.sum('net_spend_amt').alias('pre_spending'))
          )
-        
-    dur_prior_pre = (dur
-                     .join(prior, "household_id", "left")
-                     .join(pre, "household_id", "left")
-                     .fillna(0, subset=["prior_spending", "pre_spending"])
-                     .withColumn('level', F.lit(prd_scope_nm))
-                     .withColumn('customer_mv_group',
-                                 F.when(F.col('pre_spending')>0,'existing')
-                                 .when(F.col('prior_spending')>0,'lapse')
-                                 .otherwise('new'))
-    )
+    prior_pre = \
+        (prior
+         .join(pre, "household_id", "outer")
+         .fillna(0, subset=["prior_spending", "pre_spending"])
+        )
 
-    return dur_prior_pre
+    return prior_pre
 
 def get_cust_uplift_any_mech(cmp: CampaignEval,
                              prd_scope_df: SparkDataFrame,
@@ -100,14 +84,26 @@ def get_cust_uplift_any_mech(cmp: CampaignEval,
     
     exposure_x_purchased_flag.groupBy('exposed_flag', 'unexposed_flag','exposed_and_purchased_flag','unexposed_and_purchased_flag').count().display()
 
-    #---- Movement : prior - pre
+    #---- Movement : prior - pre ----
+    # +----------+----------+----------+
+    # |ppp_spend |pre_spend |flag      |
+    # +----------+----------+----------+
+    # | yes      | yes      | existing |
+    # | no       | yes      | existing |
+    # | yes      | no       | lapse    |
+    # | no       | no       | new      |  # flag with exposure
+    # +----------+----------+----------+
     cust_mv = _get_cust_mvmnt_ppp_pre(cmp, prd_scope_df, prd_scope_nm)
     cust_mv.groupBy('customer_mv_group').agg(F.countDistinct('household_id')).display()
 
-    # Flag customer movement and exposure
+    #---- Flag customer movement and exposure
     movement_x_exposure = \
     (exposure_x_purchased_flag
-     .join(cust_mv.select("household_id", "customer_mv_group").drop_duplicates(), 'household_id', 'left')
+     .join(cust_mv, 'household_id', 'left')
+     .withColumn("customer_mv_group", F.when(F.col("prior_spending")>0, "lapse")
+                                       .when(F.col("pre_spending")>0, "existing")
+                                       .otherwise("new")
+     )
      .fillna(value="new", subset=["customer_mv_group"])
     )
     
@@ -1119,20 +1115,31 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
          .join(cust_unexposed_purchased.select("household_id", "mech_name").withColumnRenamed("mech_name", "unexposed_purchased"), "left")
         )
 
-    # Movement : prior - pre
+    #---- Movement : prior - pre ----
+    # +----------+----------+----------+
+    # |ppp_spend |pre_spend |flag      |
+    # +----------+----------+----------+
+    # | yes      | yes      | existing |
+    # | no       | yes      | existing |
+    # | yes      | no       | lapse    |
+    # | no       | no       | new      |  # flag with exposure
+    # +----------+----------+----------+
     cust_mv = _get_cust_mvmnt_ppp_pre(cmp, prd_scope_df, prd_scope_nm)
     cust_mv.groupBy('customer_mv_group').agg(F.countDistinct('household_id')).display()
 
     # Flag customer movement and exposure
-    movement_and_exposure_by_mech = (cust_exp_unexp_x_purchased
-                                     .join(cust_mv.select("household_id", "customer_mv_group").drop_duplicates(), 'household_id', 'inner')
-                                     )
-    
-    
-    
-    
-    
-    
+    movement_and_exposure_by_mech = \
+        (cust_exp_unexp_x_purchased
+         .join(cust_mv, 'household_id', 'left')
+         .withColumn("customer_mv_group", F.when(F.col("prior_spending")>0, "lapse")
+                                       .when(F.col("pre_spending")>0, "existing")
+                                       .otherwise("new")
+     )
+     .fillna(value="new", subset=["customer_mv_group"])
+    )
+
+
+
     # Uplift Calculation by mechanic
     n_cust_total_non_exposed_purchased = movement_and_exposure_by_mech.filter(F.col('group') == 'Non_exposed_Purchased') \
                                                                       .groupBy('customer_mv_group') \

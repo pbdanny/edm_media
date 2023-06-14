@@ -246,10 +246,14 @@ class CampaignEval(CampaignParams):
         if self.params["wk_type"] == "fis_wk":
             self.wk_tp = "fiswk"
             self.week_type = "fis_week"
+            self.mv_week_type = "fis_week"
         elif self.params["wk_type"] == "promo_wk":
             self.wk_tp = "promowk"
             self.week_type = "promo_week"
-        
+            self.mv_week_type = "promo_week"
+            if eval_mode == "promozone":
+                self.mv_week_type = "promozone"
+
         # create period_fis_wk, period_promo_wk, period_promo_mv_wk
         
         date_dim = self.spark.table("tdm.v_date_dim").select("date_id", "week_id", "promoweek_id").drop_duplicates()
