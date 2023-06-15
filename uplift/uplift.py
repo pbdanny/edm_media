@@ -905,8 +905,10 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
      )
      .fillna(value="new", subset=["customer_mv_group"])
     )
-        
-    #---- By mechanics by customer movement
+
+    #----
+    # By mechanics by customer movement
+    #----
     by_mech_by_cust_mv = all_mech_nm.crossJoin( spark.createDataFrame([("new",),("existing",),("lapse",)], ["customer_mv_group"]) )
     
     exposed_cust_mv_count = movement_and_exposure_by_mech.groupby("exposed", "customer_mv_group").agg(F.count_distinct("household_id").alias("exposed_custs"))
@@ -928,16 +930,10 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
                                  .withColumn('pct_uplift', (F.col('cvs_rate_exposed') / (F.col('cvs_rate_unexposed'))) - 1) 
                                  .withColumn('uplift_cust',
                                              (F.col('cvs_rate_exposed') - F.col('cvs_rate_unexposed')) * (F.col('exposed_custs')))
+                                 .withColumn("pstv_cstmr_uplift", F.when(F.col('uplift_cust') > 0, F.col('uplift_cust')).otherwise(0))
     )
     
-    #---- By mechancics combine movement with only positive customer uplift
-    
-    pstv_cstmr_uplift_by_mech_col = (by_mech_by_cust_mv_uplift
-                                      .select('mech_name', 'uplift_cust')
-                                      .groupBy("mech_name")
-                                      .agg(F.sum(F.when(F.col('uplift_cust') > 0, F.col('uplift_cust')).otherwise(0)).alias("pstv_cstmr_uplift"))
-    )
-    
+    #---- Positive uplift : By mechancics x Combine customer movement
     exposed_cust_all_cust_mv_count = movement_and_exposure_by_mech.groupby("exposed").agg(F.count_distinct("household_id").alias("exposed_custs"))
     unexposed_cust_all_cust_mv_count = movement_and_exposure_by_mech.groupby("unexposed").agg(F.count_distinct("household_id").alias("unexposed_custs"))
     exposed_purchased_all_cust_mv_count = movement_and_exposure_by_mech.groupby("exposed_purchased").agg(F.count_distinct("household_id").alias("exposed_purchased_custs"))
@@ -950,6 +946,11 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
                      .join(unexposed_purchased_all_cust_mv_count.withColumnRenamed("unexposed_purchased", "mech_name"), ["mech_name"], "left")
     )
     
+    by_mech_all_cust_mv_sum_pstv = (by_mech_by_cust_mv_uplift
+                                      .groupBy("mech_name")
+                                      .agg(F.sum("pstv_cstmr_uplift").alias("pstv_cstmr_uplift"))
+    )
+        
     by_mech_all_cust_mv_uplift = (by_mech_all_cust_mv_count
                                  .withColumn('uplift_lv', F.lit(prd_scope_nm))
                                  .withColumn("customer_mv_group", F.lit("Total"))
@@ -958,11 +959,42 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
                                  .withColumn('pct_uplift', (F.col('cvs_rate_exposed') / (F.col('cvs_rate_unexposed'))) - 1) 
                                  .withColumn('uplift_cust',
                                              (F.col('cvs_rate_exposed') - F.col('cvs_rate_unexposed')) * (F.col('exposed_custs')))
-                                ).join(pstv_cstmr_uplift_by_mech_col, "mech_name", "left")
+                                ).join(by_mech_all_cust_mv_sum_pstv, "mech_name", "left")
     
-
-    # Recalculate uplift using total positive customers
-    results = by_mech_all_cust_mv_uplift.withColumn('pct_positive_cust_uplift',
-                                                    (F.col('pstv_cstmr_uplift') / (F.col('exposed_custs'))) / F.col('cvs_rate_unexposed'))
+    #----- Positive uplift : All mechanics x by Customer movement
+    exposed_cust_by_cust_mv_count = movement_and_exposure_by_mech.where(F.col("exposed").isNotNull()).groupby("customer_mv_group").agg(F.count_distinct("household_id").alias("exposed_custs"))
+    unexposed_cust_by_cust_mv_count = movement_and_exposure_by_mech.where(F.col("unexposed").isNotNull()).groupby("customer_mv_group").agg(F.count_distinct("household_id").alias("unexposed_custs"))
+    exposed_purchased_by_cust_mv_count = movement_and_exposure_by_mech.where(F.col("exposed_purchased").isNotNull()).groupby("customer_mv_group").agg(F.count_distinct("household_id").alias("exposed_purchased_custs"))
+    unexposed_purchased_by_cust_mv_count = movement_and_exposure_by_mech.where(F.col("unexposed_purchased").isNotNull()).groupby("customer_mv_group").agg(F.count_distinct("household_id").alias("unexposed_purchased_custs"))
+    
+    all_mech_by_cust_mv_count = (spark.createDataFrame([("new",),("existing",),("lapse",)], ["customer_mv_group"])
+                     .join(exposed_cust_by_cust_mv_count, ["customer_mv_group"], "left")
+                     .join(unexposed_cust_by_cust_mv_count, ["customer_mv_group"], "left")
+                     .join(exposed_purchased_by_cust_mv_count, ["customer_mv_group"], "left")
+                     .join(unexposed_purchased_by_cust_mv_count, ["customer_mv_group"], "left")
+    )
+    
+    all_mech_by_cust_mv_sum_pstv = (by_mech_by_cust_mv_uplift
+                                      .groupBy("customer_mv_group")
+                                      .agg(F.sum("pstv_cstmr_uplift").alias("pstv_cstmr_uplift"))
+    )
+    
+    all_mech_by_cust_mv_uplift = (all_mech_by_cust_mv_count
+                                 .withColumn('uplift_lv', F.lit(prd_scope_nm))
+                                 .withColumn("mech_name", F.lit("All"))
+                                 .withColumn('cvs_rate_exposed', F.col('exposed_purchased_custs') / (F.col('exposed_custs')))
+                                 .withColumn('cvs_rate_unexposed', F.col('unexposed_purchased_custs') / (F.col('unexposed_custs')))
+                                 .withColumn('pct_uplift', (F.col('cvs_rate_exposed') / (F.col('cvs_rate_unexposed'))) - 1) 
+                                 .withColumn('uplift_cust',
+                                             (F.col('cvs_rate_exposed') - F.col('cvs_rate_unexposed')) * (F.col('exposed_custs')))
+                                ).join(all_mech_by_cust_mv_sum_pstv, "customer_mv_group", "left")
+    
+    #---- Combine each group & calculate percent Customer Uplift
+    results = (by_mech_by_cust_mv_uplift
+               .unionByName(by_mech_all_cust_mv_uplift, allowMissingColumns=True)
+               .unionByName(all_mech_by_cust_mv_uplift, allowMissingColumns=True)
+               .withColumn('pct_positive_cust_uplift',
+                           (F.col('pstv_cstmr_uplift') / (F.col('exposed_custs'))))
+    )
     
     return results
