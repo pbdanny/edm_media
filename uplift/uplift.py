@@ -840,23 +840,6 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
     
     #--- Helper fn
 
-    def _get_all_feat_trans(txn: SparkDataFrame,
-                            period_wk_col_nm: str,
-                            prd_scope_df: SparkDataFrame
-                            ) -> SparkDataFrame:
-        """Get all shopped date or feature shopped date, based on input upc_id
-        Shopper in campaign period at any store format & any channel 
-        """
-        out = \
-            (txn
-             .where(F.col('household_id').isNotNull())
-             .where(F.col(period_wk_col_nm).isin(["cmp"]))
-             .join(prd_scope_df, 'upc_id')
-             .select('household_id', 'transaction_uid', 'tran_datetime', 'store_id', 'date_id')
-             .drop_duplicates()
-            )
-        return out
-
     #---- Main
     period_wk_col = period_cal.get_period_wk_col_nm(cmp)
     print(f"Customer movement period (PPP, PRE) based on column {period_wk_col}")
@@ -993,10 +976,36 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
                                              (F.col('cvs_rate_exposed') - F.col('cvs_rate_unexposed')) * (F.col('exposed_custs')))
                                 ).join(all_mech_by_cust_mv_sum_pstv, "customer_mv_group", "left")
     
+    #---- Positive uplift : All mechanics x Total customer movement
+    all_exposed_cust_count = movement_and_exposure_by_mech.where(F.col("exposed").isNotNull()).agg(F.count_distinct("household_id").alias("exposed_custs")).collect()[0][0]
+    all_unexposed_cust_count = movement_and_exposure_by_mech.where(F.col("unexposed").isNotNull()).agg(F.count_distinct("household_id").alias("unexposed_custs")).collect()[0][0]
+    all_exposed_purchased_cust_count = movement_and_exposure_by_mech.where(F.col("exposed_purchased").isNotNull()).agg(F.count_distinct("household_id").alias("exposed_purchased_custs")).collect()[0][0]
+    all_unexposed_purchased_cust_count = movement_and_exposure_by_mech.where(F.col("unexposed_purchased").isNotNull()).agg(F.count_distinct("household_id").alias("unexposed_purchased_custs")).collect()[0][0]
+    
+    all_mech_all_cust_mv_sum_pstv = (by_mech_by_cust_mv_uplift
+                                      .agg(F.sum("pstv_cstmr_uplift").alias("pstv_cstmr_uplift"))
+                                      ).collect()[0][0]
+
+    all_mech_all_cust_mv_uplift = (
+        spark.createDataFrame([("Total","All")], ["customer_mv_group", "mech_name"])
+        .withColumn("exposed_custs", all_exposed_cust_count)
+        .withColumn("unexposed_custs", all_unexposed_cust_count)
+        .withColumn("exposed_purchased_custs", all_exposed_purchased_cust_count)
+        .withColumn("unexposed_purchased_custs", all_unexposed_purchased_cust_count)
+        .withColumn('uplift_lv', F.lit(prd_scope_nm))
+        .withColumn("mech_name", F.lit("All"))
+        .withColumn('cvs_rate_exposed', F.col('exposed_purchased_custs') / (F.col('exposed_custs')))
+        .withColumn('cvs_rate_unexposed', F.col('unexposed_purchased_custs') / (F.col('unexposed_custs')))
+        .withColumn('pct_uplift', (F.col('cvs_rate_exposed') / (F.col('cvs_rate_unexposed'))) - 1) 
+        .withColumn('uplift_cust', (F.col('cvs_rate_exposed') - F.col('cvs_rate_unexposed')) * (F.col('exposed_custs')))    
+        .withColumn("pstv_cstmr_uplift", all_mech_all_cust_mv_sum_pstv)
+        )
+    
     #---- Combine each group & calculate percent Customer Uplift
     results = (by_mech_by_cust_mv_uplift
                .unionByName(by_mech_all_cust_mv_uplift, allowMissingColumns=True)
                .unionByName(all_mech_by_cust_mv_uplift, allowMissingColumns=True)
+               .unionByName(all_mech_all_cust_mv_uplift, allowMissingColumns=True)
                .withColumn('pct_positive_cust_uplift',
                            (F.col('pstv_cstmr_uplift') / (F.col('exposed_custs'))))
     )
