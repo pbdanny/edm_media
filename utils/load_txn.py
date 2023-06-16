@@ -21,8 +21,6 @@ sys.path.append(os.path.abspath(
     "/Workspace/Repos/thanakrit.boonquarmdee@lotuss.com/edm_util"))
 from edm_class import txnItem
 
-spark = SparkSession.builder.appName("campaingEval").getOrCreate()
-
 def load_txn(cmp: CampaignEval,
              txn_mode: str = "pre_generated_118wk"):
     """Load transaction
@@ -51,15 +49,15 @@ def load_txn(cmp: CampaignEval,
 
     elif txn_mode == "campaign_specific":
         try:
-            cmp.txn = spark.table(
+            cmp.txn = cmp.spark.table(
                 f"tdm_seg.media_campaign_eval_txn_data_{cmp.params['cmp_id']}")
             cmp.params["txn_mode"] = "campaign_specific"
         except Exception as e:
             cmp.params["txn_mode"] = "pre_generated_118wk"
-            cmp.txn = spark.table("tdm_seg.v_latest_txn118wk")
+            cmp.txn = cmp.spark.table("tdm_seg.v_latest_txn118wk")
     else:
         cmp.params["txn_mode"] = "pre_generated_118wk"
-        cmp.txn = spark.table("tdm_seg.v_latest_txn118wk")
+        cmp.txn = cmp.spark.table("tdm_seg.v_latest_txn118wk")
 
     create_period_col(cmp)
     scope_txn(cmp)
