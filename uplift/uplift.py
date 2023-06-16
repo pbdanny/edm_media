@@ -988,19 +988,19 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
 
     all_mech_all_cust_mv_uplift = (
         spark.createDataFrame([("Total","All")], ["customer_mv_group", "mech_name"])
-        .withColumn("exposed_custs", all_exposed_cust_count)
-        .withColumn("unexposed_custs", all_unexposed_cust_count)
-        .withColumn("exposed_purchased_custs", all_exposed_purchased_cust_count)
-        .withColumn("unexposed_purchased_custs", all_unexposed_purchased_cust_count)
+        .withColumn("exposed_custs", F.lit(all_exposed_cust_count))
+        .withColumn("unexposed_custs", F.lit(all_unexposed_cust_count))
+        .withColumn("exposed_purchased_custs", F.lit(all_exposed_purchased_cust_count))
+        .withColumn("unexposed_purchased_custs", F.lit(all_unexposed_purchased_cust_count))
         .withColumn('uplift_lv', F.lit(prd_scope_nm))
         .withColumn("mech_name", F.lit("All"))
         .withColumn('cvs_rate_exposed', F.col('exposed_purchased_custs') / (F.col('exposed_custs')))
         .withColumn('cvs_rate_unexposed', F.col('unexposed_purchased_custs') / (F.col('unexposed_custs')))
         .withColumn('pct_uplift', (F.col('cvs_rate_exposed') / (F.col('cvs_rate_unexposed'))) - 1) 
         .withColumn('uplift_cust', (F.col('cvs_rate_exposed') - F.col('cvs_rate_unexposed')) * (F.col('exposed_custs')))    
-        .withColumn("pstv_cstmr_uplift", all_mech_all_cust_mv_sum_pstv)
+        .withColumn("pstv_cstmr_uplift", F.lit(all_mech_all_cust_mv_sum_pstv))
         )
-    
+        
     #---- Combine each group & calculate percent Customer Uplift
     results = (by_mech_by_cust_mv_uplift
                .unionByName(by_mech_all_cust_mv_uplift, allowMissingColumns=True)
