@@ -5,11 +5,15 @@ from datetime import datetime, timedelta
 import sys
 import os
 
+import pandas as pd
+import numpy as np
+
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql import types as T
 from pyspark.sql import DataFrame as SparkDataFrame
 from pyspark.sql import Window
+from pyspark.dbutils import DBUtils
 
 from utils.DBPath import DBPath
 from utils.campaign_config import CampaignEval
@@ -635,7 +639,7 @@ def get_customer_uplift_per_mechanic(cmp: CampaignEval,
                   .otherwise('new'))
     )
     
-    username_str = dbutils.notebook.entry_point.getDbutils().notebook().getContext().userName().get().replace('.', '').replace('@', '')
+    username_str = DBUtils.notebook.entry_point.getDbutils().notebook().getContext().userName().get().replace('.', '').replace('@', '')
 
     # Save and load temp table
     spark.sql('DROP TABLE IF EXISTS tdm_seg.cust_uplift_by_mech_temp' + username_str)
