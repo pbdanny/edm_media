@@ -70,7 +70,9 @@ def get_store_matching_across_region(cmp: CampaignEval,
     import statistics as stats
     from sklearn.metrics.pairwise import cosine_similarity
 
-
+    if hasattr(cmp, "matched_store"):
+        return
+    
     txn = cmp.txn
     wk_type = cmp.wk_type
     pre_st_wk = cmp.pre_st_wk

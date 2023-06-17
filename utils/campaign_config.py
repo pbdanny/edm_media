@@ -30,7 +30,7 @@ class CampaignConfigFile:
         self.cmp_inputs_files = next(
             self.cmp_config_file.parent.glob("**/input*"))
         self.cmp_output = self.cmp_config_file.parents[1]
-        pass
+        return
 
     def __repr__(self):
         return f"CampaignConfigFile class, source file = '{self.source_config_file}'"
@@ -71,14 +71,14 @@ class CampaignParams:
                 / self.params["cmp_nm"]
             )
             self.std_input_path = config_file.cmp_output.parent / "00_std_inputs"
-        pass
+        return
 
     def __repr__(self):
         return f"CampaignParams class, config file : '{self.cmp_input_file}'\nRow number : {self.row_no}"
 
     def display_details(self):
         pprint.pp(self.params)
-        pass
+        return
     
 class CampaignEval(CampaignParams):
 
@@ -138,7 +138,7 @@ class CampaignEval(CampaignParams):
         self.load_aisle()
         # self.load_txn()
 
-        pass
+        return
 
     def __repr__(self):
         return f"CampaignEval class \nConfig file : '{self.cmp_config_file}'\nRow number : {self.row_no}"
@@ -289,7 +289,7 @@ class CampaignEval(CampaignParams):
             self.period_promo_wk = period_promo_wk.dropna(subset="period", how="any")
             self.period_promo_mv_wk = period_promo_mv_wk.dropna(subset="period", how="any")
        
-        pass
+        return
 
     def load_target_store(self):
         """Load target store"""
@@ -298,7 +298,7 @@ class CampaignEval(CampaignParams):
              .fillna(str(self.cmp_start), subset='c_start')
              .fillna(str(self.cmp_end), subset='c_end')
              )
-        pass
+        return
 
     def load_control_store(self, control_store_mode: str = ""):
         """Load control store
@@ -321,14 +321,14 @@ class CampaignEval(CampaignParams):
                 .where(F.col("class_code") == self.params["resrv_store_class"])
                 .select("store_id")
             )
-            pass
+            return
 
         def _custom():
             self.params["control_store_source"] = "Custom control store file"
             self.control_store = self.spark.read.csv(
                 (self.custom_ctrl_store_file).spark_api(), header=True, inferSchema=True
             )
-            pass
+            return
 
         def _rest():
             self.params["control_store_source"] = "rest"
@@ -351,7 +351,7 @@ class CampaignEval(CampaignParams):
                 .select("store_id")
                 .drop_duplicates()
             )
-            pass
+            return
 
         self.load_target_store()
 
@@ -371,7 +371,7 @@ class CampaignEval(CampaignParams):
                 _rest()
             else:
                 _rest()
-        pass
+        return
 
     def load_store_dim_adjusted(self):
         """Create internal store dim with adjusted store region & combine "West" & "Central" -> West+Central"""
@@ -405,7 +405,7 @@ class CampaignEval(CampaignParams):
             .otherwise("other_fmt"),
         )
 
-        pass
+        return
 
     def load_prod(self):
         """Load feature product, feature brand name, feature subclass, feature subclass"""
@@ -465,7 +465,7 @@ class CampaignEval(CampaignParams):
             self.feat_cate_sku = None
             self.feat_brand_nm = None
             self.feat_brand_sku = None
-        pass
+        return
 
     def load_product_dim_adjusted(self):
         """Create product_dim with adjustment
@@ -500,7 +500,7 @@ class CampaignEval(CampaignParams):
                                  ).otherwise(F.col("brand_name"))
                  )
                 )        
-        pass
+        return
         
     def load_aisle(self, aisle_mode: str = ""):
         """Load aisle for exposure calculation
@@ -565,7 +565,7 @@ class CampaignEval(CampaignParams):
                  .join(self.aisle_sku)
                  .withColumn("media_fee", F.lit(avg_media_fee))
                  )
-            pass
+            return
 
         def _x_cat():
             self.params["aisle_mode"] = "cross_cate"
@@ -590,7 +590,7 @@ class CampaignEval(CampaignParams):
                  .join(self.aisle_sku)
                  .withColumn("media_fee", F.lit(avg_media_fee))
                  )
-            pass
+            return
 
         def _store():
             self.params["aisle_mode"] = "total_store"
@@ -606,7 +606,7 @@ class CampaignEval(CampaignParams):
                  .join(self.aisle_sku)
                  .withColumn("media_fee", F.lit(avg_media_fee))
                  )
-            pass
+            return
 
         def _target_store_config():
             """Aisle defined by target store config file
@@ -667,7 +667,7 @@ class CampaignEval(CampaignParams):
                  .unionByName(aisle_target_store_media_promozone, allowMissingColumns=True)
                 )
 
-            pass
+            return
 
         self.load_prod()
         self.cross_cate_cd_list = self.convert_param_to_list("cross_cate_cd")
@@ -689,7 +689,7 @@ class CampaignEval(CampaignParams):
                 
         # checkpoint for aisle_target_store_conf
         # self.aisle_target_store_conf =  self.aisle_target_store_conf.checkpoint()
-        pass
+        return
 
     def _get_prod_df(self):
         """To get Product information refering to input SKU list (expected input as list )

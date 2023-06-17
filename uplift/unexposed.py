@@ -28,8 +28,8 @@ def create_txn_offline_x_aisle_matched_store(cmp: CampaignEval):
     - Aisle definition based on matched target store aisle
     - Period based on matched target store config
     """
-    if not hasattr(cmp, "matched_store"):
-        store_matching.get_store_matching_across_region(cmp)    
+    if hasattr(cmp, "txn_offline_x_aisle_matched_store"):
+        return
 
     cmp.aisle_matched_store = \
     (cmp.aisle_target_store_conf
@@ -56,8 +56,7 @@ def get_cust_first_unexposed_any_mech(cmp: CampaignEval):
         - Offline channel
         - First unexposure, any mechanics
     """
-    if not hasattr(cmp, "txn_offline_x_aisle_matched_store"):
-        create_txn_offline_x_aisle_matched_store(cmp)
+    create_txn_offline_x_aisle_matched_store(cmp)
         
     cust_first_unexposed = \
         (cmp.txn_offline_x_aisle_matched_store

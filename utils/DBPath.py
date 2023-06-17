@@ -9,7 +9,7 @@ class DBPath(_Path_):
         if "dbfs:" in input_file:
             raise ValueError("DBPath accept only file API path style (path start with /dbfs/)")
         super().__init__()
-        pass
+        return
         
     def __repr__(self):
         return f"DBPath class : {self.as_posix()}"

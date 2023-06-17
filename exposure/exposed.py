@@ -23,7 +23,9 @@ def create_txn_offline_x_aisle_target_store(cmp: CampaignEval):
     return
 
 def get_store_mech_exposure_cmp(cmp: CampaignEval):
-    
+    if hasattr(cmp, "str_mech_exposure_cmp"):
+        return
+        
     create_txn_offline_x_aisle_target_store(cmp)
     
     STORE_FMT_FAMILY_SIZE = cmp.spark.createDataFrame([("hde", 2.2), ("talad", 1.5), ("gofresh", 1.0),
@@ -56,10 +58,8 @@ def get_store_mech_exposure_cmp(cmp: CampaignEval):
     return
 
 def _exposure_all(cmp: CampaignEval):
-    if not hasattr(cmp, "str_mech_exposure_cmp"):
-        get_store_mech_exposure_cmp(cmp)
-    if not hasattr(cmp, "txn_offline_x_aisle_target_store"):
-        create_txn_offline_x_aisle_target_store(cmp)
+    get_store_mech_exposure_cmp(cmp)
+    create_txn_offline_x_aisle_target_store(cmp)
         
     #---- Overall Exposure    
     all_impression = \
@@ -90,10 +90,8 @@ def _exposure_all(cmp: CampaignEval):
     return exposure_all
 
 def _exposure_region(cmp: CampaignEval):
-    if not hasattr(cmp, "str_mech_exposure_cmp"):
-        get_store_mech_exposure_cmp(cmp)    
-    if not hasattr(cmp, "txn_offline_x_aisle_target_store"):
-        create_txn_offline_x_aisle_target_store(cmp)
+    get_store_mech_exposure_cmp(cmp)    
+    create_txn_offline_x_aisle_target_store(cmp)
             
     customer_by_region = cmp.txn_offline_x_aisle_target_store.groupBy('store_region').agg(
         F.countDistinct(F.col('household_id')).alias('carded_customers'))
@@ -120,10 +118,8 @@ def _exposure_region(cmp: CampaignEval):
     return region_impression
 
 def _exposure_mech(cmp: CampaignEval):
-    if not hasattr(cmp, "str_mech_exposure_cmp"):
-        get_store_mech_exposure_cmp(cmp)    
-    if not hasattr(cmp, "txn_offline_x_aisle_target_store"):
-        create_txn_offline_x_aisle_target_store(cmp)
+    get_store_mech_exposure_cmp(cmp)    
+    create_txn_offline_x_aisle_target_store(cmp)
             
     customer_by_mech = cmp.txn_offline_x_aisle_target_store.groupBy('mech_name').agg(
         F.countDistinct(F.col('household_id')).alias('carded_customers'))

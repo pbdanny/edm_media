@@ -15,7 +15,7 @@ from pyspark.sql import Window
 from utils.DBPath import DBPath
 from utils.campaign_config import CampaignEval
 from utils import period_cal
-from exposure.exposed import create_txn_offline_x_aisle_target_store
+from exposure import exposed
 
 def get_cust_activated(cmp: CampaignEval):
     """Get customer exposed & unexposed / shopped, not shop
@@ -467,8 +467,7 @@ def get_cust_first_exposed_any_mech(cmp: CampaignEval):
         - Offline channel
         - First exposure, any mechanics
     """
-    if not hasattr(cmp, "txn_offline_x_aisle_target_store"):
-        create_txn_offline_x_aisle_target_store(cmp)
+    exposed.create_txn_offline_x_aisle_target_store(cmp)
         
     cust_first_exposed = \
         (cmp.txn_offline_x_aisle_target_store
@@ -582,7 +581,7 @@ def get_cust_any_mech_activated_sales(cmp: CampaignEval,
 
 #---- Exposure by mechanics
 def get_cust_txn_all_exposed_date_n_mech(cmp: CampaignEval):
-    create_txn_offline_x_aisle_target_store(cmp)
+    exposed.create_txn_offline_x_aisle_target_store(cmp)
     cust_txn_exposed_mech = \
         (cmp.txn_offline_x_aisle_target_store
          .where(F.col("household_id").isNotNull())
