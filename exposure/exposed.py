@@ -13,14 +13,14 @@ from utils.DBPath import DBPath
 from utils.campaign_config import CampaignEval
 
 def create_txn_offline_x_aisle_target_store(cmp: CampaignEval):
+    if hasattr(cmp, "txn_offline_x_aisle_target_store"):
+        return
     
     cmp.txn_offline_x_aisle_target_store = \
         (cmp.txn.join(cmp.aisle_target_store_conf, ["store_id", "upc_id", "date_id"])
          .where(F.col("offline_online_other_channel")=="OFFLINE")
         )
-    # test checkpoint
-    # cmp.txn_offline_x_aisle_target_store = cmp.txn_offline_x_aisle_target_store.checkpoint()
-    pass
+    return
 
 def get_store_mech_exposure_cmp(cmp: CampaignEval):
     
@@ -53,7 +53,7 @@ def get_store_mech_exposure_cmp(cmp: CampaignEval):
             .withColumn('non_carded_impression', F.col('non_carded_visits')*F.col("family_size")*F.col('mech_count'))
             .withColumn("cpm", F.col("media_fee")/ (F.col('epos_visits')*F.col("family_size")*F.col('mech_count')/1000) )
         )
-    pass
+    return
 
 def _exposure_all(cmp: CampaignEval):
     if not hasattr(cmp, "str_mech_exposure_cmp"):
@@ -161,7 +161,7 @@ def get_exposure(cmp: CampaignEval):
         cmp.params["exposure_type"] = "target_store_config"
     
     else:
-        pass
+        return
     
     exposure_all = _exposure_all(cmp)
     exposure_region = _exposure_region(cmp)

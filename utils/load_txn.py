@@ -64,7 +64,7 @@ def load_txn(cmp: CampaignEval,
     replace_brand_nm(cmp)
     replace_store_region(cmp)
 
-    pass
+    return
 
 def replace_brand_nm(cmp: CampaignEval):
     """Replace txn of multi feature brand with first main brand
@@ -76,7 +76,7 @@ def replace_brand_nm(cmp: CampaignEval):
         .fillna('Unidentified', subset='brand_name')
     )
 
-    pass
+    return
 
 def create_period_col(cmp: CampaignEval):
     """Create period columns : period_fis_wk, period_promo_wk, period_promo_mv_wk
@@ -125,7 +125,7 @@ def create_period_col(cmp: CampaignEval):
                                .otherwise(F.lit('NA')))
                    )
 
-    pass
+    return
 
 def replace_store_region(cmp: CampaignEval):
     """Remapping txn store_region follow cmp.store_dim
@@ -136,7 +136,7 @@ def replace_store_region(cmp: CampaignEval):
          .join(cmp.store_dim.select("store_id", "store_region"), 'store_id', 'left')
          .fillna('Unidentified', subset='store_region')
         )
-    pass
+    return
 
 def scope_txn(cmp: CampaignEval):
     """Improve performance when use pre-joined 118wk txn
@@ -155,10 +155,10 @@ def scope_txn(cmp: CampaignEval):
                 (F.col("period_promo_wk").isin(["dur", "gap", "pre", "ppp"])) |
                 (F.col("period_promo_mv_wk").isin(["dur", "gap", "pre", "ppp"])))
          )
-    pass
+    return
 
 def save_txn(cmp: CampaignEval):
     load_txn()
     cmp.txn.write.saveAsTable(
         f"tdm_seg.media_campaign_eval_txn_data_{cmp.params['cmp_id']}")
-    pass
+    return
