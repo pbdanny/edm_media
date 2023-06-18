@@ -30,7 +30,8 @@ def create_txn_offline_x_aisle_matched_store(cmp: CampaignEval):
     """
     if hasattr(cmp, "txn_offline_x_aisle_matched_store"):
         return
-
+    store_matching.get_store_matching_across_region(cmp)
+    
     cmp.aisle_matched_store = \
     (cmp.aisle_target_store_conf
      .join(cmp.matched_store.select(F.col("test_store_id").alias("store_id"), "ctrl_store_id").drop_duplicates(),
