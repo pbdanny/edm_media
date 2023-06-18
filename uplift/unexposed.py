@@ -104,11 +104,14 @@ def get_cust_any_mech_unexposed_purchased(cmp: CampaignEval,
 
 #---- Unexposure by mechanics
 def get_cust_txn_all_unexposed_date_n_mech(cmp: CampaignEval):
+    """household_id unexposed by mech_name
+    - Improve version : add aisle_scope
+    """
     create_txn_offline_x_aisle_matched_store(cmp)
     cust_txn_unexposed_mech = \
         (cmp.txn_offline_x_aisle_matched_store
          .where(F.col("household_id").isNotNull())
-         .select('household_id', 'transaction_uid', 'tran_datetime', 'mech_name', 'aisle_scope')
+         .select('household_id', 'transaction_uid', 'tran_datetime', 'mech_name')
          .drop_duplicates()
          .withColumnRenamed('transaction_uid', 'unexposed_transaction_uid')
          .withColumnRenamed('tran_datetime', 'unexposed_tran_datetime')
