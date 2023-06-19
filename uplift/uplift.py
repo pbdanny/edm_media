@@ -849,10 +849,11 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
     print(f"List of detected mechanics from store list total : {num_of_mechanics}")
     all_mech_nm.display()
     
+     # Exposed, Exposed - purchased   
     cust_exposed_by_mech = activated.get_cust_txn_all_exposed_date_n_mech(cmp).select("household_id", "mech_name").drop_duplicates()
     cust_exposed_purchased = activated.get_cust_by_mech_exposed_purchased(cmp, prd_scope_df, prd_scope_nm).drop_duplicates()
     
-    # Unexposed
+    # Unexposed, Unexposd - purchased
     cust_unexposed_by_mech = unexposed.get_cust_txn_all_unexposed_date_n_mech(cmp).select("household_id", "mech_name").drop_duplicates()
     cust_unexposed_purchased = unexposed.get_cust_by_mech_unexposed_purchased(cmp, prd_scope_df, prd_scope_nm).drop_duplicates()
     
