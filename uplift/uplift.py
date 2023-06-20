@@ -886,8 +886,8 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
     movement_and_exposure_by_mech = \
         (cust_exp_unexp_x_purchased
          .join(cust_mv, 'household_id', 'left')
-         .withColumn("customer_mv_group", F.when(F.col("prior_spending")>0, "lapse")
-                                       .when(F.col("pre_spending")>0, "existing")
+         .withColumn("customer_mv_group", F.when(F.col("pre_spending")>0, "existing")
+                                       .when(F.col("prior_spending")>0, "lapse")
                                        .otherwise("new")
      )
      .fillna(value="new", subset=["customer_mv_group"])
