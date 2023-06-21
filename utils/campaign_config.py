@@ -98,7 +98,9 @@ class CampaignEval(CampaignParams):
         super().__init__(config_file, cmp_row_no)
         self.spark = SparkSession.builder.appName("campaignEval").getOrCreate()
         self.spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
-        dbutils = DBUtils(self.spark)
+        self.spark.conf.set("spark.databricks.io.cache.enabled", True)
+
+        dbutils = DBUtils(self.spark)        
 
         self.store_fmt = self.params["store_fmt"].lower()
         self.wk_type = self.params["wk_type"]
