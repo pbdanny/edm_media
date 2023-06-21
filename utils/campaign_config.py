@@ -358,7 +358,7 @@ class CampaignEval(CampaignParams):
         self.load_target_store()
 
         if control_store_mode == "":
-            if self.params["resrv_store_class"] is not None:
+            if (self.params["resrv_store_class"] is not None) & (self.use_reserved_store) :
                 _resrv()
             elif Path(self.custom_ctrl_store_file.file_api()).is_file():
                 _custom()
