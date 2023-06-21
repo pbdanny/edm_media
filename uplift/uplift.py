@@ -18,8 +18,6 @@ from pyspark.dbutils import DBUtils
 from utils.DBPath import DBPath
 from utils.campaign_config import CampaignEval
 
-spark = SparkSession.builder.appName("campaingEval").getOrCreate()
-
 from utils import period_cal
 from activate import activated
 from uplift import unexposed
@@ -173,7 +171,7 @@ def get_cust_uplift_any_mech(cmp: CampaignEval,
          .select("customer_mv_group", "pstv_cstmr_uplift")
         )
     total_positive_cust_uplift_num = positive_cust_uplift.agg(F.sum("pstv_cstmr_uplift")).collect()[0][0]
-    total_positive_cust_uplift_sf = spark.createDataFrame([("Total", total_positive_cust_uplift_num),], ["customer_mv_group", "pstv_cstmr_uplift"])
+    total_positive_cust_uplift_sf = cmp.spark.createDataFrame([("Total", total_positive_cust_uplift_num),], ["customer_mv_group", "pstv_cstmr_uplift"])
     recal_cust_uplift = positive_cust_uplift.unionByName(total_positive_cust_uplift_sf)
 
     uplift_out = \
@@ -184,7 +182,7 @@ def get_cust_uplift_any_mech(cmp: CampaignEval,
     df = uplift_out.toPandas()
     sort_dict = {"new":0, "existing":1, "lapse":2, "Total":3}
     df = df.sort_values(by=["customer_mv_group"], key=lambda x: x.map(sort_dict))  # type: ignore
-    uplift_out = spark.createDataFrame(df)
+    uplift_out = cmp.spark.createDataFrame(df)
 
     return uplift_out
 
@@ -250,7 +248,7 @@ def get_customer_uplift_per_mechanic(cmp: CampaignEval,
         based on cp_start_date, cp_end_date
         """
         df = pd.DataFrame(ctr_store_list, columns=["store_id"])
-        sf = spark.createDataFrame(df)  # type: ignore
+        sf = cmp.spark.createDataFrame(df)  # type: ignore
 
         filled_ctrl_store_sf = \
             (sf
@@ -642,10 +640,10 @@ def get_customer_uplift_per_mechanic(cmp: CampaignEval,
     username_str = DBUtils.notebook.entry_point.getDbutils().notebook().getContext().userName().get().replace('.', '').replace('@', '')
 
     # Save and load temp table
-    spark.sql('DROP TABLE IF EXISTS tdm_seg.cust_uplift_by_mech_temp' + username_str)
+    cmp.spark.sql('DROP TABLE IF EXISTS tdm_seg.cust_uplift_by_mech_temp' + username_str)
     movement_and_exposure_by_mech.write.saveAsTable('tdm_seg.cust_uplift_by_mech_temp' + username_str)
 
-    movement_and_exposure_by_mech = spark.table('tdm_seg.cust_uplift_by_mech_temp' + username_str)
+    movement_and_exposure_by_mech = cmp.spark.table('tdm_seg.cust_uplift_by_mech_temp' + username_str)
 
     print('customer movement new logic:')
     movement_and_exposure_by_mech.groupBy('customer_group').pivot('group').agg(F.countDistinct('household_id')).show()
@@ -772,7 +770,7 @@ def get_customer_uplift_per_mechanic(cmp: CampaignEval,
                         'pct_positive_cust_uplift').toPandas()
     sort_dict = {"new":0, "existing":1, "lapse":2, "Total":3}
     df = df.sort_values(by=["customer_group"], key=lambda x: x.map(sort_dict))  # type: ignore
-    results = spark.createDataFrame(df)
+    results = cmp.spark.createDataFrame(df)
 
     # Repeat for all mechanics if multiple mechanics
     if num_of_mechanics > 1:
@@ -816,7 +814,7 @@ def get_customer_uplift_per_mechanic(cmp: CampaignEval,
             df = mech_result[mech].toPandas()
             sort_dict = {"new":0, "existing":1, "lapse":2, "Total":3}
             df = df.sort_values(by=["customer_group"], key=lambda x: x.map(sort_dict))  # type: ignore
-            mech_result[mech] = spark.createDataFrame(df)
+            mech_result[mech] = cmp.spark.createDataFrame(df)
 
             results = results.unionByName(mech_result[mech].select('customer_group',
                                                                    'mechanic',
@@ -896,7 +894,7 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
     #----
     # By mechanics by customer movement
     #----
-    by_mech_by_cust_mv = all_mech_nm.crossJoin( spark.createDataFrame([("new",),("existing",),("lapse",)], ["customer_mv_group"]) )
+    by_mech_by_cust_mv = all_mech_nm.crossJoin( cmp.spark.createDataFrame([("new",),("existing",),("lapse",)], ["customer_mv_group"]) )
     
     exposed_cust_mv_count = movement_and_exposure_by_mech.groupby("exposed", "customer_mv_group").agg(F.count_distinct("household_id").alias("exposed_custs"))
     unexposed_cust_mv_count = movement_and_exposure_by_mech.groupby("unexposed", "customer_mv_group").agg(F.count_distinct("household_id").alias("unexposed_custs"))
@@ -954,7 +952,7 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
     exposed_purchased_by_cust_mv_count = movement_and_exposure_by_mech.where(F.col("exposed_purchased").isNotNull()).groupby("customer_mv_group").agg(F.count_distinct("household_id").alias("exposed_purchased_custs"))
     unexposed_purchased_by_cust_mv_count = movement_and_exposure_by_mech.where(F.col("unexposed_purchased").isNotNull()).groupby("customer_mv_group").agg(F.count_distinct("household_id").alias("unexposed_purchased_custs"))
     
-    all_mech_by_cust_mv_count = (spark.createDataFrame([("new",),("existing",),("lapse",)], ["customer_mv_group"])
+    all_mech_by_cust_mv_count = (cmp.spark.createDataFrame([("new",),("existing",),("lapse",)], ["customer_mv_group"])
                      .join(exposed_cust_by_cust_mv_count, ["customer_mv_group"], "left")
                      .join(unexposed_cust_by_cust_mv_count, ["customer_mv_group"], "left")
                      .join(exposed_purchased_by_cust_mv_count, ["customer_mv_group"], "left")
@@ -987,7 +985,7 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
                                       ).collect()[0][0]
 
     all_mech_all_cust_mv_uplift = (
-        spark.createDataFrame([("Total","All")], ["customer_mv_group", "mech_name"])
+        cmp.spark.createDataFrame([("Total","All")], ["customer_mv_group", "mech_name"])
         .withColumn("exposed_custs", F.lit(all_exposed_cust_count))
         .withColumn("unexposed_custs", F.lit(all_unexposed_cust_count))
         .withColumn("exposed_purchased_custs", F.lit(all_exposed_purchased_cust_count))
