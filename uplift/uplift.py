@@ -868,7 +868,22 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
          .join(cust_exposed_purchased.select("household_id", "mech_name").withColumnRenamed("mech_name", "exposed_purchased"), "household_id", "left")
          .join(cust_unexposed_purchased.select("household_id", "mech_name").withColumnRenamed("mech_name", "unexposed_purchased"), "household_id", "left")
         )
-
+    #---- Exposed Supersede Unexposed ----
+    # | day 1     | day 2      | day 3 | day 4     | day 5      | group                  |
+    # |-----------|------------|-------|-----------|------------|------------------------|
+    # | purchased | *exposed   |       | unexposed |            | exposed not purchase   |
+    # | unexposed | purchased  |       | *exposed  |            | exposed not purchase   |
+    # | unexposed | purchase 1 |       | *exposed  | purchase 2 | exposed and purchase   |
+    # | *exposed  | purchase 1 |       | unexposed | purchase 2 | exposed and purchase   |
+    # | unexposed | purchase   |       |           |            | unexposed and purchase |
+    # | unexposed |            |       | *exposed  |            | exposed not purchase   |
+    
+    cust_exp_over_unexp_x_purchased = \
+        (cust_exp_unexp_x_purchased
+         .withColumn("unexposed", F.when(F.col("exposed").isNotNull(), None).otherwise(F.col("unexposed")))
+         .withColumn("unexposed_purchased", F.when(F.col("exposed").isNotNull(), None).otherwise(F.col("unexposed_purchased")))
+         )
+        
     #---- Movement : prior - pre ----
     # +----------+----------+----------+
     # |ppp_spend |pre_spend |flag      |
@@ -882,7 +897,7 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
 
     # Customer expose - unexpoed x movement -> customer_mv_group
     movement_and_exposure_by_mech = \
-        (cust_exp_unexp_x_purchased
+        (cust_exp_over_unexp_x_purchased
          .join(cust_mv, 'household_id', 'left')
          .withColumn("customer_mv_group", F.when(F.col("pre_spending")>0, "existing")
                                        .when(F.col("prior_spending")>0, "lapse")
