@@ -869,11 +869,13 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
          .join(cust_unexposed_purchased.select("household_id", "mech_name").withColumnRenamed("mech_name", "unexposed_purchased"), "household_id", "left")
         )
     #---- Exposed Supersede Unexposed ----
+    # purchased = purchased at any store. (test, ctrl, oth)
     # | day 1     | day 2      | day 3 | day 4     | day 5      | group                  |
     # |-----------|------------|-------|-----------|------------|------------------------|
     # | purchased | *exposed   |       | unexposed |            | exposed not purchase   |
-    # | unexposed | purchased  |       | *exposed  |            | exposed not purchase   |
-    # | unexposed | purchase 1 |       | *exposed  | purchase 2 | exposed and purchase   |
+    # | purchased | unexpoed   |       | *exposed  |            | exposed not purchase   |
+    # | unexposed | purchased  |       | *exposed  |            | unexposed not purchase |
+    # | unexposed | purchase 1 |       | *exposed  | purchase 2 | exposed and purchase   | # not count unexposed-purchase 1 in to account.
     # | *exposed  | purchase 1 |       | unexposed | purchase 2 | exposed and purchase   |
     # | unexposed | purchase   |       |           |            | unexposed and purchase |
     # | unexposed |            |       | *exposed  |            | exposed not purchase   |
