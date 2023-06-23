@@ -186,7 +186,7 @@ def get_cust_uplift_any_mech(cmp: CampaignEval,
 
     return uplift_out
 
-#---- Original code
+#---- Migrated code
 def get_customer_uplift_per_mechanic(cmp: CampaignEval,
                                      prd_scope_df: SparkDataFrame,
                                      prd_scope_nm: str):
