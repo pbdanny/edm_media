@@ -861,13 +861,24 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
                               .drop_duplicates()
     )
     
+    # Supersede Exposed -> Unexposed, Unexpoed and purchase
+    cust_unexposed_by_mech_excl_exposed = \
+        (cust_unexposed_by_mech
+         .join(cust_exposed_by_mech.select("household_id").drop_duplicates(), "household_id", "leftanti")
+        )
+    cust_unexposed_purchased_excl_exposed = \
+        (cust_unexposed_purchased
+         .join(cust_exposed_by_mech.select("household_id").drop_duplicates(), "household_id", "leftanti")
+        )
+
     # Household id by exposed mech_name, unexposed mech_name, exposed purchase mech_name, unexposed purchased mech_name
     cust_exp_unexp_x_purchased = (cust_exposed_unexposed
          .join(cust_exposed_by_mech.withColumnRenamed("mech_name", "exposed"), "household_id", "left")
-         .join(cust_unexposed_by_mech.withColumnRenamed("mech_name", "unexposed"),"household_id", "left")
+         .join(cust_unexposed_by_mech_excl_exposed.withColumnRenamed("mech_name", "unexposed"),"household_id", "left")
          .join(cust_exposed_purchased.select("household_id", "mech_name").withColumnRenamed("mech_name", "exposed_purchased"), "household_id", "left")
-         .join(cust_unexposed_purchased.select("household_id", "mech_name").withColumnRenamed("mech_name", "unexposed_purchased"), "household_id", "left")
+         .join(cust_unexposed_purchased_excl_exposed.select("household_id", "mech_name").withColumnRenamed("mech_name", "unexposed_purchased"), "household_id", "left")
         )
+
     #---- Exposed Supersede Unexposed ----
     # purchased = purchased at any store. (test, ctrl, oth)
     # | day 1     | day 2      | day 3 | day 4     | day 5      | group                  |
@@ -880,11 +891,11 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
     # | unexposed | purchase   |       |           |            | unexposed and purchase |
     # | unexposed |            |       | *exposed  |            | exposed not purchase   |
     
-    cust_exp_over_unexp_x_purchased = \
-        (cust_exp_unexp_x_purchased
-         .withColumn("unexposed", F.when(F.col("exposed").isNotNull(), None).otherwise(F.col("unexposed")))
-         .withColumn("unexposed_purchased", F.when(F.col("exposed").isNotNull(), None).otherwise(F.col("unexposed_purchased")))
-         )
+    # cust_exp_over_unexp_x_purchased = \
+    #     (cust_exp_unexp_x_purchased
+    #      .withColumn("unexposed", F.when(F.col("exposed").isNotNull(), None).otherwise(F.col("unexposed")))
+    #      .withColumn("unexposed_purchased", F.when(F.col("exposed").isNotNull(), None).otherwise(F.col("unexposed_purchased")))
+    #      )
         
     #---- Movement : prior - pre ----
     # +----------+----------+----------+
@@ -899,7 +910,7 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
 
     # Customer expose - unexpoed x movement -> customer_mv_group
     movement_and_exposure_by_mech = \
-        (cust_exp_over_unexp_x_purchased
+        (cust_exp_unexp_x_purchased
          .join(cust_mv, 'household_id', 'left')
          .withColumn("customer_mv_group", F.when(F.col("pre_spending")>0, "existing")
                                        .when(F.col("prior_spending")>0, "lapse")
