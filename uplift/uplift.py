@@ -209,18 +209,6 @@ def get_customer_uplift_per_mechanic(cmp: CampaignEval,
     store_matching_df_var = cmp.matched_store
     
     #--- Helper fn
-    def _get_period_wk_col_nm(wk_type: str
-                              ) -> str:
-        """Column name for period week identification
-        """
-        if wk_type in ["promo_week"]:
-            period_wk_col_nm = "period_promo_wk"
-        elif wk_type in ["promozone"]:
-            period_wk_col_nm = "period_promo_mv_wk"
-        else:
-            period_wk_col_nm = "period_fis_wk"
-        return period_wk_col_nm
-
     def _create_test_store_sf(test_store_sf: SparkDataFrame,
                              cp_start_date: str,
                              cp_end_date: str
@@ -248,7 +236,7 @@ def get_customer_uplift_per_mechanic(cmp: CampaignEval,
         based on cp_start_date, cp_end_date
         """
         df = pd.DataFrame(ctr_store_list, columns=["store_id"])
-        sf = cmp.spark.createDataFrame(df)  # type: ignore
+        sf = spark.createDataFrame(df)  # type: ignore
 
         filled_ctrl_store_sf = \
             (sf
@@ -392,7 +380,7 @@ def get_customer_uplift_per_mechanic(cmp: CampaignEval,
 
         all_purchased_exposed_shoppers = purchased_exposure_flagged.select('household_id').drop_duplicates()
 
-        all_feat_trans_trans_level_control_store_nonexposed = all_feat_trans_trans_level_control_store.join(all_purchased_exposed_shoppers,
+        Z = all_feat_trans_trans_level_control_store.join(all_purchased_exposed_shoppers,
                                                                                                             on='household_id', how='leftanti')
 
         # For each customer, check from the control stores to see what mechanics are at the matching test stores
@@ -499,7 +487,6 @@ def get_customer_uplift_per_mechanic(cmp: CampaignEval,
 
         return nonpurchased_custs_flagged
 
-
     def _get_mvmnt_prior_pre(txn: SparkDataFrame,
                              period_wk_col: str,
                              prd_scope_df: SparkDataFrame
@@ -557,30 +544,23 @@ def get_customer_uplift_per_mechanic(cmp: CampaignEval,
 
     #---- Main
     print("-"*80)
-    print("Customer Uplift")
-    print("Media Exposed = shopped in media aisle within campaign period (base on target input file) at target store , channel OFFLINE ")
-    print("Media UnExposed = shopped in media aisle within campaign period (base on target input file) at control store , channel OFFLINE ")
-    print("-"*80)
     if adj_prod_sf is None:
         print("Media exposed use total store level (all products)")
         adj_prod_sf = _create_adj_prod_df(txn)
     print("-"*80)
     print(f"Activate = Exposed & Shop {cust_uplift_lv.upper()} in campaign period at any store format and any channel")
     print("-"*80)
-    period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
+    period_wk_col = period_cal.get_period_wk_col_nm(cmp)
     print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
     print("-"*80)
-
-    if cust_uplift_lv == 'brand':
-        prd_scope_df = brand_sf
-    else:
-        prd_scope_df = feat_sf
+    
+    prd_scope_df = cmp.feat_sku
 
     ##---- Expose - UnExpose : Flag customer
     target_str = _create_test_store_sf(test_store_sf=test_store_sf, cp_start_date=cp_start_date, cp_end_date=cp_end_date)
 #     cmp_exposed = _get_exposed_cust(txn=txn, test_store_sf=target_str, adj_prod_sf=adj_prod_sf)
 
-    mechanic_list = target_str.select('mech_name').drop_duplicates().rdd.flatMap(lambda x: x).collect()
+    mechanic_list = cmp.target_store.select('mech_name').drop_duplicates().rdd.flatMap(lambda x: x).collect()
 
     print("List of detected mechanics from store list: ", mechanic_list)
 
@@ -637,13 +617,13 @@ def get_customer_uplift_per_mechanic(cmp: CampaignEval,
                   .otherwise('new'))
     )
     
-    username_str = DBUtils.notebook.entry_point.getDbutils().notebook().getContext().userName().get().replace('.', '').replace('@', '')
+    username_str = dbutils.notebook.entry_point.getDbutils().notebook().getContext().userName().get().replace('.', '').replace('@', '')
 
     # Save and load temp table
-    cmp.spark.sql('DROP TABLE IF EXISTS tdm_seg.cust_uplift_by_mech_temp' + username_str)
+    spark.sql('DROP TABLE IF EXISTS tdm_seg.cust_uplift_by_mech_temp' + username_str)
     movement_and_exposure_by_mech.write.saveAsTable('tdm_seg.cust_uplift_by_mech_temp' + username_str)
 
-    movement_and_exposure_by_mech = cmp.spark.table('tdm_seg.cust_uplift_by_mech_temp' + username_str)
+    movement_and_exposure_by_mech = spark.table('tdm_seg.cust_uplift_by_mech_temp' + username_str)
 
     print('customer movement new logic:')
     movement_and_exposure_by_mech.groupBy('customer_group').pivot('group').agg(F.countDistinct('household_id')).show()
@@ -770,7 +750,7 @@ def get_customer_uplift_per_mechanic(cmp: CampaignEval,
                         'pct_positive_cust_uplift').toPandas()
     sort_dict = {"new":0, "existing":1, "lapse":2, "Total":3}
     df = df.sort_values(by=["customer_group"], key=lambda x: x.map(sort_dict))  # type: ignore
-    results = cmp.spark.createDataFrame(df)
+    results = spark.createDataFrame(df)
 
     # Repeat for all mechanics if multiple mechanics
     if num_of_mechanics > 1:
@@ -814,7 +794,7 @@ def get_customer_uplift_per_mechanic(cmp: CampaignEval,
             df = mech_result[mech].toPandas()
             sort_dict = {"new":0, "existing":1, "lapse":2, "Total":3}
             df = df.sort_values(by=["customer_group"], key=lambda x: x.map(sort_dict))  # type: ignore
-            mech_result[mech] = cmp.spark.createDataFrame(df)
+            mech_result[mech] = spark.createDataFrame(df)
 
             results = results.unionByName(mech_result[mech].select('customer_group',
                                                                    'mechanic',
