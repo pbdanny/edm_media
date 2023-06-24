@@ -131,6 +131,7 @@ def get_cust_by_mech_unexposed_purchased(cmp: CampaignEval,
     .withColumn('time_diff', F.col('purchase_tran_datetime') - F.col('unexposed_tran_datetime'))
     .withColumn('recency_rank', F.dense_rank().over(Window.partitionBy('household_id','purchase_transaction_uid').orderBy(F.col('time_diff'))))
     .where(F.col('recency_rank') == 1)
+    .select('household_id', 'purchase_transaction_uid', 'mech_name')
     .drop_duplicates()
     )
     cust_purchased_unexposure_count = \
