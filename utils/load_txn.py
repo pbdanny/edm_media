@@ -144,11 +144,11 @@ def backward_compate_legacy_stored_txn(cmp: CampaignEval):
     - Change value in all period columns from 'cmp' -> 'dur'
     - Change column name 'pkg_weight_unit' -> 'unit'
     """
-    cmp.txn = \
-        (cmp.txn
-         .replace({"cmp":"dur"})
-         .withColumnRenamed("pkg_weight_unit", "unit")
-        )
+    cmp.txn = cmp.txn.replace({"cmp":"dur"})
+        
+    if "pkg_weight_unit" in cmp.column:
+        cmp.txn = cmp.txn.withColumnRenamed("pkg_weight_unit", "unit")
+
     return
 
 def scope_txn(cmp: CampaignEval):
