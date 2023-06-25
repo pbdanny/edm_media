@@ -866,13 +866,24 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
     # purchased = purchased at any store. (test, ctrl, oth)
     # | day 1     | day 2      | day 3 | day 4     | day 5      | group                  |
     # |-----------|------------|-------|-----------|------------|------------------------|
-    # | purchased | *exposed   |       | unexposed |            | exposed not purchase   |
-    # | purchased | unexpoed   |       | *exposed  |            | exposed not purchase   |
-    # | unexposed | purchased  |       | *exposed  |            | unexposed not purchase |
-    # | unexposed | purchase 1 |       | *exposed  | purchase 2 | exposed and purchase   | # not count unexposed-purchase 1 in to account.
-    # | *exposed  | purchase 1 |       | unexposed | purchase 2 | exposed and purchase   |
-    # | unexposed | purchase   |       |           |            | unexposed and purchase |
+
+    # no purchase
     # | unexposed |            |       | *exposed  |            | exposed not purchase   |
+    
+    # purchase in-between
+    # | unexposed | purchase   |       |           |            | unexposed and purchase |
+    # | unexposed | purchase   |       | *exposed  |            | exposed not purchase   |   
+    # | unexposed |            |       | *exposed  | purchase   | exposed and purchase   |
+    # | *exposed  |            |       | unexposed | purchase   | exposed and purchase   |
+    # | *exposed  | purchase   |       | unexposed |            | exposed and purchase   |
+    
+    # purchase before
+    # | purchase  | *exposed   |       | unexposed |            | exposed not purchase   |
+    # | purchase  | unexposed  |       | *exposed  |            | exposed not purchase   |
+    
+    # multi purchases
+    # | unexposed | purchase 1 |       | *exposed  | purchase 2 | exposed and purchase   | # not count unexposed-purchase in to account.
+    # | *exposed  | purchase 1 |       | unexposed | purchase 2 | exposed and purchase   |
     
     # cust_exp_over_unexp_x_purchased = \
     #     (cust_exp_unexp_x_purchased
@@ -907,10 +918,10 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
     #----
     by_mech_by_cust_mv = all_mech_nm.crossJoin( cmp.spark.createDataFrame([("new",),("existing",),("lapse",)], ["customer_mv_group"]) )
     
-    exposed_cust_mv_count = movement_and_exposure_by_mech.groupby("exposed", "customer_mv_group").agg(F.count_distinct("household_id").alias("exposed_custs"))
-    unexposed_cust_mv_count = movement_and_exposure_by_mech.groupby("unexposed", "customer_mv_group").agg(F.count_distinct("household_id").alias("unexposed_custs"))
-    exposed_purchased_cust_mv_count = movement_and_exposure_by_mech.groupby("exposed_purchased", "customer_mv_group").agg(F.count_distinct("household_id").alias("exposed_purchased_custs"))
-    unexposed_purchased_cust_mv_count = movement_and_exposure_by_mech.groupby("unexposed_purchased", "customer_mv_group").agg(F.count_distinct("household_id").alias("unexposed_purchased_custs"))
+    exposed_cust_mv_count = movement_and_exposure_by_mech.where(F.col("exposed").isNotNull()).groupby("exposed", "customer_mv_group").agg(F.count_distinct("household_id").alias("exposed_custs"))
+    unexposed_cust_mv_count = movement_and_exposure_by_mech.where(F.col("unexposed").isNotNull()).groupby("unexposed", "customer_mv_group").agg(F.count_distinct("household_id").alias("unexposed_custs"))
+    exposed_purchased_cust_mv_count = movement_and_exposure_by_mech.where(F.col("exposed_purchased").isNotNull()).groupby("exposed_purchased", "customer_mv_group").agg(F.count_distinct("household_id").alias("exposed_purchased_custs"))
+    unexposed_purchased_cust_mv_count = movement_and_exposure_by_mech.where(F.col("unexposed_purchased").isNotNull()).groupby("unexposed_purchased", "customer_mv_group").agg(F.count_distinct("household_id").alias("unexposed_purchased_custs"))
 
     by_mech_by_cust_mv_count = (by_mech_by_cust_mv
                      .join(exposed_cust_mv_count.withColumnRenamed("exposed", "mech_name"), ["mech_name", "customer_mv_group"], "left")
@@ -930,10 +941,10 @@ def get_cust_uplift_by_mech(cmp: CampaignEval,
     )
     
     #---- Positive uplift : By mechancics x Combine customer movement
-    exposed_cust_all_cust_mv_count = movement_and_exposure_by_mech.groupby("exposed").agg(F.count_distinct("household_id").alias("exposed_custs"))
-    unexposed_cust_all_cust_mv_count = movement_and_exposure_by_mech.groupby("unexposed").agg(F.count_distinct("household_id").alias("unexposed_custs"))
-    exposed_purchased_all_cust_mv_count = movement_and_exposure_by_mech.groupby("exposed_purchased").agg(F.count_distinct("household_id").alias("exposed_purchased_custs"))
-    unexposed_purchased_all_cust_mv_count = movement_and_exposure_by_mech.groupby("unexposed_purchased").agg(F.count_distinct("household_id").alias("unexposed_purchased_custs"))
+    exposed_cust_all_cust_mv_count = movement_and_exposure_by_mech.where(F.col("exposed").isNotNull()).groupby("exposed").agg(F.count_distinct("household_id").alias("exposed_custs"))
+    unexposed_cust_all_cust_mv_count = movement_and_exposure_by_mech.where(F.col("unexposed").isNotNull()).groupby("unexposed").agg(F.count_distinct("household_id").alias("unexposed_custs"))
+    exposed_purchased_all_cust_mv_count = movement_and_exposure_by_mech.where(F.col("exposed_purchased").isNotNull()).groupby("exposed_purchased").agg(F.count_distinct("household_id").alias("exposed_purchased_custs"))
+    unexposed_purchased_all_cust_mv_count = movement_and_exposure_by_mech.where(F.col("unexposed_purchased").isNotNull()).groupby("unexposed_purchased").agg(F.count_distinct("household_id").alias("unexposed_purchased_custs"))
 
     by_mech_all_cust_mv_count = (all_mech_nm
                      .join(exposed_cust_all_cust_mv_count.withColumnRenamed("exposed", "mech_name"), ["mech_name"], "left")
