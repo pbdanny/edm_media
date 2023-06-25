@@ -59,6 +59,7 @@ def load_txn(cmp: CampaignEval,
         cmp.params["txn_mode"] = "pre_generated_118wk"
         cmp.txn = cmp.spark.table("tdm_seg.v_latest_txn118wk")
 
+    backward_compate_legacy_stored_txn(cmp)
     create_period_col(cmp)
     scope_txn(cmp)
     replace_brand_nm(cmp)
@@ -135,6 +136,18 @@ def replace_store_region(cmp: CampaignEval):
          .drop("store_region")
          .join(cmp.store_dim.select("store_id", "store_region"), 'store_id', 'left')
          .fillna('Unidentified', subset='store_region')
+        )
+    return
+
+def backward_compate_legacy_stored_txn(cmp: CampaignEval):
+    """Backward compatibility with generated txn from code
+    - Change value in all period columns from 'cmp' -> 'dur'
+    - Change column name 'pkg_weight_unit' -> 'unit'
+    """
+    cmp.txn = \
+        (cmp.txn
+         .replace({"cmp":"dur"})
+         .withColumnRenamed("pkg_weight_unit", "unit")
         )
     return
 
