@@ -146,7 +146,7 @@ def backward_compate_legacy_stored_txn(cmp: CampaignEval):
     """
     cmp.txn = cmp.txn.replace({"cmp":"dur"})
         
-    if "pkg_weight_unit" in cmp.txn.column:
+    if "pkg_weight_unit" in cmp.txn.columns:
         cmp.txn = cmp.txn.withColumnRenamed("pkg_weight_unit", "unit")
 
     return
