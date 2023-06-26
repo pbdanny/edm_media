@@ -59,11 +59,11 @@ def load_txn(cmp: CampaignEval,
         cmp.params["txn_mode"] = "pre_generated_118wk"
         cmp.txn = cmp.spark.table("tdm_seg.v_latest_txn118wk")
 
-    backward_compate_legacy_stored_txn(cmp)
     create_period_col(cmp)
     scope_txn(cmp)
     replace_brand_nm(cmp)
     replace_store_region(cmp)
+    backward_compate_legacy_stored_txn(cmp)
 
     return
 
