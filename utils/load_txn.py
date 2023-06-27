@@ -148,7 +148,9 @@ def backward_compate_legacy_stored_txn(cmp: CampaignEval):
         
     if "pkg_weight_unit" in cmp.txn.columns:
         cmp.txn = cmp.txn.drop("unit").withColumnRenamed("pkg_weight_unit", "unit")
-
+        
+    if "store_format_group" in cmp.txn.columns:
+        cmp.txn = cmp.txn.drop("store_format_name").withColumnRenamed("store_format_group", "store_format_name")
     return
 
 def scope_txn(cmp: CampaignEval):
