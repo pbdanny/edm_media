@@ -238,6 +238,29 @@ class CampaignEval(CampaignParams):
         ----------
         eval_mode: str, default "homeshelf"
             Evaluation type : "promotion_zone", "homeshelf"
+        
+        Attributes:
+            - cmp_st_wk (int): Start week ID of the campaign.
+            - cmp_en_wk (int): End week ID of the campaign.
+            - gap_flag (bool): Flag indicating the presence of a gap period.
+            - gap_st_wk (int): Start week ID of the gap period.
+            - gap_en_wk (int): End week ID of the gap period.
+            - pre_st_wk (int): Start week ID of the pre-campaign period.
+            - pre_en_wk (int): End week ID of the pre-campaign period.
+            - ppp_st_wk (int): Start week ID of the prior-campaign period.
+            - ppp_en_wk (int): End week ID of the prior-campaign period.
+            - cmp_st_promo_wk (int): Start week ID of the campaign's promotion period.
+            - cmp_en_promo_wk (int): End week ID of the campaign's promotion period.
+            - gap_st_promo_wk (int): Start week ID of the gap period's promotion period.
+            - gap_en_promo_wk (int): End week ID of the gap period's promotion period.
+            - pre_st_promo_wk (int): Start week ID of the pre-campaign period's promotion period.
+            - pre_en_promo_wk (int): End week ID of the pre-campaign period's promotion period.
+            - ppp_st_promo_wk (int): Start week ID of the prior-campaign period's promotion period.
+            - ppp_en_promo_wk (int): End week ID of the prior-campaign period's promotion period.
+            - pre_st_promo_mv_wk (int): Start week ID of the pre-campaign period's promotion and moving window period.
+            - pre_en_promo_mv_wk (int): End week ID of the pre-campaign period's promotion and moving window period.
+            - ppp_st_promo_mv_wk (int): Start week ID of the prior-promotion period's promotion and moving window period.
+            - ppp_en_promo_mv_wk (int): End week ID of the prior-promotion period's promotion and moving window period.
         """
         self.cmp_st_wk = period_cal.wk_of_year_ls(self.cmp_start)
         self.params["cmp_st_wk"] = self.cmp_st_wk

@@ -13,20 +13,28 @@ from pyspark.sql import Window
 from utils.DBPath import DBPath
 from utils.campaign_config import CampaignEval
 
-spark = SparkSession.builder.appName("campaingEval").getOrCreate()
-
 from utils import period_cal
 from activate import activated
 from matching import store_matching
 
 #---- Create txn offline at aisle of matched store
 def create_txn_offline_x_aisle_matched_store(cmp: CampaignEval):
-    """Create txn offline x aisle based on matched store
-    UnExposed
-    - Offline channel
-    - Matched store
-    - Aisle definition based on matched target store aisle
-    - Period based on matched target store config
+    """Create offline transaction data with aisle information based on matched stores.
+
+    This function creates offline transaction data with aisle information based on matched stores for the provided CampaignEval object (`cmp`). It performs the following steps:
+
+    1. Checks if the `txn_offline_x_aisle_matched_store` attribute already exists in the `cmp` object. If it does, the function returns immediately.
+    2. Calls the `get_store_matching_across_region` function from the `store_matching` module to perform store matching across regions.
+    3. Matches the aisle information to the target store configuration based on the matched stores. It joins the `aisle_target_store_conf` DataFrame with the `matched_store` DataFrame using the `store_id` and `ctrl_store_id` columns, and renames the `ctrl_store_id` column to `store_id`.
+    4. Creates the `txn_offline_x_aisle_matched_store` DataFrame by joining the transaction data (`txn`) with the aisle-matched store information. It performs the join on the `store_id`, `upc_id`, and `date_id` columns and filters the data to include only offline channel transactions.
+    5. Updates the `cmp` object by assigning the created aisle-matched store DataFrame to the `aisle_matched_store` attribute.
+    6. Returns None.
+
+    Args:
+        cmp (CampaignEval): The CampaignEval object containing the necessary data for creating the offline transaction data with aisle information.
+
+    Returns:
+        None: This function does not return a value explicitly.
     """
     if hasattr(cmp, "txn_offline_x_aisle_matched_store"):
         return
@@ -121,6 +129,21 @@ def get_cust_txn_all_unexposed_date_n_mech(cmp: CampaignEval):
 def get_cust_by_mech_unexposed_purchased(cmp: CampaignEval,
                                          prd_scope_df: SparkDataFrame,
                                          prd_scope_nm: str):
+    """Get the count of customers who made purchases of specific products within a given product scope after being exposed to specific mechanics.
+
+    This function calculates the count of customers who made purchases of specific products within a given product scope after being exposed to specific mechanics. It takes the following inputs:
+
+    Args:
+        cmp (CampaignEval): The CampaignEval object containing the necessary data for customer evaluation.
+        prd_scope_df (SparkDataFrame): The Spark DataFrame containing the product scope data.
+        prd_scope_nm (str): The name of the product scope.
+
+    Returns:
+        SparkDataFrame: A Spark DataFrame containing the count of customers who made purchases of specific products within the product scope after being exposed to specific mechanics. The DataFrame has the following columns:
+            - household_id: The unique identifier of the household.
+            - mech_name: The name of the mechanic.
+            - n_visit_purchased_unexposure: The count of visits where the customer made a purchase within the product scope after being exposed to the mechanic.
+    """    
     cust_all_unexposed = get_cust_txn_all_unexposed_date_n_mech(cmp)
     cust_all_prod_purchase = activated.get_cust_txn_all_prod_purchase_date(cmp, prd_scope_df)
 

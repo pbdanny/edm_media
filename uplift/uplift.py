@@ -26,7 +26,20 @@ def _get_cust_mvmnt_ppp_pre(cmp: CampaignEval,
                             prd_scope_df: SparkDataFrame,
                             prd_scope_nm: str
                             ) -> SparkDataFrame:
-    """Get customer spending for ppp, pre period
+    """Get customer spending for prior (prior-campagign) and pre (pre-campaign) periods.
+
+    This function calculates the customer spending for the prior (prior-campagign) and pre (pre-campaign) periods. It takes the following inputs:
+
+    Args:
+        cmp (CampaignEval): The CampaignEval object containing the necessary data for customer evaluation.
+        prd_scope_df (SparkDataFrame): The Spark DataFrame containing the product scope data.
+        prd_scope_nm (str): The name of the product scope.
+
+    Returns:
+        SparkDataFrame: A Spark DataFrame containing the customer spending for the ppp and pre periods. The DataFrame has the following columns:
+            - household_id: The unique identifier of the household.
+            - prior_spending: The total spending of the household during the ppp period.
+            - pre_spending: The total spending of the household during the pre period.
     """
     period_wk_col_nm = period_cal.get_period_cust_mv_wk_col_nm(cmp)
     
@@ -58,7 +71,32 @@ def _get_cust_mvmnt_ppp_pre(cmp: CampaignEval,
 def get_cust_uplift_any_mech(cmp: CampaignEval,
                              prd_scope_df: SparkDataFrame,
                              prd_scope_nm: str):
-    """
+    """Calculate customer uplift for any mechanism.
+
+    This function calculates the customer uplift for any mechanism. It takes the following inputs:
+
+    Args:
+        cmp (CampaignEval): The CampaignEval object containing the necessary data for customer evaluation.
+        prd_scope_df (SparkDataFrame): The Spark DataFrame containing the product scope data.
+        prd_scope_nm (str): The name of the product scope.
+
+    Returns:
+        SparkDataFrame: A Spark DataFrame containing the customer uplift data. The DataFrame has the following columns:
+            - customer_mv_group: The customer movement group, which can be 'new', 'existing', 'lapse', or 'Total'.
+            - exposed_customers: The number of customers exposed to the mechanism.
+            - exposed_shoppers: The number of customers exposed to the mechanism who made a purchase.
+            - unexposed_customers: The number of customers unexposed to the mechanism.
+            - unexposed_shoppers: The number of customers unexposed to the mechanism who made a purchase.
+            - uplift_lv: The uplift level (product scope name).
+            - cvs_rate_test: The conversion rate of customers exposed to the mechanism.
+            - cvs_rate_ctr: The conversion rate of customers unexposed to the mechanism.
+            - pct_uplift: The percentage uplift calculated as (cvs_rate_test / cvs_rate_ctr) - 1.
+            - uplift_cust: The uplift in customers, calculated as (cvs_rate_test - cvs_rate_ctr) * exposed_customers.
+            - pstv_cstmr_uplift: The positive customer uplift, calculated as uplift_cust if it's positive, otherwise 0.
+            - pct_positive_cust_uplift: The percentage of positive customer uplift, calculated as pstv_cstmr_uplift / exposed_shoppers.
+
+    Note:
+        This function internally calls the `_get_cust_mvmnt_ppp_pre` function to calculate customer spending for ppp (post-promotion) and pre (pre-promotion) periods.
     """
 
     #---- Main
@@ -815,6 +853,20 @@ def get_customer_uplift_per_mechanic(cmp: CampaignEval,
 def get_cust_uplift_by_mech(cmp: CampaignEval,
                             prd_scope_df: SparkDataFrame,
                             prd_scope_nm: str):
+    """
+    Calculates customer uplift by mechanics based on the provided inputs.
+
+    Args:
+        cmp (CampaignEval): The campaign evaluation object.
+        prd_scope_df (SparkDataFrame): The Spark DataFrame for product scope.
+        prd_scope_nm (str): The name of the product scope.
+
+    Returns:
+        SparkDataFrame: A Spark DataFrame with the calculated customer uplift.
+
+    Raises:
+        None.
+    """    
     
     #--- Helper fn
 

@@ -13,6 +13,16 @@ from utils.DBPath import DBPath
 from utils.campaign_config import CampaignEval
 
 def create_txn_offline_x_aisle_target_store(cmp: CampaignEval):
+    """Create the offline transaction data for the aisle target store.
+    
+    This function checks if the `txn_offline_x_aisle_target_store` attribute already exists in the provided CampaignEval object (`cmp`). If it does, the function returns without performing any further actions. Otherwise, it creates the offline transaction data for the aisle target store by joining the transaction data and aisle target store configuration based on matching store IDs, UPCs, and date IDs. It filters the resulting data to include only offline transactions.
+    
+    Args:
+        cmp (CampaignEval): The CampaignEval object containing the transaction data and aisle target store configuration.
+        
+    Returns:
+        None
+    """
     if hasattr(cmp, "txn_offline_x_aisle_target_store"):
         return
     
@@ -23,6 +33,23 @@ def create_txn_offline_x_aisle_target_store(cmp: CampaignEval):
     return
 
 def get_store_mech_exposure_cmp(cmp: CampaignEval):
+    """Get store and mechanic exposure data for the campaign evaluation.
+
+    This function calculates the store and mechanic exposure data for the campaign evaluation. It checks if the `str_mech_exposure_cmp` attribute already exists in the provided CampaignEval object (`cmp`). If it does, the function returns without performing any further actions. Otherwise, it performs the following steps:
+    
+    1. Calls the `create_txn_offline_x_aisle_target_store` function to create the offline transaction data for the aisle target store.
+    2. Defines the `STORE_FMT_FAMILY_SIZE` DataFrame containing store format names and corresponding family sizes.
+    3. Retrieves the family size based on the store format name from `STORE_FMT_FAMILY_SIZE`.
+    4. Calculates the store and mechanic visits by grouping the offline transaction data by store ID, store region, mechanic name, and store format name, and aggregating metrics such as average mechanic count, average media fee, distinct ePOS visits, distinct carded visits, and distinct non-carded visits.
+    5. Joins the resulting store and mechanic visits data with the `STORE_FMT_FAMILY_SIZE` DataFrame and calculates impressions and CPM (cost per thousand impressions) based on the family size, mechanic count, and media fee.
+    6. Stores the resulting store and mechanic exposure data in the `str_mech_exposure_cmp` attribute of the CampaignEval object.
+    
+    Args:
+        cmp (CampaignEval): The CampaignEval object containing the transaction data, aisle target store configuration, and other relevant information.
+        
+    Returns:
+        None
+    """    
     if hasattr(cmp, "str_mech_exposure_cmp"):
         return
         
@@ -58,6 +85,23 @@ def get_store_mech_exposure_cmp(cmp: CampaignEval):
     return
 
 def _exposure_all(cmp: CampaignEval):
+    """Calculate overall exposure metrics for the campaign evaluation.
+
+    This function calculates the overall exposure metrics for the campaign evaluation based on the provided CampaignEval object (`cmp`). It performs the following steps:
+
+    1. Calls the `get_store_mech_exposure_cmp` function to retrieve store and mechanic exposure data.
+    2. Calls the `create_txn_offline_x_aisle_target_store` function to create the offline transaction data for the aisle target store.
+    3. Calculates the overall exposure metrics by aggregating the store and mechanic exposure data. The metrics include total ePOS visits, total carded visits, total non-carded visits, total ePOS impressions, total carded impressions, total non-carded impressions, total media fee, and CPM (cost per thousand impressions).
+    4. Retrieves the total number of carded customers from the offline transaction data.
+    5. Calculates additional metrics such as carded reach, average carded frequency, estimated non-carded reach, total reach, media spend, and CPM based on the aggregated data.
+    6. Returns a DataFrame containing the calculated overall exposure metrics.
+
+    Args:
+        cmp (CampaignEval): The CampaignEval object containing the necessary data for calculating overall exposure metrics.
+
+    Returns:
+        DataFrame: A DataFrame containing the overall exposure metrics, including total ePOS visits, total carded visits, total non-carded visits, total ePOS impressions, total carded impressions, total non-carded impressions, total media fee, carded reach, average carded frequency, estimated non-carded reach, total reach, media spend, and CPM.
+    """    
     get_store_mech_exposure_cmp(cmp)
     create_txn_offline_x_aisle_target_store(cmp)
         

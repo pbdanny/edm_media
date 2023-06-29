@@ -29,7 +29,7 @@ def load_txn(cmp: CampaignEval,
     ----------
     txn_mode: str, default = "pre_generated_118wk"
         "pre_generated_118wk" : load from pregenerated tdm_seg.v_latest_txn118wk
-        "campaign_specific" : load from created tdm_seg.media_campaign_eval_txn_data_{cmp.params['cmp_id']}
+        "stored_campaign_txn" : load from created tdm_seg.media_campaign_eval_txn_data_{cmp.params['cmp_id']}
         "create_new" : create from raw table
     """
     if txn_mode == "create_new":
@@ -47,11 +47,11 @@ def load_txn(cmp: CampaignEval,
 
         cmp.txn = snap.txn
 
-    elif txn_mode == "campaign_specific":
+    elif txn_mode == "stored_campaign_txn":
         try:
             cmp.txn = cmp.spark.table(
                 f"tdm_seg.media_campaign_eval_txn_data_{cmp.params['cmp_id'].lower()}")
-            cmp.params["txn_mode"] = "campaign_specific"
+            cmp.params["txn_mode"] = "stored_campaign_txn"
         except Exception as e:
             cmp.params["txn_mode"] = "pre_generated_118wk"
             cmp.txn = cmp.spark.table("tdm_seg.v_latest_txn118wk")
@@ -68,7 +68,16 @@ def load_txn(cmp: CampaignEval,
     return
 
 def replace_brand_nm(cmp: CampaignEval):
-    """Replace txn of multi feature brand with first main brand
+    """Replace the transactions of multi-feature brands with the first main brand.
+
+    This function replaces the brand names in the transactions with the brand names from the main products. 
+    It ensures that each transaction is associated with a single brand, even if the product has multiple features.
+
+    Args:
+        cmp (CampaignEval): The CampaignEval object containing the transactions and product information.
+
+    Returns:
+        None
     """
     cmp.txn = \
     (cmp.txn
@@ -80,7 +89,16 @@ def replace_brand_nm(cmp: CampaignEval):
     return
 
 def create_period_col(cmp: CampaignEval):
-    """Create period columns : period_fis_wk, period_promo_wk, period_promo_mv_wk
+    """Create period columns for the CampaignEval object.
+    
+    This function creates three period columns: period_fis_wk, period_promo_wk, and period_promo_mv_wk. 
+    The periods are determined based on the provided CampaignEval object's attributes and flags.
+    
+    Args:
+        cmp (CampaignEval): The CampaignEval object containing relevant information for period column creation.
+          
+    Returns:
+        None
     """
     if cmp.gap_flag:
         cmp.txn = (cmp.txn.withColumn('period_fis_wk',
@@ -140,9 +158,18 @@ def replace_store_region(cmp: CampaignEval):
     return
 
 def backward_compate_legacy_stored_txn(cmp: CampaignEval):
-    """Backward compatibility with generated txn from code
-    - Change value in all period columns from 'cmp' -> 'dur'
-    - Change column name 'pkg_weight_unit' -> 'unit'
+    """Perform backward compatibility adjustments to the stored transactions.
+    
+    This function ensures backward compatibility with the generated transactions from previous code versions by applying the following adjustments:
+    - Change the value in all period columns from 'cmp' to 'dur'.
+    - Change the column name 'pkg_weight_unit' to 'unit'.
+    - Change the column name 'store_format_group' to 'store_format_name'.
+    
+    Args:
+        cmp (CampaignEval): The CampaignEval object containing the stored transactions and necessary information.
+        
+    Returns:
+        None
     """
     cmp.txn = cmp.txn.replace({"cmp":"dur"}, subset=['period_fis_wk', 'period_promo_wk', 'period_promo_mv_wk'])
         
@@ -154,7 +181,18 @@ def backward_compate_legacy_stored_txn(cmp: CampaignEval):
     return
 
 def scope_txn(cmp: CampaignEval):
-    """Improve performance when use pre-joined 118wk txn
+    """Filter and optimize the performance of pre-joined 118-week transactions.
+    
+    This function improves the performance when using pre-joined 118-week transactions by applying the following steps:
+    1. Determine the minimum and maximum week IDs based on the provided campaign evaluation object (`cmp`) and specific parameters.
+    2. Add a 1-week buffer to the maximum week ID to account for overflow from Monday to Thursday of the promotional week to the following fiscal week.
+    3. Filter the transactions based on the week ID and period columns, retaining only the relevant data.
+    
+    Args:
+        cmp (CampaignEval): The CampaignEval object containing the pre-joined 118-week transactions and relevant information.
+        
+    Returns:
+        None
     """
     ppp_wk_list = [cmp.ppp_st_wk, cmp.ppp_st_promo_wk,
                    cmp.ppp_st_mv_wk, cmp.ppp_st_promo_mv_wk]

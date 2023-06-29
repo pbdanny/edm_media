@@ -617,6 +617,22 @@ def get_cust_txn_all_prod_purchase_date(cmp: CampaignEval,
 def get_cust_by_mech_exposed_purchased(cmp: CampaignEval,
                                prd_scope_df: SparkDataFrame,
                                prd_scope_nm: str):
+    
+    """Get the count of customers who made purchases of specific products within a given product scope after being exposed to specific mechanics.
+
+    This function calculates the count of customers who made purchases of specific products within a given product scope after being exposed to specific mechanics. It takes the following inputs:
+
+    Args:
+        cmp (CampaignEval): The CampaignEval object containing the necessary data for customer evaluation.
+        prd_scope_df (SparkDataFrame): The Spark DataFrame containing the product scope data.
+        prd_scope_nm (str): The name of the product scope.
+
+    Returns:
+        SparkDataFrame: A Spark DataFrame containing the count of customers who made purchases of specific products within the product scope after being exposed to specific mechanics. The DataFrame has the following columns:
+            - household_id: The unique identifier of the household.
+            - mech_name: The name of the mechanic.
+            - n_visit_purchased_exposure: The count of visits where the customer made a purchase within the product scope after being exposed to the mechanic.
+    """    
     cust_all_exposed = get_cust_txn_all_exposed_date_n_mech(cmp)
     cust_all_prod_purchase = get_cust_txn_all_prod_purchase_date(cmp, prd_scope_df)
 
