@@ -18,6 +18,15 @@ from utils import logger
 
 class CampaignConfigFile:
     def __init__(self, source_file):
+        """
+        Initializes a CampaignConfigFile object.
+
+        Args:
+            source_file (str): The path of the source file.
+
+        Returns:
+            None
+        """
         self.source_config_file = source_file
         self.cmp_config_file = DBPath(str("/dbfs" + source_file[5:]))
         self.cmp_config_file_name = self.cmp_config_file.name
@@ -33,16 +42,51 @@ class CampaignConfigFile:
         return
 
     def __repr__(self):
+        """
+        Returns a string representation of the CampaignConfigFile object.
+
+        Returns:
+            str: The string representation of the object.
+        """        
         return f"CampaignConfigFile class, source file = '{self.source_config_file}'"
 
     def display_details(self):
+        """
+        Displays the details of the CampaignConfigFile.
+
+        Returns:
+            None
+        """        
         return self.cmp_config_df.display()
 
     def search_details(self, column: str, search_key: str):
+        """
+        Searches for details in the CampaignConfigFile object based on the given column and search key.
+
+        Args:
+            column (str): The name of the column to search in.
+            search_key (str): The search key to match.
+
+        Returns:
+            pd.DataFrame: A DataFrame containing the matched rows.
+        """        
         return self.cmp_config_df[self.cmp_config_df[column].str.contains(search_key)]
 
 class CampaignParams:
     def __init__(self, config_file, cmp_row_no):
+        """
+        Initializes a CampaignParams object.
+
+        Args:
+            config_file (CampaignConfigFile): The CampaignConfigFile object.
+            cmp_row_no (int): The row number of the campaign.
+
+        Raises:
+            ValueError: If cmp_row_no is greater than the maximum available rows or less than 0.
+
+        Returns:
+            None
+        """        
         self.cmp_config_file = config_file.cmp_config_file
         self.all_cmp_df = config_file.cmp_config_df
         self.all_cmp_max_row = config_file.total_rows
@@ -74,15 +118,39 @@ class CampaignParams:
         return
 
     def __repr__(self):
+        """
+        Returns a string representation of the CampaignParams object.
+
+        Returns:
+            str: The string representation of the object.
+        """        
         return f"CampaignParams class, config file : '{self.cmp_input_file}'\nRow number : {self.row_no}"
 
     def display_details(self):
+        """
+        Displays the details of the CampaignParams object.
+
+        Returns:
+            None
+        """        
         pprint.pp(self.params)
         return
     
 class CampaignEval(CampaignParams):
 
     def convert_param_to_list(self, param_name: str) -> List:
+        """
+        Convert a parameter to a list.
+
+        Args:
+            param_name (str): The name of the parameter to convert.
+
+        Returns:
+            List: The converted parameter as a list.
+
+        Raises:
+            None
+        """        
         if self.params[param_name] is not None:
             param = self.params["cross_cate_cd"]
             if param.find("[") != -1:
@@ -95,6 +163,16 @@ class CampaignEval(CampaignParams):
             return []
 
     def __init__(self, config_file, cmp_row_no):
+        """
+        Initializes a CampaignEval object.
+
+        Args:
+            config_file (CampaignConfigFile): The CampaignConfigFile object.
+            cmp_row_no (int): The row number of the campaign.
+
+        Returns:
+            None
+        """        
         super().__init__(config_file, cmp_row_no)
         self.spark = SparkSession.builder.appName("campaignEval").getOrCreate()
         self.spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
@@ -143,6 +221,12 @@ class CampaignEval(CampaignParams):
         return
 
     def __repr__(self):
+        """
+        Returns a string representation of the CampaignEval object.
+
+        Returns:
+            str: The string representation of the object.
+        """        
         return f"CampaignEval class \nConfig file : '{self.cmp_config_file}'\nRow number : {self.row_no}"
 
     def load_period(self, eval_mode: str = "homeshelf"):
@@ -294,7 +378,13 @@ class CampaignEval(CampaignParams):
         return
 
     def load_target_store(self):
-        """Load target store"""
+        """Load target store
+
+        Loads the target store data from a CSV file and fills missing values for the 'c_start' and 'c_end' columns with the campaign start and end dates respectively.
+
+        Returns:
+            None
+        """
         self.target_store = \
             (self.spark.read.csv(self.target_store_file.spark_api(), header=True, inferSchema=True)
              .fillna(str(self.cmp_start), subset='c_start')
@@ -305,16 +395,21 @@ class CampaignEval(CampaignParams):
     def load_control_store(self, control_store_mode: str = ""):
         """Load control store
 
-        Parameters
-        ----------
-        control_store_mode: str, default=""
-            "" : (leave blank) = Auto upto input in config file
-            "reserved_store" : use reserved store
-            "custom_control_file" : load from custom control store
-            "rest" : rest
+        Loads the control store data based on the specified control_store_mode.
+
+        Parameters:
+            control_store_mode (str, optional): The control store mode to determine the source of control store data. Possible values are:
+                "" (default): Auto up to input in the config file
+                "reserved_store": Use reserved store
+                "custom_control_file": Load from custom control store
+                "rest": Rest
+
+        Returns:
+            None
         """
 
         def _resrv():
+            """Load control store from reserved store class"""
             self.params["control_store_source"] = "Reserved store class"
             self.control_store = (
                 self.spark.read.csv(
@@ -326,6 +421,7 @@ class CampaignEval(CampaignParams):
             return
 
         def _custom():
+            """Load control store from custom control store file"""            
             self.params["control_store_source"] = "Custom control store file"
             self.control_store = self.spark.read.csv(
                 (self.custom_ctrl_store_file).spark_api(), header=True, inferSchema=True
@@ -333,6 +429,7 @@ class CampaignEval(CampaignParams):
             return
 
         def _rest():
+            """Load control store from rest"""            
             self.params["control_store_source"] = "rest"
             store_dim_c = self.spark.table("tdm.v_store_dim_c")
 
@@ -376,7 +473,11 @@ class CampaignEval(CampaignParams):
         return
 
     def load_store_dim_adjusted(self):
-        """Create internal store dim with adjusted store region & combine "West" & "Central" -> West+Central"""
+        """Create internal store dim with adjusted store region & combine "West" & "Central" -> West+Central"
+        
+        Returns:
+        None
+        """        
         store_dim = (
             self.spark.table("tdm.v_store_dim")
             .select(
@@ -410,7 +511,11 @@ class CampaignEval(CampaignParams):
         return
 
     def load_prod(self):
-        """Load feature product, feature brand name, feature subclass, feature subclass"""
+        """Load feature product, feature brand name, feature subclass, feature subclass
+        
+        Returns:
+        None
+        """        
         self.feat_sku = self.spark.read.csv(
             (self.sku_file).spark_api(), header=True, inferSchema=True
         ).withColumnRenamed("feature", "upc_id")
