@@ -246,6 +246,9 @@ def get_customer_uplift_per_mechanic(cmp: CampaignEval,
     cust_uplift_lv = prd_scope_nm
     store_matching_df_var = cmp.matched_store
     
+    # backward compatibility with old code
+    spark = SparkSession.builder.appName("media_eval").getOrCreate()
+    dbutils = DBUtils
     #--- Helper fn
     def _create_test_store_sf(test_store_sf: SparkDataFrame,
                              cp_start_date: str,
@@ -418,7 +421,7 @@ def get_customer_uplift_per_mechanic(cmp: CampaignEval,
 
         all_purchased_exposed_shoppers = purchased_exposure_flagged.select('household_id').drop_duplicates()
 
-        Z = all_feat_trans_trans_level_control_store.join(all_purchased_exposed_shoppers,
+        all_feat_trans_trans_level_control_store_nonexposed = all_feat_trans_trans_level_control_store.join(all_purchased_exposed_shoppers,
                                                                                                             on='household_id', how='leftanti')
 
         # For each customer, check from the control stores to see what mechanics are at the matching test stores
