@@ -102,7 +102,8 @@ def save_PandasDataFrame_to_csv_FileStore(df: PandasDataFrame,
     from pathlib import Path
     
     # if not existed prefix, create prefix
-    parent_path = save_file_path.parent
+    parent_path = DBPath(save_file_path).parent
+    
     try:
         os.listdir(parent_path.file_api())
     except:
