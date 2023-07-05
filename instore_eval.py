@@ -1539,6 +1539,8 @@ def get_store_matching_across_region(
                           )
         trg_wk_cnt_df = txn_match_trg.groupBy(F.col("store_id")).agg(F.count_distinct(F.col(wk_id_col_nm)).alias('wk_sales'))
         trg_min_wk = trg_wk_cnt_df.agg(F.min(trg_wk_cnt_df.wk_sales).alias('min_wk_sales')).collect()[0][0]
+        if trg_min_wk is None:
+          trg_min_wk = 0
 
         # Min sale week ctrl store
         txn_match_ctl = (txn
@@ -1554,6 +1556,9 @@ def get_store_matching_across_region(
 
         ctl_wk_cnt_df = txn_match_ctl.groupBy("store_id").agg(F.count_distinct(F.col(wk_id_col_nm)).alias('wk_sales'))
         ctl_min_wk = ctl_wk_cnt_df.agg(F.min(ctl_wk_cnt_df.wk_sales).alias('min_wk_sales')).collect()[0][0]
+        # Handle return None
+        if ctl_min_wk is None:
+          ctl_min_wk = 0
 
         return int(trg_min_wk), txn_match_trg, int(ctl_min_wk), txn_match_ctl
 

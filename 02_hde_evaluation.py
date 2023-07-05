@@ -1538,6 +1538,7 @@ if wk_type == 'fis_wk':
 
 # MAGIC %md
 # MAGIC ### Uplift promo SKU
+# MAGIC
 
 # COMMAND ----------
 
@@ -1922,6 +1923,7 @@ if wk_type == 'fis_wk' :
 
 # MAGIC %md
 # MAGIC ## Sales Growth promo week
+# MAGIC
 
 # COMMAND ----------
 

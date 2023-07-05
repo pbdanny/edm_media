@@ -1355,6 +1355,7 @@ pandas_to_csv_filestore(df_pv, 'customer_share_test_ctrl_pre_dur.csv', prefix=os
 
 # MAGIC %md
 # MAGIC ### Uplift promo SKU
+# MAGIC
 
 # COMMAND ----------
 
@@ -1529,6 +1530,7 @@ pandas_to_csv_filestore(bnd_sales_matching_promo_df, 'brand_sales_matching_promo
 
 # MAGIC %md
 # MAGIC ## Sales Growth promo week - updated with control txn duplicate per used.
+# MAGIC
 
 # COMMAND ----------
 
