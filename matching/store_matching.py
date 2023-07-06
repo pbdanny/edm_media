@@ -82,6 +82,7 @@ def get_store_matching_across_region(cmp: CampaignEval,
         print(f"Load 'matched_store' {(cmp.output_path/'output'/'store_matching.csv').file_api()}" )
         return
     except Exception as e:
+        print(e)
         pass
 
     txn = cmp.txn
