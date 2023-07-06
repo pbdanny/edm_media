@@ -79,7 +79,7 @@ def get_store_matching_across_region(cmp: CampaignEval,
         # backward compatibility with old format
         matched_store_rename = cmp.matched_store.withColumnRenamed("ctr_store_cos", "ctrl_store_id").withColumnRenamed("store_id", "test_store_id")
         cmp.matched_store_list = matched_store_rename.select("ctrl_store_id").drop_duplicates().toPandas()["ctrl_store_id"].to_numpy().tolist()
-        print(f"Load 'matched_store' {(cmp.output_path/'output'/'store_matching.csv').file_api()}" )
+        print(f"Load 'matched_store' from {(cmp.output_path/'output'/'store_matching.csv').file_api()}" )
         return
     except Exception as e:
         print(e)
