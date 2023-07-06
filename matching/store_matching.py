@@ -73,6 +73,15 @@ def get_store_matching_across_region(cmp: CampaignEval,
     if hasattr(cmp, "matched_store"):
         return
     
+    try:
+        cmp.matched_store = cmp.spark.read.csv(cmp.output_path/"output"/"store_matching.csv", header=True, inferSchema=True)
+        # backward compatibility with old format
+        matched_store_rename = cmp.matched_store.withColumnRenamed("ctr_store_cos", "ctrl_store_id").withColumnRenamed("store_id", "test_store_id")
+        cmp.matched_store_list = matched_store_rename.select("ctrl_store_id").drop_duplicates().toPandas()["ctrl_store_id"].to_numpy().tolist()
+        return
+    except Exception as e:
+        pass
+
     txn = cmp.txn
     wk_type = cmp.wk_type
     pre_st_wk = cmp.pre_st_wk

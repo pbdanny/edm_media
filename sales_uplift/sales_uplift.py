@@ -18,6 +18,7 @@ from pyspark.dbutils import DBUtils
 from utils.DBPath import DBPath
 from utils.campaign_config import CampaignEval
 from matching import store_matching
+from utils import helper
 
 #---- Original Code
 def sales_uplift_reg_mech(txn, 
@@ -531,7 +532,6 @@ def sales_uplift_by_region_mechanic(cmp: CampaignEval,
 
     store_matching.get_store_matching_across_region(cmp)
     
-        
     try:
         matching_df_2 = matching_df[['store_id','test_store_region', 'store_mech_set_x', 'ctr_store_cos']].copy()  ## Pat Add store_region - May 2022
         matching_df_2.rename(columns={'store_id':'store_id_test','ctr_store_cos':'store_id_ctr', 'test_store_region':'store_region', 'store_mech_set_x':'store_mech_set'},inplace=True)
@@ -567,21 +567,19 @@ def sales_uplift_by_region_mechanic(cmp: CampaignEval,
         ## add drop duplicates for control - to use the same logic to get control factor per store (will merge to matching table and duplicate there instead)
         test_ctrl_store_pd.drop_duplicates()
         ## create_spark_df    
-        test_ctrl_store_df = spark.createDataFrame(test_ctrl_store_pd)
+        test_ctrl_store_df = cmp.spark.createDataFrame(test_ctrl_store_pd)
         
     except Exception as e:
         print(e)
         print('Unrecognized store matching methodology')
 
-    ## end Try 
-
-     # ---------------------------------------------------------------
-     ## Pat Adjust -- 6 May 2022 using pandas df to join to have flag of target/control stores
-     ## need to get txn of target/control store separately to distinct #customers    
-     # ---------------------------------------------------------------
-     #---- Uplift
+    # ---------------------------------------------------------------
+    ## Pat Adjust -- 6 May 2022 using pandas df to join to have flag of target/control stores
+    ## need to get txn of target/control store separately to distinct #customers    
+    # ---------------------------------------------------------------
+    #---- Uplift
         
-     # brand buyer, during campaign
+    # brand buyer, during campaign
     # Change filter to column offline_online_other_channel - Dec 2022 - Ta
     if sales_uplift_lv.lower() == 'brand':
         print('-'*50)
@@ -591,7 +589,7 @@ def sales_uplift_by_region_mechanic(cmp: CampaignEval,
         ## get transcation at brand level for all period  - Pat 25 May 2022
         
         brand_txn = txn.join(brand_df, [txn.upc_id == brand_df.upc_id], 'left_semi')\
-                       .join(broadcast(test_ctrl_store_df), 'store_id' , 'inner')\
+                       .join(F.broadcast(test_ctrl_store_df), 'store_id' , 'inner')\
                        .where((txn.offline_online_other_channel =='OFFLINE') &
                               (txn.period_fis_wk.isin('pre','cmp'))
                              )
@@ -609,7 +607,7 @@ def sales_uplift_by_region_mechanic(cmp: CampaignEval,
         
         ## get transcation at brand level for all period  - Pat 25 May 2022
         
-        feat_txn = txn.join(broadcast(test_ctrl_store_df), 'store_id' , 'inner')\
+        feat_txn = txn.join(F.broadcast(test_ctrl_store_df), 'store_id' , 'inner')\
                       .where( (txn.offline_online_other_channel =='OFFLINE') &
                               (txn.period_fis_wk.isin('pre','cmp')) &
                               (txn.upc_id.isin(feat_list))
@@ -630,15 +628,9 @@ def sales_uplift_by_region_mechanic(cmp: CampaignEval,
     ## region is in matching table already 
     sales_dur    = dur_txn_selected_prod_test_ctr_store.groupBy('store_id').agg(F.sum('net_spend_amt').alias('sales'))
     
-    sales_pre_df = to_pandas(sales_pre)
-    sales_dur_df = to_pandas(sales_dur)
+    sales_pre_df = helper.to_pandas(sales_pre)
+    sales_dur_df = helper.to_pandas(sales_dur)
     
-    #print('sales_pre_df')
-    
-    #sales_pre_df.display()
-    
-    #print('sales_dur_df')
-    #sales_dur_df.display()
     
     #---- sales by store by period clubcard
     
@@ -649,7 +641,7 @@ def sales_uplift_by_region_mechanic(cmp: CampaignEval,
                                                           ,F.sum('pkg_weight_unit').alias('cc_qty')
                                                          )
 #    cc_sales_pre_df = to_pandas(cc_sales_pre)
-    cc_kpi_dur_df = to_pandas(cc_kpi_dur)
+    cc_kpi_dur_df = helper.to_pandas(cc_kpi_dur)
     
     #print('cc_kpi_dur_df')
     #cc_kpi_dur_df.display()
@@ -676,7 +668,7 @@ def sales_uplift_by_region_mechanic(cmp: CampaignEval,
     cust_dur_ctrl     = dur_txn_ctrl_store.groupBy('store_id')\
                                           .agg(F.countDistinct('household_id').alias('cust_ctrl'))
     ## to pandas for join
-    cust_dur_ctrl_pd  = to_pandas(cust_dur_ctrl)
+    cust_dur_ctrl_pd  = helper.to_pandas(cust_dur_ctrl)
     
     ## Danny - convert all store_id to float type
     cust_dur_ctrl_pd["store_id"]   = cust_dur_ctrl_pd["store_id"].astype("float")
@@ -698,8 +690,8 @@ def sales_uplift_by_region_mechanic(cmp: CampaignEval,
     
                                                                                     
     #create weekly sales for each item
-    wk_sales_pre = to_pandas(pre_txn_selected_prod_test_ctr_store.groupBy('store_id').pivot('week_id').agg(F.sum('net_spend_amt').alias('sales')).fillna(0))
-    wk_sales_dur = to_pandas(dur_txn_selected_prod_test_ctr_store.groupBy('store_id').pivot('week_id').agg(F.sum('net_spend_amt').alias('sales')).fillna(0))
+    wk_sales_pre = helper.to_pandas(pre_txn_selected_prod_test_ctr_store.groupBy('store_id').pivot('week_id').agg(F.sum('net_spend_amt').alias('sales')).fillna(0))
+    wk_sales_dur = helper.to_pandas(dur_txn_selected_prod_test_ctr_store.groupBy('store_id').pivot('week_id').agg(F.sum('net_spend_amt').alias('sales')).fillna(0))
     
     #print('wk_sales_pre')
     #wk_sales_pre.display()
