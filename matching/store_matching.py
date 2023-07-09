@@ -28,7 +28,7 @@ from utils import period_cal
 
 #---- Developing
 def forward_convert_matching_schema(cmp: CampaignEval):
-    """Perform forward compatibility adjustments from matching store stored in version 1.
+    """Perform forward compatibility adjustments from matching store saved from in version 1.
     
     Args:
         cmp (CampaignEval): The CampaignEval object containing the stored transactions and necessary information.
@@ -41,6 +41,22 @@ def forward_convert_matching_schema(cmp: CampaignEval):
         
     if "ctr_store_cos" in cmp.matched_store.columns:
         cmp.matched_store = cmp.matched_store.drop("ctrl_store_id").withColumnRenamed("ctr_store_cos", "ctrl_store_id")
+    return
+
+def backword_convert_matching_schema(cmp: CampaignEval):
+    """Perform backward compatibility adjustments to the matching store version 1.
+    
+    Args:
+        cmp (CampaignEval): The CampaignEval object containing the stored transactions and necessary information.
+        
+    Returns:
+        None
+    """        
+    if "test_store_id" in cmp.matched_store.columns:
+        cmp.matched_store = cmp.matched_store.drop("store_id").withColumnRenamed("test_store_id", "store_id")
+        
+    if "ctrl_store_id" in cmp.matched_store.columns:
+        cmp.matched_store = cmp.matched_store.drop("ctr_store_cos").withColumnRenamed( "ctrl_store_id", "ctr_store_cos")
     return
 
 def get_store_matching_across_region(cmp: CampaignEval,
