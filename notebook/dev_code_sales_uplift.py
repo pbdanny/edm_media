@@ -8,6 +8,7 @@ from pyspark.sql import functions as F
 
 from utils.DBPath import DBPath, save_PandasDataFrame_to_csv_FileStore
 from utils.campaign_config import CampaignConfigFile, CampaignEval
+from utils.helper import to_pandas
 
 # COMMAND ----------
 
@@ -54,10 +55,18 @@ cmp.matched_store.display()
 
 # COMMAND ----------
 
+cmp.txn.select("period_fis_wk").drop_duplicates().display()
+
+# COMMAND ----------
+
 feat_list = cmp.feat_sku.toPandas()["upc_id"].to_numpy().tolist()
 cmp.txn = cmp.txn.withColumn("pkg_weight_unit", F.col("unit"))
-matching_df = cmp.matched_store.toPandas()
-sales_uplift_reg_mech(cmp.txn, "sku", cmp.feat_brand_sku, feat_list, cmp.matched_store.toPandas())
+cmp.txn = cmp.txn.replace({"dur":"cmp"}, subset=['period_fis_wk', 'period_promo_wk', 'period_promo_mv_wk'])
+
+matching_df = to_pandas(cmp.matched_store)
+from pyspark.sql.functions import broadcast
+
+sales_uplift_reg_mech(cmp.txn, "sku", cmp.feat_brand_sku, feat_list, matching_df)
 
 # COMMAND ----------
 
