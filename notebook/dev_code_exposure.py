@@ -11,9 +11,7 @@ from utils.campaign_config import CampaignConfigFile, CampaignEval
 
 # COMMAND ----------
 
-conf = CampaignConfigFile(
-    "/dbfs/FileStore/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_pakc_new.csv"
-)
+conf = CampaignConfigFile("/dbfs/FileStore/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_hde_than_2023_06_dev.csv")
 
 # COMMAND ----------
 
@@ -21,11 +19,7 @@ conf.display_details()
 
 # COMMAND ----------
 
-conf.search_details(column="cmp_id", search_key="2023_0102")
-
-# COMMAND ----------
-
-cmp = CampaignEval(conf, cmp_row_no=70)
+cmp = CampaignEval(conf, cmp_row_no=1)
 
 # COMMAND ----------
 
@@ -43,41 +37,38 @@ load_txn.load_txn(cmp, txn_mode="pre_generated_118wk")
 
 # COMMAND ----------
 
-# DBTITLE 1,Exposure
 from exposure import exposed
 
 # COMMAND ----------
 
-cmp_exposure_all, cmp_exposure_region, cmp_exposure_mech = exposed.get_exposure(cmp)
+exp_all, exp_reg, exp_mehc = exposed.get_exposure(cmp)
 
 # COMMAND ----------
 
-cmp_exposure_all.display()
+exp_all.display()
 
 # COMMAND ----------
 
-cmp_exposure_mech.display()
+from activate import activated
+act = activated.get_cust_by_mech_exposed_purchased(cmp, cmp.feat_sku, "sku")
 
 # COMMAND ----------
 
-# DBTITLE 1,Activated : Exposed & Purchased
-from activate.activated import get_cust_by_mach_activated
-
-brand_activated, sku_activated, summary = get_cust_by_mach_activated(cmp)
+act.display()
 
 # COMMAND ----------
 
-brand_activated.display(10)
-
-# COMMAND ----------
-
-# DBTITLE 1,Dev : Uplift
-
+act.agg(F.count("*"), F.count_distinct("household_id")).display()
 
 # COMMAND ----------
 
 from uplift import uplift
+uplift = uplift.get_cust_uplift_by_mech(cmp, cmp.feat_sku, "sku")
 
 # COMMAND ----------
 
-sku_uplift = uplift.get_cust_uplift_any_mech(cmp, cmp.feat_sku, "sku")
+uplift.display()
+
+# COMMAND ----------
+
+
