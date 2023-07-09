@@ -43,7 +43,7 @@ def forward_convert_matching_schema(cmp: CampaignEval):
         cmp.matched_store = cmp.matched_store.drop("ctrl_store_id").withColumnRenamed("ctr_store_cos", "ctrl_store_id")
     return
 
-def backword_convert_matching_schema(cmp: CampaignEval):
+def backward_convert_matching_schema(cmp: CampaignEval):
     """Perform backward compatibility adjustments to the matching store version 1.
     
     Args:

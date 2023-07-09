@@ -216,7 +216,7 @@ def save_txn(cmp: CampaignEval):
         f"tdm_seg.media_campaign_eval_txn_data_{cmp.params['cmp_id']}")
     return
 
-def backword_convert_txn_schema(cmp: CampaignEval):
+def backward_convert_txn_schema(cmp: CampaignEval):
     """Perform backward compatibility adjustments to the stored transactions.
     
     This function ensures backward compatibility with the generated transactions from previous code versions by applying the following adjustments:
