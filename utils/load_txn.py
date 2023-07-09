@@ -63,7 +63,7 @@ def load_txn(cmp: CampaignEval,
     scope_txn(cmp)
     replace_brand_nm(cmp)
     replace_store_region(cmp)
-    backward_compate_legacy_stored_txn(cmp)
+    forward_convert_txn_schema(cmp)
 
     return
 
@@ -157,8 +157,8 @@ def replace_store_region(cmp: CampaignEval):
         )
     return
 
-def backward_compate_legacy_stored_txn(cmp: CampaignEval):
-    """Perform backward compatibility adjustments to the stored transactions.
+def forward_convert_txn_schema(cmp: CampaignEval):
+    """Perform forward compatibility adjustments from stored transactions in version 1.
     
     This function ensures backward compatibility with the generated transactions from previous code versions by applying the following adjustments:
     - Change the value in all period columns from 'cmp' to 'dur'.
@@ -214,4 +214,27 @@ def save_txn(cmp: CampaignEval):
     load_txn()
     cmp.txn.write.saveAsTable(
         f"tdm_seg.media_campaign_eval_txn_data_{cmp.params['cmp_id']}")
+    return
+
+def backword_convert_txn_schema(cmp: CampaignEval):
+    """Perform backward compatibility adjustments to the stored transactions.
+    
+    This function ensures backward compatibility with the generated transactions from previous code versions by applying the following adjustments:
+    - Change the value in all period columns from 'dur' to 'cmp'.
+    - Change the column name 'unit' to 'pkg_weight_unit'.
+    - Change the column name 'store_format_name' to 'store_format_group'.
+    
+    Args:
+        cmp (CampaignEval): The CampaignEval object containing the stored transactions and necessary information.
+        
+    Returns:
+        None
+    """
+    cmp.txn = cmp.txn.replace({"dur":"cmp"}, subset=['period_fis_wk', 'period_promo_wk', 'period_promo_mv_wk'])
+        
+    if "unit" in cmp.txn.columns:
+        cmp.txn = cmp.txn.drop("pkg_weight_unit").withColumnRenamed("unit", "pkg_weight_unit")
+        
+    if "store_format_group" in cmp.txn.columns:
+        cmp.txn = cmp.txn.drop("store_format_name").withColumnRenamed("store_format_group", "store_format_name")
     return
