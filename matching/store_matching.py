@@ -27,6 +27,22 @@ from exposure.exposed import create_txn_offline_x_aisle_target_store
 from utils import period_cal
 
 #---- Developing
+def forward_convert_matching_schema(cmp: CampaignEval):
+    """Perform forward compatibility adjustments from matching store stored in version 1.
+    
+    Args:
+        cmp (CampaignEval): The CampaignEval object containing the stored transactions and necessary information.
+        
+    Returns:
+        None
+    """        
+    if "store_id" in cmp.matched_store.columns:
+        cmp.matched_store = cmp.matched_store.drop("test_store_id").withColumnRenamed("store_id", "test_store_id")
+        
+    if "ctr_store_cos" in cmp.matched_store.columns:
+        cmp.matched_store = cmp.matched_store.drop("ctrl_store_id").withColumnRenamed("ctr_store_cos", "ctrl_store_id")
+    return
+
 def get_store_matching_across_region(cmp: CampaignEval,
                                      matching_methodology: str = 'cosine_distance',
                                      bad_match_threshold: float = 2.5):
@@ -80,6 +96,7 @@ def get_store_matching_across_region(cmp: CampaignEval,
         matched_store_rename = cmp.matched_store.withColumnRenamed("ctr_store_cos", "ctrl_store_id").withColumnRenamed("store_id", "test_store_id")
         cmp.matched_store_list = matched_store_rename.select("ctrl_store_id").drop_duplicates().toPandas()["ctrl_store_id"].to_numpy().tolist()
         print(f"Load 'matched_store' from {(cmp.output_path/'output'/'store_matching.csv').file_api()}" )
+        forward_convert_matching_schema(cmp)
         return
     except Exception as e:
         print(e)
