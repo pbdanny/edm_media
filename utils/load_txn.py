@@ -235,6 +235,6 @@ def backword_convert_txn_schema(cmp: CampaignEval):
     if "unit" in cmp.txn.columns:
         cmp.txn = cmp.txn.drop("pkg_weight_unit").withColumnRenamed("unit", "pkg_weight_unit")
         
-    if "store_format_group" in cmp.txn.columns:
-        cmp.txn = cmp.txn.drop("store_format_name").withColumnRenamed("store_format_group", "store_format_name")
+    if "store_format_name" in cmp.txn.columns:
+        cmp.txn = cmp.txn.drop("store_format_group").withColumnRenamed("store_format_name", "store_format_group")
     return
