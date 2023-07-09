@@ -172,10 +172,19 @@ def sales_uplift_reg_mech(txn,
 #    cc_sales_pre_df = to_pandas(cc_sales_pre)
     cc_kpi_dur_df = to_pandas(cc_kpi_dur)
     
+    #---- Create cc kpi pre
+    cc_kpi_pre = pre_txn_selected_prod_test_ctr_store.where(F.col('household_id').isNotNull()) \
+                                                     .groupBy(F.col('store_id'))\
+                                                     .agg( F.sum('net_spend_amt').alias('cc_sales')
+                                                          ,F.countDistinct('transaction_uid').alias('cc_bask')
+                                                          ,F.sum('pkg_weight_unit').alias('cc_qty')
+                                                         )
+    cc_kpi_pre_df = to_pandas(cc_kpi_pre)
+
     ## create separate test/control txn table for #customers -- Pat May 2022
     
-    #pre_txn_test_store = pre_txn_selected_prod_test_ctr_store.where(F.col('flag_store') == 'test')
-    #pre_txn_ctrl_store = pre_txn_selected_prod_test_ctr_store.where(F.col('flag_store') == 'cont')
+    # pre_txn_test_store = pre_txn_selected_prod_test_ctr_store.where(F.col('flag_store') == 'test')
+    # pre_txn_ctrl_store = pre_txn_selected_prod_test_ctr_store.where(F.col('flag_store') == 'cont')
     
     dur_txn_test_store = dur_txn_selected_prod_test_ctr_store.where(F.col('flag_store') == 'test')
     dur_txn_ctrl_store = dur_txn_selected_prod_test_ctr_store.where(F.col('flag_store') == 'cont')
@@ -254,14 +263,16 @@ def sales_uplift_reg_mech(txn,
                                 .assign(ctr_dur_sum_adjust = lambda x : x['ctr_dur_sum'] * x['ctr_factor'])
                                 
                                 #-- club card KPI
-                                .merge(cc_kpi_dur_df, left_on='store_id_test', right_on='store_id', how = 'left').rename(columns={ 'cc_sales':'cc_test_dur_sum'
-                                                                                                                     ,'cc_bask':'cc_test_dur_bask'
-                                                                                                                     ,'cc_qty':'cc_test_dur_qty'
-                                                                                                                   })
-                                .merge(cc_kpi_dur_df, left_on='store_id_ctr', right_on='store_id', how = 'left').rename(columns={ 'cc_sales':'cc_ctr_dur_sum' 
-                                                                                                       ,'cc_bask':'cc_ctr_dur_bask'
-                                                                                                       ,'cc_qty':'cc_ctr_dur_qty'
-                                                                                                        })
+                                .merge(cc_kpi_dur_df, left_on='store_id_test', right_on='store_id', how = 'left')
+                                .rename(columns={ 'cc_sales':'cc_test_dur_sum','cc_bask':'cc_test_dur_bask','cc_qty':'cc_test_dur_qty'})
+                                .merge(cc_kpi_dur_df, left_on='store_id_ctr', right_on='store_id', how = 'left')
+                                .rename(columns={ 'cc_sales':'cc_ctr_dur_sum' ,'cc_bask':'cc_ctr_dur_bask','cc_qty':'cc_ctr_dur_qty'})
+                                .merge(cc_kpi_pre_df, left_on='store_id_test', right_on='store_id', how = 'left')
+                                .rename(columns={ 'cc_sales':'cc_test_pre_sum','cc_bask':'cc_test_pre_bask','cc_qty':'cc_test_pre_qty'})
+                                .merge(cc_kpi_pre_df, left_on='store_id_ctr', right_on='store_id', how = 'left')
+                                .rename(columns={ 'cc_sales':'cc_ctr_pre_sum' ,'cc_bask':'cc_ctr_pre_bask','cc_qty':'cc_ctr_pre_qty'})
+                                #---- CC ctrl factor
+                                .assign(cc_ctr_factor = lambda x : x['cc_test_pre_sum']  / x['cc_ctr_pre_sum'])
                  ).loc[:, [ 'store_id_test'
                            ,'store_id_ctr'
                            , 'store_region'
@@ -277,7 +288,14 @@ def sales_uplift_reg_mech(txn,
                            , 'cc_test_dur_bask'
                            , 'cc_ctr_dur_bask'
                            , 'cc_test_dur_qty'
-                           , 'cc_ctr_dur_qty' ]]
+                           , 'cc_ctr_dur_qty' 
+                           , 'cc_test_pre_sum'
+                           , 'cc_ctr_pre_sum'
+                           , 'cc_test_pre_bask'
+                           , 'cc_ctr_pre_bask'
+                           , 'cc_test_pre_qty'
+                           , 'cc_ctr_pre_qty'
+                           ,'cc_ctr_factor']]
     ##-----------------------------------------------------------
     ## -- Sales uplift at overall level  
     ##-----------------------------------------------------------
@@ -300,6 +318,19 @@ def sales_uplift_reg_mech(txn,
     pct_sales_uplift = (sales_uplift / sum_sales_ctrl_adj) 
 
     print(f'{sales_uplift_lv} sales uplift: {sales_uplift} \n{sales_uplift_lv} %sales uplift: {pct_sales_uplift*100}%')
+
+    #---- CC sales uplift overall store
+    cc_matching_df = matching_df_all.loc[(matching_df_all['cc_ctr_factor'] > 0 ) & (matching_df_all['cc_ctr_pre_sum'] > 0 )]
+    sum_cc_sales_test     = cc_matching_df.cc_test_dur_sum.sum()
+    sum_cc_sales_ctrl     = cc_matching_df.ctr_dur_sum.sum()
+
+    sum_cc_sales_ctrl_adj = cc_matching_df.assign(cc_ctr_dur_sum_adjust = lambda x : x['cc_ctr_dur_sum'] * x['cc_ctr_factor']).cc_ctr_dur_sum_adjust.sum()
+
+    ## get uplift                                                                  
+    cc_sales_uplift     = sum_cc_sales_test - sum_cc_sales_ctrl_adj
+    pct_cc_sales_uplift = (cc_sales_uplift / sum_cc_sales_ctrl_adj) 
+
+
     ##-----------------------------------------------------------
     ##-----------------------------------------------------------
     ## Pat Add Sales uplift by Region -- 24 May 2022
@@ -393,8 +424,8 @@ def sales_uplift_reg_mech(txn,
     
     ### end get KPI -----------------------------------------------
                                                                                    
-    uplift_table = pd.DataFrame([[sales_uplift, pct_sales_uplift]],
-                                index=[sales_uplift_lv], columns=['sales_uplift','%uplift'])
+    uplift_table = pd.DataFrame([[sales_uplift, pct_sales_uplift, cc_sales_uplift, pct_cc_sales_uplift]],
+                                index=[sales_uplift_lv], columns=['sales_uplift','%uplift', 'cc_sales_uplift','cc_%uplift'])
     
     ## Add KPI table -- Pat 8 May 2022
     kpi_table = pd.DataFrame( [[ sum_sales_test

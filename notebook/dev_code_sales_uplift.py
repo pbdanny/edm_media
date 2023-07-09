@@ -31,6 +31,11 @@ cmp.load_aisle()
 
 from utils import load_txn
 load_txn.load_txn(cmp, txn_mode="stored_campaign_txn")
+load_txn.backward_convert_txn_schema(cmp)
+
+# COMMAND ----------
+
+cmp.txn.printSchema()
 
 # COMMAND ----------
 
@@ -43,6 +48,7 @@ from matching import store_matching
 # COMMAND ----------
 
 store_matching.get_store_matching_across_region(cmp)
+store_matching.backward_convert_matching_schema(cmp)
 
 # COMMAND ----------
 
@@ -55,18 +61,22 @@ cmp.matched_store.display()
 
 # COMMAND ----------
 
-cmp.txn.select("period_fis_wk").drop_duplicates().display()
-
-# COMMAND ----------
-
 feat_list = cmp.feat_sku.toPandas()["upc_id"].to_numpy().tolist()
-cmp.txn = cmp.txn.withColumn("pkg_weight_unit", F.col("unit"))
-cmp.txn = cmp.txn.replace({"dur":"cmp"}, subset=['period_fis_wk', 'period_promo_wk', 'period_promo_mv_wk'])
+# cmp.txn = cmp.txn.withColumn("pkg_weight_unit", F.col("unit"))
+# cmp.txn = cmp.txn.replace({"dur":"cmp"}, subset=['period_fis_wk', 'period_promo_wk', 'period_promo_mv_wk'])
 
 matching_df = to_pandas(cmp.matched_store)
 from pyspark.sql.functions import broadcast
 
-sales_uplift_reg_mech(cmp.txn, "sku", cmp.feat_brand_sku, feat_list, matching_df)
+info, tab, _, _, _, _ = sales_uplift_reg_mech(cmp.txn, "sku", cmp.feat_brand_sku, feat_list, matching_df)
+
+# COMMAND ----------
+
+info.display()
+
+# COMMAND ----------
+
+tab.display()
 
 # COMMAND ----------
 
