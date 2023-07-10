@@ -417,16 +417,14 @@ def get_cust_brand_switching_and_penetration(cmp: CampaignEval,
 
     return new_to_brand_switching, brand_cust_pen, cust_brand_switching_and_pen
 
-def get_cust_brand_switching_and_penetration_multi(cmp: CampaignEval,
-                                                   cust_movement_sf: SparkDataFrame,
-        ):
+def get_cust_brand_switching_and_penetration_multi(cmp: CampaignEval):
     """Media evaluation solution, customer switching
     """
     cmp.spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
     txn = cmp.txn
     cate_df = cmp.feat_cate_sku
     switching_lv = cmp.params["cate_lvl"]
-
+    cust_movement_sf = cmp.activated_cust_movement
     #---- Main
     print("-"*80)
     print("Customer brand switching")
