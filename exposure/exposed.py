@@ -32,7 +32,7 @@ def create_txn_offline_x_aisle_target_store(cmp: CampaignEval):
         )
     return
 
-def get_store_mech_exposure_cmp(cmp: CampaignEval):
+def create_store_mech_exposure_cmp(cmp: CampaignEval):
     """Get store and mechanic exposure data for the campaign evaluation.
 
     This function calculates the store and mechanic exposure data for the campaign evaluation. It checks if the `str_mech_exposure_cmp` attribute already exists in the provided CampaignEval object (`cmp`). If it does, the function returns without performing any further actions. Otherwise, it performs the following steps:
@@ -102,7 +102,7 @@ def _exposure_all(cmp: CampaignEval):
     Returns:
         DataFrame: A DataFrame containing the overall exposure metrics, including total ePOS visits, total carded visits, total non-carded visits, total ePOS impressions, total carded impressions, total non-carded impressions, total media fee, carded reach, average carded frequency, estimated non-carded reach, total reach, media spend, and CPM.
     """    
-    get_store_mech_exposure_cmp(cmp)
+    create_store_mech_exposure_cmp(cmp)
     create_txn_offline_x_aisle_target_store(cmp)
         
     #---- Overall Exposure    
@@ -134,7 +134,7 @@ def _exposure_all(cmp: CampaignEval):
     return exposure_all
 
 def _exposure_region(cmp: CampaignEval):
-    get_store_mech_exposure_cmp(cmp)    
+    create_store_mech_exposure_cmp(cmp)    
     create_txn_offline_x_aisle_target_store(cmp)
             
     customer_by_region = cmp.txn_offline_x_aisle_target_store.groupBy('store_region').agg(
@@ -162,7 +162,7 @@ def _exposure_region(cmp: CampaignEval):
     return region_impression
 
 def _exposure_mech(cmp: CampaignEval):
-    get_store_mech_exposure_cmp(cmp)    
+    create_store_mech_exposure_cmp(cmp)    
     create_txn_offline_x_aisle_target_store(cmp)
             
     customer_by_mech = cmp.txn_offline_x_aisle_target_store.groupBy('mech_name').agg(
