@@ -63,7 +63,7 @@ def load_txn(cmp: CampaignEval,
     scope_txn(cmp)
     replace_brand_nm(cmp)
     replace_store_region(cmp)
-    forward_convert_txn_schema(cmp)
+    forward_compatible_stored_txn_schema(cmp)
 
     return
 
@@ -157,7 +157,7 @@ def replace_store_region(cmp: CampaignEval):
         )
     return
 
-def forward_convert_txn_schema(cmp: CampaignEval):
+def forward_compatible_stored_txn_schema(cmp: CampaignEval):
     """Perform forward compatibility adjustments from stored transactions in version 1.
     
     This function ensures backward compatibility with the generated transactions from previous code versions by applying the following adjustments:
@@ -216,7 +216,7 @@ def save_txn(cmp: CampaignEval):
         f"tdm_seg.media_campaign_eval_txn_data_{cmp.params['cmp_id']}")
     return
 
-def backward_convert_txn_schema(cmp: CampaignEval):
+def get_backward_compatible_txn_schema(cmp: CampaignEval):
     """Perform backward compatibility adjustments to the stored transactions.
     
     This function ensures backward compatibility with the generated transactions from previous code versions by applying the following adjustments:
@@ -228,13 +228,14 @@ def backward_convert_txn_schema(cmp: CampaignEval):
         cmp (CampaignEval): The CampaignEval object containing the stored transactions and necessary information.
         
     Returns:
-        None
+        SparkDataFrame
     """
-    cmp.txn = cmp.txn.replace({"dur":"cmp"}, subset=['period_fis_wk', 'period_promo_wk', 'period_promo_mv_wk'])
+    back_txn = cmp.txn.replace({"dur":"cmp"}, subset=['period_fis_wk', 'period_promo_wk', 'period_promo_mv_wk'])
         
     if "unit" in cmp.txn.columns:
-        cmp.txn = cmp.txn.drop("pkg_weight_unit").withColumnRenamed("unit", "pkg_weight_unit")
+        back_txn = back_txn.drop("pkg_weight_unit").withColumnRenamed("unit", "pkg_weight_unit")
         
     if "store_format_name" in cmp.txn.columns:
-        cmp.txn = cmp.txn.drop("store_format_group").withColumnRenamed("store_format_name", "store_format_group")
-    return
+        back_txn = back_txn.drop("store_format_group").withColumnRenamed("store_format_name", "store_format_group")
+    
+    return back_txn

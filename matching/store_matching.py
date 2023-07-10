@@ -27,7 +27,7 @@ from exposure.exposed import create_txn_offline_x_aisle_target_store
 from utils import period_cal
 
 #---- Developing
-def forward_convert_matching_schema(cmp: CampaignEval):
+def forward_compatible_stored_matching_schema(cmp: CampaignEval):
     """Perform forward compatibility adjustments from matching store saved from in version 1.
     
     Args:
@@ -43,7 +43,7 @@ def forward_convert_matching_schema(cmp: CampaignEval):
         cmp.matched_store = cmp.matched_store.drop("ctrl_store_id").withColumnRenamed("ctr_store_cos", "ctrl_store_id")
     return
 
-def backward_convert_matching_schema(cmp: CampaignEval):
+def get_backward_compatible_stored_matching_schema(cmp: CampaignEval):
     """Perform backward compatibility adjustments to the matching store version 1.
     
     Args:
@@ -53,11 +53,12 @@ def backward_convert_matching_schema(cmp: CampaignEval):
         None
     """        
     if "test_store_id" in cmp.matched_store.columns:
-        cmp.matched_store = cmp.matched_store.drop("store_id").withColumnRenamed("test_store_id", "store_id")
+        back_matched_store = cmp.matched_store.drop("store_id").withColumnRenamed("test_store_id", "store_id")
         
     if "ctrl_store_id" in cmp.matched_store.columns:
-        cmp.matched_store = cmp.matched_store.drop("ctr_store_cos").withColumnRenamed( "ctrl_store_id", "ctr_store_cos")
-    return
+        back_matched_store = back_matched_store.drop("ctr_store_cos").withColumnRenamed( "ctrl_store_id", "ctr_store_cos")
+    
+    return back_matched_store
 
 def get_store_matching_across_region(cmp: CampaignEval,
                                      matching_methodology: str = 'cosine_distance',
@@ -108,7 +109,7 @@ def get_store_matching_across_region(cmp: CampaignEval,
     
     try:
         cmp.matched_store = cmp.spark.read.csv((cmp.output_path/"output"/"store_matching.csv").spark_api(), header=True, inferSchema=True)
-        forward_convert_matching_schema(cmp)
+        forward_compatible_stored_matching_schema(cmp)
         cmp.matched_store_list = cmp.matched_store.select("ctrl_store_id").drop_duplicates().toPandas()["ctrl_store_id"].to_numpy().tolist()
         print(f"Load 'matched_store' from {(cmp.output_path/'output'/'store_matching.csv').file_api()}" )
         return

@@ -31,7 +31,7 @@ cmp.load_aisle()
 
 from utils import load_txn
 load_txn.load_txn(cmp, txn_mode="stored_campaign_txn")
-load_txn.backward_convert_txn_schema(cmp)
+load_txn.get_backward_compatible_txn_schema(cmp)
 
 # COMMAND ----------
 
@@ -48,7 +48,7 @@ from matching import store_matching
 # COMMAND ----------
 
 store_matching.get_store_matching_across_region(cmp)
-store_matching.backward_convert_matching_schema(cmp)
+store_matching.get_backward_compatible_stored_matching_schema(cmp)
 
 # COMMAND ----------
 
