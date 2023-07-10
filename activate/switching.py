@@ -14,6 +14,7 @@ from pyspark.sql import Window
 
 from utils.DBPath import DBPath
 from utils.campaign_config import CampaignEval
+from utils import period_cal
 from exposure.exposed import create_txn_offline_x_aisle_target_store
 
 def get_cust_movement(cmp: CampaignEval,
@@ -423,31 +424,16 @@ def get_cust_brand_switching_and_penetration_multi(cmp: CampaignEval,
     """
     cmp.spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
     txn = cmp.txn
-    wk_type = cmp.wk_type
     cate_df = cmp.feat_cate_sku
     switching_lv = cmp.params["cate_lvl"]
-    wk_type = cmp.wk_type
-    
-    #---- Helper fn
-    def _get_period_wk_col_nm(wk_type: str
-                              ) -> str:
-        """Column name for period week identification
-        """
-        if wk_type in ["promo_week", "promo_wk"]:
-            period_wk_col_nm = "period_promo_wk"
-        elif wk_type in ["promozone"]:
-            period_wk_col_nm = "period_promo_mv_wk"
-        else:
-            period_wk_col_nm = "period_fis_wk"
-        return period_wk_col_nm
 
     #---- Main
     print("-"*80)
     print("Customer brand switching")
     print(f"Brand switching within : {switching_lv.upper()}")
     print("-"*80)
-    period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
-    print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
+    period_wk_col_nm = period_cal.get_period_wk_col_nm(cmp)
+    print(f"Period PPP / PRE / CMP based on column {period_wk_col_nm}")
     print("-"*80)
 
     new_to_brand_cust = cust_movement_sf.where(F.col('customer_micro_flag') == "new_to_brand")
@@ -456,7 +442,7 @@ def get_cust_brand_switching_and_penetration_multi(cmp: CampaignEval,
     prior_pre_new_to_brand_txn_in_cate = \
     (txn
      .where(F.col('household_id').isNotNull())
-     .where(F.col(period_wk_col).isin(['pre', 'ppp']))
+     .where(F.col(period_wk_col_nm).isin(['pre', 'ppp']))
 
      .join(new_to_brand_cust, "household_id", "inner")
      .join(cate_df, "upc_id", "inner")
@@ -483,7 +469,7 @@ def get_cust_brand_switching_and_penetration_multi(cmp: CampaignEval,
     prior_pre_txn_in_cate = \
     (txn
      .where(F.col('household_id').isNotNull())
-     .where(F.col(period_wk_col).isin(['pre', 'ppp']))
+     .where(F.col(period_wk_col_nm).isin(['pre', 'ppp']))
      .join(cate_df, "upc_id", "inner")
     )
 

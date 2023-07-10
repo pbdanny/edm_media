@@ -14,34 +14,27 @@ from pyspark.sql import Window
 
 from utils.DBPath import DBPath
 from utils.campaign_config import CampaignEval
+from utils import period_cal
 from exposure.exposed import create_txn_offline_x_aisle_target_store
+from activate import activated
 
-def get_cust_movement(cmp: CampaignEval,
-                      sku_activated: SparkDataFrame):
+def get_cust_movement(cmp: CampaignEval):
     """Customer movement based on tagged feature activated & brand activated
 
     """
     cmp.spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
     txn = cmp.txn
-    wk_type = cmp.wk_type
     feat_sf = cmp.feat_sku
     class_df = cmp.feat_class_sku
     sclass_df = cmp.feat_subclass_sku
     brand_df = cmp.feat_brand_sku
     switching_lv = cmp.params["cate_lvl"]
-      
-    #---- Helper function
-    def _get_period_wk_col_nm(wk_type: str
-                              ) -> str:
-        """Column name for period week identification
-        """
-        if wk_type in ["promo_week", "promo_wk"]:
-            period_wk_col_nm = "period_promo_wk"
-        elif wk_type in ["promozone"]:
-            period_wk_col_nm = "period_promo_mv_wk"
-        else:
-            period_wk_col_nm = "period_fis_wk"
-        return period_wk_col_nm
+
+    cust_purchased_exposure_count = activated.get_cust_by_mech_exposed_purchased(cmp,
+                                                                                 prd_scope_df = cmp.feat_sku,
+                                                                                 prd_scope_nm = "sku")
+    
+    sku_activated = cust_purchased_exposure_count.select("household_id").drop_duplicates()
 
     #---- Main
     # Movement
@@ -52,15 +45,15 @@ def get_cust_movement(cmp: CampaignEval,
     print("-"*80)
 
     print("-"*80)
-    period_wk_col = _get_period_wk_col_nm(wk_type=wk_type)
-    print(f"Period PPP / PRE / CMP based on column {period_wk_col}")
+    period_wk_col_nm = period_cal.get_period_wk_col_nm(cmp)
+    print(f"Period PPP / PRE / CMP based on column {period_wk_col_nm}")
     print("-"*80)
 
     # Features SKU movement
     prior_pre_sku_shopper = \
     (txn
      .where(F.col('household_id').isNotNull())
-     .where(F.col(period_wk_col).isin(['pre', 'ppp']))
+     .where(F.col(period_wk_col_nm).isin(['pre', 'ppp']))
      .join(feat_sf, "upc_id", "inner")
      .select('household_id')
      .drop_duplicates()
@@ -88,7 +81,7 @@ def get_cust_movement(cmp: CampaignEval,
     prior_pre_cc_txn = \
     (txn
      .where(F.col('household_id').isNotNull())
-     .where(F.col(period_wk_col).isin(['pre', 'ppp']))
+     .where(F.col(period_wk_col_nm).isin(['pre', 'ppp']))
     )
 
     prior_pre_store_shopper = prior_pre_cc_txn.select('household_id').drop_duplicates()
@@ -172,7 +165,7 @@ def get_cust_movement(cmp: CampaignEval,
          .unionByName(new_sku_within_brand_shopper)
          .checkpoint()
         )
-
+        cmp.activated_cust_movement = result_movement
         return result_movement, new_exposed_cust_and_sku_shopper
 
     elif switching_lv == 'class':
@@ -212,7 +205,7 @@ def get_cust_movement(cmp: CampaignEval,
          .unionByName(new_sku_within_brand_shopper)
          .checkpoint()
         )
-
+        cmp.activated_cust_movement = result_movement
         return result_movement, new_exposed_cust_and_sku_shopper
 
     else:
