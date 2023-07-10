@@ -63,7 +63,7 @@ def create_store_mech_exposure_cmp(cmp: CampaignEval):
 
     str_mech_visits = \
         (cmp.txn_offline_x_aisle_target_store
-            .groupBy("store_id", "store_region", "mech_name", "store_format_name")
+            .groupBy("store_id", "store_region", "mech_name", "aisle_scope", "store_format_name")
             .agg(F.avg(F.col("mech_count")).alias("mech_count"),
                 F.avg(F.col("media_fee_psto")).alias("media_fee"),
                 F.count_distinct('transaction_uid').alias('epos_visits'),
