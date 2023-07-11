@@ -15,10 +15,10 @@ from pyspark.sql import Window
 from utils.DBPath import DBPath
 from utils.campaign_config import CampaignEval
 from utils import period_cal
+from activate import activated
 from exposure.exposed import create_txn_offline_x_aisle_target_store
 
-def get_cust_brand_switching_and_penetration(cmp: CampaignEval,
-                                             cust_movement_sf: SparkDataFrame):
+def get_cust_brand_switching_and_penetration(cmp: CampaignEval):
     """Media evaluation solution, customer switching
     """
     cmp.spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
@@ -30,8 +30,8 @@ def get_cust_brand_switching_and_penetration(cmp: CampaignEval,
     brand_df = cmp.feat_brand_sku
     switching_lv = cmp.params["cate_lvl"]
     cust_movement_sf = cmp.sku_activated_cust_movement
+    
     #---- Helper fn
-
     ## Customer Switching by Sai
     def _switching(switching_lv:str, micro_flag: str, cust_movement_sf: SparkDataFrame,
                    prod_trans: SparkDataFrame, grp: List,
@@ -211,6 +211,7 @@ def get_cust_brand_switching_and_penetration_multi(cmp: CampaignEval):
     cate_df = cmp.feat_cate_sku
     switching_lv = cmp.params["cate_lvl"]
     cust_movement_sf = cmp.sku_activated_cust_movement
+    
     #---- Main
     print("-"*80)
     print("Customer brand switching")
@@ -286,7 +287,11 @@ def get_cust_sku_switching(cmp: CampaignEval):
     class_df = cmp.feat_class_sku
     sclass_df = cmp.feat_subclass_sku
     switching_lv = cmp.params["cate_lvl"]
-    sku_activated = cmp.sku_activated_cust_movement.select("household_id").drop_duplicates()
+    cust_purchased_exposure_count = activated.get_cust_by_mech_exposed_purchased(cmp,
+                                                                                 prd_scope_df = cmp.feat_sku,
+                                                                                 prd_scope_nm = "sku")
+    
+    sku_activated = cust_purchased_exposure_count.select("household_id").drop_duplicates()
 
     feat_list = cmp.feat_sku.toPandas()["upc_id"].to_numpy().tolist()
 

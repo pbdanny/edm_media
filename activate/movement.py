@@ -18,7 +18,7 @@ from utils import period_cal
 from exposure.exposed import create_txn_offline_x_aisle_target_store
 from activate import activated
 
-def get_cust_movement(cmp: CampaignEval):
+def get_sku_activated_cust_movement(cmp: CampaignEval):
     """Customer movement based on tagged feature activated & brand activated
 
     """
@@ -35,6 +35,18 @@ def get_cust_movement(cmp: CampaignEval):
                                                                                  prd_scope_nm = "sku")
     
     sku_activated = cust_purchased_exposure_count.select("household_id").drop_duplicates()
+
+    if hasattr(cmp, "sku_activated_cust_movement"):
+        print("Campaign object already have attribute 'sku_activated_cust_movement'")
+        return
+    
+    try:
+        cmp.sku_activated_cust_movement = cmp.spark.table(f"tdm_seg.media_camp_eval_{cmp.params['cmp_id']}_cust_mv")
+        print(f"Load 'matched_store' from tdm_seg.media_camp_eval_f{cmp.params['cmp_id']}_cust_mv")
+        return
+    except Exception as e:
+        print(e)
+        pass
 
     #---- Main
     # Movement
