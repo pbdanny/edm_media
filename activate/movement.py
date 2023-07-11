@@ -205,7 +205,7 @@ def get_cust_movement(cmp: CampaignEval):
          .unionByName(new_sku_within_brand_shopper)
          .checkpoint()
         )
-        cmp.activated_cust_movement = result_movement
+        cmp.sku_activated_cust_movement = result_movement
         return result_movement, new_exposed_cust_and_sku_shopper
 
     else:
