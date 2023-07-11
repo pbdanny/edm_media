@@ -391,7 +391,7 @@ class CampaignEval(CampaignParams):
         if self.gap_flag:
             self.period_fis_wk = period_fis_wk.withColumn("period", F.when(F.col('week_id').between(self.gap_st_wk, self.gap_en_wk), F.lit('gap')).otherwise(F.col("period"))).dropna(subset="period", how="any")
             self.period_promo_wk = period_promo_wk.withColumn("period", F.when(F.col('promoweek_id').between(self.gap_st_wk, self.gap_en_wk), F.lit('gap')).otherwise(F.col("period"))).dropna(subset="period", how="any")
-            self.period_promo_mv_wk = period_promo_mv_wk.withColumn("period", F.when(F.col('promoweek_id').between(self.gap_st_promo_wk, self.gap_en_promo_wk), F.lit('gap')).otherwise(F.col("period"))).dropna("period", how="any")
+            self.period_promo_mv_wk = period_promo_mv_wk.withColumn("period", F.when(F.col('promoweek_id').between(self.gap_st_promo_wk, self.gap_en_promo_wk), F.lit('gap')).otherwise(F.col("period"))).dropna(subset="period", how="any")
             
         else:
             self.period_fis_wk = period_fis_wk.dropna(subset="period", how="any")
