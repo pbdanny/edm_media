@@ -16,7 +16,7 @@ from utils.DBPath import DBPath
 from utils.campaign_config import CampaignEval
 from utils import period_cal
 from activate import activated
-import movement 
+import activate.cust_movement as cust_movement 
 from exposure.exposed import create_txn_offline_x_aisle_target_store
 
 def get_cust_brand_switching_and_penetration(cmp: CampaignEval):
@@ -30,7 +30,7 @@ def get_cust_brand_switching_and_penetration(cmp: CampaignEval):
     sclass_df = cmp.feat_subclass_sku
     brand_df = cmp.feat_brand_sku
     switching_lv = cmp.params["cate_lvl"]
-    cust_movement_sf = movement.get_sku_activated_cust_movement(cmp)
+    cust_movement_sf = cust_movement.get_sku_activated_cust_movement(cmp)
     
     #---- Helper fn
     ## Customer Switching by Sai
@@ -211,7 +211,7 @@ def get_cust_brand_switching_and_penetration_multi(cmp: CampaignEval):
     txn = cmp.txn
     cate_df = cmp.feat_cate_sku
     switching_lv = cmp.params["cate_lvl"]
-    cust_movement_sf = movement.get_sku_activated_cust_movement(cmp)
+    cust_movement_sf = cust_movement.get_sku_activated_cust_movement(cmp)
     
     #---- Main
     print("-"*80)
