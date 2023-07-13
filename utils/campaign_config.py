@@ -693,7 +693,7 @@ class CampaignEval(CampaignParams):
                  .join(date_dim.hint("range_join", 14))
                  .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
                  .join(self.aisle_sku)
-                 .withColumn("media_fee", F.lit(avg_media_fee))
+                 .withColumn("media_fee_psto", F.lit(avg_media_fee))
                  .withColumn("aisle_scope", F.lit("homeshelf"))
                  )
             return
@@ -719,7 +719,7 @@ class CampaignEval(CampaignParams):
                  .join(date_dim.hint("range_join", 14))
                  .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
                  .join(self.aisle_sku)
-                 .withColumn("media_fee", F.lit(avg_media_fee))
+                 .withColumn("media_fee_psto", F.lit(avg_media_fee))
                  .withColumn("aisle_scope", F.lit("cross_cate"))
                  )
             return
@@ -736,7 +736,7 @@ class CampaignEval(CampaignParams):
                  .join(date_dim.hint("range_join", 14))
                  .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
                  .join(self.aisle_sku)
-                 .withColumn("media_fee", F.lit(avg_media_fee))
+                 .withColumn("media_fee_psto", F.lit(avg_media_fee))
                  .withColumn("aisle_scope", F.lit("store"))
                  )
             return
