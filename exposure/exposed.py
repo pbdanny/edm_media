@@ -188,7 +188,8 @@ def _exposure_mech(cmp: CampaignEval):
         )
         
     return mech_impression
-   
+
+#---- V2   
 def get_exposure(cmp: CampaignEval):
         
     if cmp.params["aisle_mode"] in ["total_store"]:
@@ -208,6 +209,7 @@ def get_exposure(cmp: CampaignEval):
     exposure_mech = _exposure_mech(cmp)
     return exposure_all, exposure_region, exposure_mech
 
+#---- V1, migrated
 def get_awareness(cmp: CampaignEval):
     """For Awareness of HDE, Talad
 
