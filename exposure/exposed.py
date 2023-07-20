@@ -67,9 +67,9 @@ def create_store_mech_exposure_cmp(cmp: CampaignEval):
             .agg(F.avg(F.col("mech_count")).alias("mech_count"),
                 F.avg(F.col("media_fee_psto")).alias("media_fee"),
                 F.count_distinct('transaction_uid').alias('epos_visits'),
-                F.count_distinct((F.when(F.col('customer_id').isNotNull(), F.col(
+                F.count_distinct((F.when(F.col('household_id').isNotNull(), F.col(
                 'transaction_uid')).otherwise(None))).alias('carded_visits'),
-                F.count_distinct((F.when(F.col('customer_id').isNull(), F.col(
+                F.count_distinct((F.when(F.col('household_id').isNull(), F.col(
                 'transaction_uid')).otherwise(None))).alias('non_carded_visits')
                 )
         )
@@ -259,9 +259,9 @@ def get_awareness(cmp: CampaignEval):
          .groupBy('store_id', 'mech_count')
          .agg(
              F.countDistinct('transaction_uid').alias('epos_visits'),
-             F.countDistinct((F.when(F.col('customer_id').isNotNull(), F.col(
+             F.countDistinct((F.when(F.col('household_id').isNotNull(), F.col(
                  'transaction_uid')).otherwise(None))).alias('carded_visits'),
-             F.countDistinct((F.when(F.col('customer_id').isNull(), F.col(
+             F.countDistinct((F.when(F.col('household_id').isNull(), F.col(
                  'transaction_uid')).otherwise(None))).alias('non_carded_visits')
          )
             .withColumn('epos_impression', F.col('epos_visits')*family_size*F.col('mech_count'))
@@ -300,9 +300,9 @@ def get_awareness(cmp: CampaignEval):
          .groupBy('store_id', 'store_region', 'mech_count')
          .agg(
              F.countDistinct('transaction_uid').alias('epos_visits'),
-             F.countDistinct((F.when(F.col('customer_id').isNotNull(), F.col(
+             F.countDistinct((F.when(F.col('household_id').isNotNull(), F.col(
                  'transaction_uid')).otherwise(None))).alias('carded_visits'),
-             F.countDistinct((F.when(F.col('customer_id').isNull(), F.col(
+             F.countDistinct((F.when(F.col('household_id').isNull(), F.col(
                  'transaction_uid')).otherwise(None))).alias('non_carded_visits')
          )
             .withColumn('epos_impression', F.col('epos_visits')*family_size*F.col('mech_count'))
