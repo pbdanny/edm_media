@@ -12,7 +12,7 @@ from utils.helper import to_pandas
 
 # COMMAND ----------
 
-conf = CampaignConfigFile("/dbfs/FileStore/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_hde_niti.csv")
+conf = CampaignConfigFile("/dbfs/FileStore/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_hde_than_2023_07.csv")
 # conf = CampaignConfigFile("/dbfs/FileStore/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_pakc_multi.csv")
 
 # COMMAND ----------
@@ -21,7 +21,7 @@ conf.display_details()
 
 # COMMAND ----------
 
-cmp = CampaignEval(conf, cmp_row_no=24)
+cmp = CampaignEval(conf, cmp_row_no=1)
 
 # COMMAND ----------
 
@@ -29,30 +29,69 @@ cmp.load_aisle()
 
 # COMMAND ----------
 
+cmp.params
+
+# COMMAND ----------
+
 from utils import load_txn
 load_txn.load_txn(cmp, txn_mode="stored_campaign_txn")
-load_txn.get_backward_compatible_txn_schema(cmp)
 
 # COMMAND ----------
 
-cmp.txn.printSchema()
+from uplift import uplift
 
 # COMMAND ----------
 
-from matching import store_matching
+ul = uplift.get_cust_uplift_by_mech(cmp, cmp.feat_brand_sku , "brand")
 
 # COMMAND ----------
 
-# save_PandasDataFrame_to_csv_FileStore(cmp.matched_store.toPandas(), cmp.output_path/"output"/"store_matching.csv")
+ul.display()
 
 # COMMAND ----------
 
-store_matching.get_store_matching_across_region(cmp)
-store_matching.get_backward_compatible_stored_matching_schema(cmp)
+tbl.display()
 
 # COMMAND ----------
 
-cmp.matched_store.display()
+tbl.groupBy("customer_micro_flag").agg(F.count("*")).display()
+
+# COMMAND ----------
+
+from activate import switching
+sw = switching.get_cust_brand_switching_and_penetration(cmp)
+
+# COMMAND ----------
+
+sw.display()
+
+# COMMAND ----------
+
+exp_all.display()
+
+# COMMAND ----------
+
+exp_reg.display()
+
+# COMMAND ----------
+
+exp_mech.display()
+
+# COMMAND ----------
+
+from activate import activated
+
+# COMMAND ----------
+
+activated.get_cust_by_mach_activated(cmp)
+
+# COMMAND ----------
+
+cmp.str_mech_exposure_cmp.printSchema()
+
+# COMMAND ----------
+
+cmp.str_mech_exposure_cmp.display()
 
 # COMMAND ----------
 
