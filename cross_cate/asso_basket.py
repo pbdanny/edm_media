@@ -474,27 +474,30 @@ def get_asso_kpi(cmp: CampaignEval,
     ctrl_pre = asso_size_ctrl_pre(cmp, prd_scope_df)
 
     combine = reduce(union_frame, [test_dur, test_pre, ctrl_dur, ctrl_pre])
+    
     lift = (combine
             .groupBy("store_type", "period")
             .pivot("bask_type")
             .agg(F.first("visit_pen"))
             .withColumn("lift", F.col("feat_in_asso") / (F.col("feat") * F.col("aisle")))
     )
+    
+    store_period_pivot = (
+        lift
+        .withColumn("store_period", F.concat_ws("_", "store", "period"))
+        .drop("store", "period")
+        .withColumn("dummy",F.lit("x"))
+        .groupBy("dummy").pivot("store_period").agg(F.first("uplift"))
+        .drop("dummy")
+        )
 
-    growth = (lift
-            .groupBy("store_type")
-            .pivot("period")
-            .agg(F.first("lift"))
-            .withColumn("lift_growth", F.col("dur") - F.col("pre"))
+    uplift = (
+        store_period_pivot
+        .withColumn("ctrl_factor", F.col("test_pre")/F.col("ctrl_pre"))
+        .withColumn("ctrl_dur_adjusted", F.col("ctrl_factor")*F.col("ctrl_dur"))
+        .withColumn("uplift", F.col("test_dur") - F.col("ctrl_dur_adjusted"))
     )
-
-    ctrl_factor = growth.where(F.col("store_type").isin(["ctrl"])).select("lift_growth").collect()[0][0]
-
-    uplift = (growth
-              .withColumn("ctrl_factor", F.lit(ctrl_factor))
-              .withColumn("uplift", F.col("lift_growth") - F.col("ctrl_factor"))
-    )
-
+    
     return combine, lift, uplift
 
 #---- weekly trend
