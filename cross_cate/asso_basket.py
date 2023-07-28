@@ -487,7 +487,7 @@ def get_asso_kpi(cmp: CampaignEval,
         .withColumn("store_period", F.concat_ws("_", "store_type", "period"))
         .drop("store", "period")
         .withColumn("dummy",F.lit("x"))
-        .groupBy("dummy").pivot("store_period").agg(F.first("uplift"))
+        .groupBy("dummy").pivot("store_period").agg(F.first("lift"))
         .drop("dummy")
         )
 
