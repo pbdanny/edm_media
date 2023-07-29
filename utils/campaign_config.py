@@ -800,12 +800,20 @@ class CampaignEval(CampaignParams):
                  .unionByName(aisle_target_store_media_x_cate, allowMissingColumns=True)
                  .unionByName(aisle_target_store_media_promozone, allowMissingColumns=True)
                 )
-
             return
 
+        #---- Main
+        if hasattr(self, "aisle_target_store_conf"):
+            return
+        try:
+            self.aisle_target_store_conf = self.spark.table(f"tdm_seg.th_lotuss_media_eval_aisle_target_store_conf_{self.params['cmp_id']}_temp")
+            return
+        except Exception as e:
+            print(e)
+            pass
+        
         self.load_prod()
         self.cross_cate_cd_list = self.convert_param_to_list("cross_cate_cd")
-
         if aisle_mode == "":
             if not self.cross_cate_cd_list:
                 _homeshelf()
@@ -821,8 +829,16 @@ class CampaignEval(CampaignParams):
             else:
                 _target_store_config()
                 
-        # checkpoint for aisle_target_store_conf
-        # self.aisle_target_store_conf =  self.aisle_target_store_conf.checkpoint()
+        # store
+        try:
+            (self.aisle_target_store_conf
+             .write
+             .mode("overwrite")
+             .saveAsTable(f"tdm_seg.th_lotuss_media_eval_aisle_target_store_conf_{self.params['cmp_id']}_temp")
+            )
+            self.params["aisle_target_store_conf_table"] = f"tdm_seg.th_lotuss_media_eval_aisle_target_store_conf_{self.params['cmp_id']}_temp"
+        except Exception as e:
+            print(e)
         return
 
     def _get_prod_df(self):
