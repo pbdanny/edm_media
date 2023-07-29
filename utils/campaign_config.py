@@ -174,7 +174,7 @@ class CampaignEval(CampaignParams):
             None
         """        
         super().__init__(config_file, cmp_row_no)
-        self.spark = SparkSession.builder.appName("campaignEval").getOrCreate()
+        self.spark = SparkSession.builder.appName(f"campaignEval_{self.params['cmp_id']}").getOrCreate()
         self.spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
         self.spark.conf.set("spark.databricks.io.cache.enabled", True)
         self.spark.conf.set("spark.databricks.queryWatchdog.maxQueryTasks", 0)
