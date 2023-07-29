@@ -177,6 +177,7 @@ class CampaignEval(CampaignParams):
         self.spark = SparkSession.builder.appName("campaignEval").getOrCreate()
         self.spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
         self.spark.conf.set("spark.databricks.io.cache.enabled", True)
+        self.spark.conf.set("spark.databricks.queryWatchdog.maxQueryTasks", 0)
 
         dbutils = DBUtils(self.spark)        
 
@@ -821,7 +822,7 @@ class CampaignEval(CampaignParams):
                 _target_store_config()
                 
         # checkpoint for aisle_target_store_conf
-        self.aisle_target_store_conf =  self.aisle_target_store_conf.checkpoint()
+        # self.aisle_target_store_conf =  self.aisle_target_store_conf.checkpoint()
         return
 
     def _get_prod_df(self):
