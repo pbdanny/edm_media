@@ -16,6 +16,7 @@ from utils import period_cal
 from utils.DBPath import DBPath
 from utils import logger
 
+
 class CampaignConfigFile:
     def __init__(self, source_file):
         """
@@ -36,8 +37,7 @@ class CampaignConfigFile:
         )
         self.total_rows = self.cmp_config_df.shape[0]
         # self.cmp_inputs_files = self.cmp_config_file.parent / "inputs_files"
-        self.cmp_inputs_files = next(
-            self.cmp_config_file.parent.glob("**/input*"))
+        self.cmp_inputs_files = next(self.cmp_config_file.parent.glob("**/input*"))
         self.cmp_output = self.cmp_config_file.parents[1]
         return
 
@@ -47,7 +47,7 @@ class CampaignConfigFile:
 
         Returns:
             str: The string representation of the object.
-        """        
+        """
         return f"CampaignConfigFile class, source file = '{self.source_config_file}'"
 
     def display_details(self):
@@ -56,7 +56,7 @@ class CampaignConfigFile:
 
         Returns:
             None
-        """        
+        """
         return self.cmp_config_df.display()
 
     def search_details(self, column: str, search_key: str):
@@ -69,8 +69,9 @@ class CampaignConfigFile:
 
         Returns:
             pd.DataFrame: A DataFrame containing the matched rows.
-        """        
+        """
         return self.cmp_config_df[self.cmp_config_df[column].str.contains(search_key)]
+
 
 class CampaignParams:
     def __init__(self, config_file, cmp_row_no):
@@ -86,7 +87,7 @@ class CampaignParams:
 
         Returns:
             None
-        """        
+        """
         self.cmp_config_file = config_file.cmp_config_file
         self.all_cmp_df = config_file.cmp_config_df
         self.all_cmp_max_row = config_file.total_rows
@@ -103,8 +104,7 @@ class CampaignParams:
         else:
             self.row_no = cmp_row_no
             self.params = (
-                self.all_cmp_df.applymap(
-                    lambda x: x.strip() if type(x) == str else x)
+                self.all_cmp_df.applymap(lambda x: x.strip() if type(x) == str else x)
                 .iloc[self.row_no - 1]
                 .replace(np.nan, None)
                 .replace("", None)
@@ -123,7 +123,7 @@ class CampaignParams:
 
         Returns:
             str: The string representation of the object.
-        """        
+        """
         return f"CampaignParams class, config file : '{self.cmp_input_file}'\nRow number : {self.row_no}"
 
     def display_details(self):
@@ -132,12 +132,12 @@ class CampaignParams:
 
         Returns:
             None
-        """        
+        """
         pprint.pp(self.params)
         return
-    
-class CampaignEval(CampaignParams):
 
+
+class CampaignEval(CampaignParams):
     def convert_param_to_list(self, param_name: str) -> List:
         """
         Convert a parameter to a list.
@@ -150,7 +150,7 @@ class CampaignEval(CampaignParams):
 
         Raises:
             None
-        """        
+        """
         if self.params[param_name] is not None:
             param = self.params["cross_cate_cd"]
             if param.find("[") != -1:
@@ -172,14 +172,18 @@ class CampaignEval(CampaignParams):
 
         Returns:
             None
-        """        
+        """
         super().__init__(config_file, cmp_row_no)
-        self.spark = SparkSession.builder.appName(f"campaignEval_{self.params['cmp_id']}").getOrCreate()
-        self.spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
+        self.spark = SparkSession.builder.appName(
+            f"campaignEval_{self.params['cmp_id']}"
+        ).getOrCreate()
+        self.spark.sparkContext.setCheckpointDir(
+            "dbfs:/FileStore/thanakrit/temp/checkpoint"
+        )
         self.spark.conf.set("spark.databricks.io.cache.enabled", True)
         self.spark.conf.set("spark.databricks.queryWatchdog.maxQueryTasks", 0)
 
-        dbutils = DBUtils(self.spark)        
+        dbutils = DBUtils(self.spark)
 
         self.store_fmt = self.params["store_fmt"].lower()
         self.wk_type = self.params["wk_type"]
@@ -189,8 +193,7 @@ class CampaignEval(CampaignParams):
         self.cmp_end = self.params["cmp_end"]
         self.media_fee = self.params["media_fee"]
 
-        self.sku_file = self.cmp_inputs_files / \
-            f"upc_list_{self.params['cmp_id']}.csv"
+        self.sku_file = self.cmp_inputs_files / f"upc_list_{self.params['cmp_id']}.csv"
         self.target_store_file = (
             self.cmp_inputs_files / f"target_store_{self.params['cmp_id']}.csv"
         )
@@ -201,12 +204,10 @@ class CampaignEval(CampaignParams):
         self.use_reserved_store = bool(self.params["use_reserved_store"])
 
         self.custom_ctrl_store_file = (
-            self.cmp_inputs_files /
-            f"control_store_{self.params['cmp_id']}.csv"
+            self.cmp_inputs_files / f"control_store_{self.params['cmp_id']}.csv"
         )
 
-        self.adjacency_file = self.std_input_path / \
-            f"{self.params['adjacency_file']}"
+        self.adjacency_file = self.std_input_path / f"{self.params['adjacency_file']}"
         self.svv_table = self.params["svv_table"]
         self.purchase_cyc_table = self.params["purchase_cyc_table"]
 
@@ -227,7 +228,7 @@ class CampaignEval(CampaignParams):
 
         Returns:
             str: The string representation of the object.
-        """        
+        """
         return f"CampaignEval class \nConfig file : '{self.cmp_config_file}'\nRow number : {self.row_no}"
 
     def load_period(self, eval_mode: str = "homeshelf"):
@@ -239,7 +240,7 @@ class CampaignEval(CampaignParams):
         ----------
         eval_mode: str, default "homeshelf"
             Evaluation type : "promotion_zone", "homeshelf"
-        
+
         Attributes:
             - cmp_st_wk (int): Start week ID of the campaign.
             - cmp_en_wk (int): End week ID of the campaign.
@@ -298,10 +299,8 @@ class CampaignEval(CampaignParams):
             self.gap_en_wk = period_cal.wk_of_year_ls(self.gap_end_date)
 
             # promo
-            self.gap_st_promo_wk = period_cal.wk_of_year_promo_ls(
-                self.gap_start_date)
-            self.gap_en_promo_wk = period_cal.wk_of_year_promo_ls(
-                self.gap_end_date)
+            self.gap_st_promo_wk = period_cal.wk_of_year_promo_ls(self.gap_start_date)
+            self.gap_en_promo_wk = period_cal.wk_of_year_promo_ls(self.gap_end_date)
 
             self.gap_flag = True
 
@@ -323,35 +322,30 @@ class CampaignEval(CampaignParams):
 
         self.pre_st_wk = period_cal.week_cal(self.pre_en_wk, -12)
         self.pre_st_mv_wk = self.pre_st_wk
-        self.pre_st_promo_wk = period_cal.promo_week_cal(
-            self.pre_en_promo_wk, -12)
+        self.pre_st_promo_wk = period_cal.promo_week_cal(self.pre_en_promo_wk, -12)
         self.pre_st_promo_mv_wk = self.pre_st_promo_wk
 
         self.ppp_en_wk = period_cal.week_cal(self.pre_st_wk, -1)
         self.ppp_en_mv_wk = self.ppp_en_wk
-        self.ppp_en_promo_wk = period_cal.promo_week_cal(
-            self.pre_st_promo_wk, -1)
+        self.ppp_en_promo_wk = period_cal.promo_week_cal(self.pre_st_promo_wk, -1)
         self.ppp_en_promo_mv_wk = self.ppp_en_promo_wk
 
         self.ppp_st_wk = period_cal.week_cal(self.ppp_en_wk, -12)
         self.ppp_st_mv_wk = self.ppp_st_wk
-        self.ppp_st_promo_wk = period_cal.promo_week_cal(
-            self.ppp_en_promo_wk, -12)
+        self.ppp_st_promo_wk = period_cal.promo_week_cal(self.ppp_en_promo_wk, -12)
         self.ppp_st_promo_mv_wk = self.ppp_st_promo_wk
 
         if eval_mode == "promozone":
-            self.pre_st_wk = period_cal.week_cal(
-                self.pre_en_wk, (wk_cmp - 1) * -1)
+            self.pre_st_wk = period_cal.week_cal(self.pre_en_wk, (wk_cmp - 1) * -1)
             self.pre_st_promo_wk = period_cal.promo_week_cal(
                 self.pre_en_promo_wk, (wk_cmp - 1) * -1
             )
             self.ppp_en_wk = period_cal.week_cal(self.pre_st_wk, -1)
-            self.ppp_en_promo_wk = period_cal.promo_week_cal(
-                self.pre_st_promo_wk, -1)
-            self.ppp_st_wk = period_cal.week_cal(
-                self.ppp_en_wk, (wk_cmp - 1) * -1)
+            self.ppp_en_promo_wk = period_cal.promo_week_cal(self.pre_st_promo_wk, -1)
+            self.ppp_st_wk = period_cal.week_cal(self.ppp_en_wk, (wk_cmp - 1) * -1)
             self.ppp_st_promo_wk = period_cal.promo_week_cal(
-                self.ppp_en_promo_wk, (wk_cmp - 1) * -1)
+                self.ppp_en_promo_wk, (wk_cmp - 1) * -1
+            )
 
         if self.params["wk_type"] == "fis_wk":
             self.wk_tp = "fiswk"
@@ -365,40 +359,105 @@ class CampaignEval(CampaignParams):
                 self.mv_week_type = "promozone"
 
         # create period_fis_wk, period_promo_wk, period_promo_mv_wk
-        
-        date_dim = self.spark.table("tdm.v_date_dim").select("date_id", "week_id", "promoweek_id").drop_duplicates()
-        
-        period_fis_wk = date_dim.withColumn("period", 
-                                            F.when(F.col('week_id').between(self.cmp_st_wk, self.cmp_en_wk), F.lit('dur'))
-                                            .when(F.col('week_id').between(self.pre_st_wk, self.pre_en_wk), F.lit('pre'))
-                                            .when(F.col('week_id').between(self.ppp_st_wk, self.ppp_en_wk), F.lit('ppp'))
-                                            .otherwise(F.lit(None))
-                                            )
-        
-        period_promo_wk = date_dim.withColumn("period", 
-                                           F.when(F.col('promoweek_id').between(self.cmp_st_promo_wk, self.cmp_en_promo_wk), F.lit('dur'))
-                                            .when(F.col('promoweek_id').between(self.pre_st_promo_wk, self.pre_en_promo_wk), F.lit('pre'))
-                                            .when(F.col('promoweek_id').between(self.ppp_st_promo_wk, self.ppp_en_promo_wk), F.lit('ppp'))
-                                            .otherwise(F.lit(None))
-                                            )
 
-        period_promo_mv_wk = date_dim.withColumn("period", 
-                                            F.when(F.col('promoweek_id').between(self.cmp_st_promo_wk, self.cmp_en_promo_wk), F.lit('dur'))
-                                            .when(F.col('promoweek_id').between(self.pre_st_promo_mv_wk, self.pre_en_promo_mv_wk), F.lit('pre'))
-                                            .when(F.col('promoweek_id').between(self.ppp_st_promo_mv_wk, self.ppp_en_promo_mv_wk), F.lit('ppp'))
-                                            .otherwise(F.lit(None))
-                                            )
-        
+        date_dim = (
+            self.spark.table("tdm.v_date_dim")
+            .select("date_id", "week_id", "promoweek_id")
+            .drop_duplicates()
+        )
+
+        period_fis_wk = date_dim.withColumn(
+            "period",
+            F.when(
+                F.col("week_id").between(self.cmp_st_wk, self.cmp_en_wk), F.lit("dur")
+            )
+            .when(
+                F.col("week_id").between(self.pre_st_wk, self.pre_en_wk), F.lit("pre")
+            )
+            .when(
+                F.col("week_id").between(self.ppp_st_wk, self.ppp_en_wk), F.lit("ppp")
+            )
+            .otherwise(F.lit(None)),
+        )
+
+        period_promo_wk = date_dim.withColumn(
+            "period",
+            F.when(
+                F.col("promoweek_id").between(
+                    self.cmp_st_promo_wk, self.cmp_en_promo_wk
+                ),
+                F.lit("dur"),
+            )
+            .when(
+                F.col("promoweek_id").between(
+                    self.pre_st_promo_wk, self.pre_en_promo_wk
+                ),
+                F.lit("pre"),
+            )
+            .when(
+                F.col("promoweek_id").between(
+                    self.ppp_st_promo_wk, self.ppp_en_promo_wk
+                ),
+                F.lit("ppp"),
+            )
+            .otherwise(F.lit(None)),
+        )
+
+        period_promo_mv_wk = date_dim.withColumn(
+            "period",
+            F.when(
+                F.col("promoweek_id").between(
+                    self.cmp_st_promo_wk, self.cmp_en_promo_wk
+                ),
+                F.lit("dur"),
+            )
+            .when(
+                F.col("promoweek_id").between(
+                    self.pre_st_promo_mv_wk, self.pre_en_promo_mv_wk
+                ),
+                F.lit("pre"),
+            )
+            .when(
+                F.col("promoweek_id").between(
+                    self.ppp_st_promo_mv_wk, self.ppp_en_promo_mv_wk
+                ),
+                F.lit("ppp"),
+            )
+            .otherwise(F.lit(None)),
+        )
+
         if self.gap_flag:
-            self.period_fis_wk = period_fis_wk.withColumn("period", F.when(F.col('week_id').between(self.gap_st_wk, self.gap_en_wk), F.lit('gap')).otherwise(F.col("period"))).dropna(subset="period", how="any")
-            self.period_promo_wk = period_promo_wk.withColumn("period", F.when(F.col('promoweek_id').between(self.gap_st_wk, self.gap_en_wk), F.lit('gap')).otherwise(F.col("period"))).dropna(subset="period", how="any")
-            self.period_promo_mv_wk = period_promo_mv_wk.withColumn("period", F.when(F.col('promoweek_id').between(self.gap_st_promo_wk, self.gap_en_promo_wk), F.lit('gap')).otherwise(F.col("period"))).dropna(subset="period", how="any")
-            
+            self.period_fis_wk = period_fis_wk.withColumn(
+                "period",
+                F.when(
+                    F.col("week_id").between(self.gap_st_wk, self.gap_en_wk),
+                    F.lit("gap"),
+                ).otherwise(F.col("period")),
+            ).dropna(subset="period", how="any")
+            self.period_promo_wk = period_promo_wk.withColumn(
+                "period",
+                F.when(
+                    F.col("promoweek_id").between(self.gap_st_wk, self.gap_en_wk),
+                    F.lit("gap"),
+                ).otherwise(F.col("period")),
+            ).dropna(subset="period", how="any")
+            self.period_promo_mv_wk = period_promo_mv_wk.withColumn(
+                "period",
+                F.when(
+                    F.col("promoweek_id").between(
+                        self.gap_st_promo_wk, self.gap_en_promo_wk
+                    ),
+                    F.lit("gap"),
+                ).otherwise(F.col("period")),
+            ).dropna(subset="period", how="any")
+
         else:
             self.period_fis_wk = period_fis_wk.dropna(subset="period", how="any")
             self.period_promo_wk = period_promo_wk.dropna(subset="period", how="any")
-            self.period_promo_mv_wk = period_promo_mv_wk.dropna(subset="period", how="any")
-       
+            self.period_promo_mv_wk = period_promo_mv_wk.dropna(
+                subset="period", how="any"
+            )
+
         return
 
     def load_target_store(self):
@@ -409,11 +468,13 @@ class CampaignEval(CampaignParams):
         Returns:
             None
         """
-        self.target_store = \
-            (self.spark.read.csv(self.target_store_file.spark_api(), header=True, inferSchema=True)
-             .fillna(str(self.cmp_start), subset='c_start')
-             .fillna(str(self.cmp_end), subset='c_end')
-             )
+        self.target_store = (
+            self.spark.read.csv(
+                self.target_store_file.spark_api(), header=True, inferSchema=True
+            )
+            .fillna(str(self.cmp_start), subset="c_start")
+            .fillna(str(self.cmp_end), subset="c_end")
+        )
         return
 
     def load_control_store(self, control_store_mode: str = ""):
@@ -445,7 +506,7 @@ class CampaignEval(CampaignParams):
             return
 
         def _custom():
-            """Load control store from custom control store file"""            
+            """Load control store from custom control store file"""
             self.params["control_store_source"] = "Custom control store file"
             self.control_store = self.spark.read.csv(
                 (self.custom_ctrl_store_file).spark_api(), header=True, inferSchema=True
@@ -453,13 +514,12 @@ class CampaignEval(CampaignParams):
             return
 
         def _rest():
-            """Load control store from rest"""            
+            """Load control store from rest"""
             self.params["control_store_source"] = "rest"
             store_dim_c = self.spark.table("tdm.v_store_dim_c")
 
             if self.store_fmt in ["hde", "hyper"]:
-                target_format = store_dim_c.where(
-                    F.col("format_id").isin([1, 2, 3]))
+                target_format = store_dim_c.where(F.col("format_id").isin([1, 2, 3]))
             elif self.store_fmt in ["talad", "super"]:
                 target_format = store_dim_c.where(F.col("format_id").isin([4]))
             elif self.store_fmt in ["gofresh", "mini_super"]:
@@ -479,7 +539,9 @@ class CampaignEval(CampaignParams):
         self.load_target_store()
 
         if control_store_mode == "":
-            if (self.params["resrv_store_class"] is not None) & (self.use_reserved_store) :
+            if (self.params["resrv_store_class"] is not None) & (
+                self.use_reserved_store
+            ):
                 _resrv()
             elif Path(self.custom_ctrl_store_file.file_api()).is_file():
                 _custom()
@@ -498,10 +560,10 @@ class CampaignEval(CampaignParams):
 
     def load_store_dim_adjusted(self):
         """Create internal store dim with adjusted store region & combine "West" & "Central" -> West+Central"
-        
+
         Returns:
         None
-        """        
+        """
         store_dim = (
             self.spark.table("tdm.v_store_dim")
             .select(
@@ -536,14 +598,16 @@ class CampaignEval(CampaignParams):
 
     def load_prod(self):
         """Load feature product, feature brand name, feature subclass, feature subclass
-        
+
         Returns:
         None
-        """        
+        """
         self.feat_sku = self.spark.read.csv(
             (self.sku_file).spark_api(), header=True, inferSchema=True
         ).withColumnRenamed("feature", "upc_id")
-        prd_dim_c = self.spark.table("tdm.v_prod_dim_c").fillna("Unidentified", subset="brand_name")
+        prd_dim_c = self.spark.table("tdm.v_prod_dim_c").fillna(
+            "Unidentified", subset="brand_name"
+        )
         self.feat_subclass_code = (
             prd_dim_c.join(self.feat_sku, "upc_id", "inner")
             .select("subclass_code")
@@ -567,31 +631,39 @@ class CampaignEval(CampaignParams):
 
         if self.params["cate_lvl"].lower() in ["class"]:
             self.feat_cate_sku = self.feat_class_sku
-            self.feat_cate_cd_brand_nm = \
-                (prd_dim_c
-                 .join(self.feat_class_code, "class_code")
-                 .join(self.feat_sku, "upc_id")
-                 .select("class_code", "class_name", "brand_name")
-                 .drop_duplicates()
-                 )
+            self.feat_cate_cd_brand_nm = (
+                prd_dim_c.join(self.feat_class_code, "class_code")
+                .join(self.feat_sku, "upc_id")
+                .select("class_code", "class_name", "brand_name")
+                .drop_duplicates()
+            )
             self.feat_brand_nm = self.feat_cate_cd_brand_nm.select(
-                "brand_name").drop_duplicates()
-            self.feat_brand_sku = prd_dim_c.join(self.feat_cate_cd_brand_nm, [
-                                                 "class_code", "brand_name"]).select("upc_id").drop_duplicates()
-            
+                "brand_name"
+            ).drop_duplicates()
+            self.feat_brand_sku = (
+                prd_dim_c.join(self.feat_cate_cd_brand_nm, ["class_code", "brand_name"])
+                .select("upc_id")
+                .drop_duplicates()
+            )
+
         elif self.params["cate_lvl"].lower() in ["subclass"]:
             self.feat_cate_sku = self.feat_subclass_sku
-            self.feat_cate_cd_brand_nm = \
-                (prd_dim_c
-                 .join(self.feat_subclass_code, "subclass_code")
-                 .join(self.feat_sku, "upc_id")
-                 .select("subclass_code", "subclass_name", "brand_name")
-                 .drop_duplicates()
-                 )
+            self.feat_cate_cd_brand_nm = (
+                prd_dim_c.join(self.feat_subclass_code, "subclass_code")
+                .join(self.feat_sku, "upc_id")
+                .select("subclass_code", "subclass_name", "brand_name")
+                .drop_duplicates()
+            )
             self.feat_brand_nm = self.feat_cate_cd_brand_nm.select(
-                "brand_name").drop_duplicates()
-            self.feat_brand_sku = prd_dim_c.join(self.feat_cate_cd_brand_nm, [
-                                                 "subclass_code", "brand_name"]).select("upc_id").drop_duplicates()            
+                "brand_name"
+            ).drop_duplicates()
+            self.feat_brand_sku = (
+                prd_dim_c.join(
+                    self.feat_cate_cd_brand_nm, ["subclass_code", "brand_name"]
+                )
+                .select("upc_id")
+                .drop_duplicates()
+            )
         else:
             self.feat_cate_sku = None
             self.feat_brand_nm = None
@@ -600,39 +672,41 @@ class CampaignEval(CampaignParams):
 
     def load_product_dim_adjusted(self):
         """Create product_dim with adjustment
-            1) Mulitiple feature brand name -> Single brand name 
+        1) Mulitiple feature brand name -> Single brand name
         """
-        prd_dim_c = self.spark.table("tdm.v_prod_dim_c").fillna("Unidentified", subset="brand_name")
+        prd_dim_c = self.spark.table("tdm.v_prod_dim_c").fillna(
+            "Unidentified", subset="brand_name"
+        )
         brand_list = self.feat_brand_nm.toPandas()["brand_name"].tolist()
         brand_list.sort()
         main_brand = brand_list[0]
 
         if self.params["cate_lvl"].lower() in ["class"]:
-            feature_class_list = list(set(self.feat_class_code.toPandas()["class_code"].tolist()))
-            self.product_dim = \
-                (prd_dim_c
-                 .withColumn("brand_name", 
-                             F.when(
-                                 (F.col("brand_name").isin(brand_list)) 
-                                 & (F.col("class_code").isin(feature_class_list))
-                                 , F.lit(main_brand)
-                                 ).otherwise(F.col("brand_name"))
-                 )
-                )
+            feature_class_list = list(
+                set(self.feat_class_code.toPandas()["class_code"].tolist())
+            )
+            self.product_dim = prd_dim_c.withColumn(
+                "brand_name",
+                F.when(
+                    (F.col("brand_name").isin(brand_list))
+                    & (F.col("class_code").isin(feature_class_list)),
+                    F.lit(main_brand),
+                ).otherwise(F.col("brand_name")),
+            )
         elif self.params["cate_lvl"].lower() in ["subclass"]:
-            feature_subclass_list = list(set(self.feat_subclass_code.toPandas()["subclass_code"].tolist()))
-            self.product_dim = \
-                (prd_dim_c
-                 .withColumn("brand_name", 
-                             F.when(
-                                 (F.col("brand_name").isin(brand_list)) 
-                                 & (F.col("subclass_code").isin(feature_subclass_list))
-                                 , F.lit(main_brand)
-                                 ).otherwise(F.col("brand_name"))
-                 )
-                )        
+            feature_subclass_list = list(
+                set(self.feat_subclass_code.toPandas()["subclass_code"].tolist())
+            )
+            self.product_dim = prd_dim_c.withColumn(
+                "brand_name",
+                F.when(
+                    (F.col("brand_name").isin(brand_list))
+                    & (F.col("subclass_code").isin(feature_subclass_list)),
+                    F.lit(main_brand),
+                ).otherwise(F.col("brand_name")),
+            )
         return
-        
+
     def load_aisle(self, aisle_mode: str = ""):
         """Load aisle for exposure calculation
 
@@ -645,173 +719,182 @@ class CampaignEval(CampaignParams):
             "total_store" : total store product
             "target_store_config" : Aisle defined at target store file
         """
-        
+
         def __create_aisle_sku_from_subclass_cd(subclass_cd: SparkDataFrame):
-            """Create aisle upc_id of defined subclass_code
-            """
+            """Create aisle upc_id of defined subclass_code"""
             aisle_master = self.spark.read.csv(
                 self.adjacency_file.spark_api(), header=True, inferSchema=True
             )
-            
+
             aisle_group = (
                 aisle_master.join(subclass_cd, "subclass_code", "inner")
                 .select("group")
                 .drop_duplicates()
             )
-            
+
             aisle_subclass = (
                 aisle_master.join(aisle_group, "group", "inner")
                 .select("subclass_code")
                 .drop_duplicates()
             )
-            
+
             aisle_sku = (
                 self.product_dim.join(aisle_subclass, "subclass_code", "inner")
                 .select("upc_id")
                 .drop_duplicates()
             )
-            
+
             return aisle_sku
 
         def _homeshelf():
             self.params["aisle_mode"] = "homeshelf"
-            
+
             feat_subclass = (
                 self.product_dim.join(self.feat_sku, "upc_id", "inner")
                 .select("subclass_code")
                 .drop_duplicates()
             )
-            
+
             homeshelf_aisle_sku = __create_aisle_sku_from_subclass_cd(feat_subclass)
-            
+
             self.aisle_sku = homeshelf_aisle_sku
-            
-            date_dim = self.spark.table("tdm.date_dim").select(
-                "date_id").drop_duplicates()
+
+            date_dim = (
+                self.spark.table("tdm.date_dim").select("date_id").drop_duplicates()
+            )
             avg_media_fee = self.media_fee / self.target_store.count()
-            self.aisle_target_store_conf = \
-                (self.target_store
-                 .join(date_dim.hint("range_join", 14))
-                 .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
-                 .join(self.aisle_sku)
-                 .withColumn("media_fee_psto", F.lit(avg_media_fee))
-                 .withColumn("aisle_scope", F.lit("homeshelf"))
-                 )
+            self.aisle_target_store_conf = (
+                self.target_store.join(date_dim.hint("range_join", 14))
+                .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
+                .join(self.aisle_sku)
+                .withColumn("media_fee_psto", F.lit(avg_media_fee))
+                .withColumn("aisle_scope", F.lit("homeshelf"))
+            )
             return
 
         def _x_cat():
             self.params["aisle_mode"] = "cross_cate"
-            
+
             x_subclass = self.spark.createDataFrame(
-                pd.DataFrame(data=self.cross_cate_cd_list,
-                             columns=["subclass_code"])
+                pd.DataFrame(data=self.cross_cate_cd_list, columns=["subclass_code"])
             ).drop_duplicates()
-            
+
             x_cate_aisle_sku = __create_aisle_sku_from_subclass_cd(x_subclass)
-            
+
             self.aisle_sku = x_cate_aisle_sku
-            
-            date_dim = self.spark.table("tdm.date_dim").select(
-                "date_id").drop_duplicates()
+
+            date_dim = (
+                self.spark.table("tdm.date_dim").select("date_id").drop_duplicates()
+            )
             avg_media_fee = self.media_fee / self.target_store.count()
 
-            self.aisle_target_store_conf = \
-                (self.target_store
-                 .join(date_dim.hint("range_join", 14))
-                 .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
-                 .join(self.aisle_sku)
-                 .withColumn("media_fee_psto", F.lit(avg_media_fee))
-                 .withColumn("aisle_scope", F.lit("cross_cate"))
-                 )
+            self.aisle_target_store_conf = (
+                self.target_store.join(date_dim.hint("range_join", 14))
+                .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
+                .join(self.aisle_sku)
+                .withColumn("media_fee_psto", F.lit(avg_media_fee))
+                .withColumn("aisle_scope", F.lit("cross_cate"))
+            )
             return
 
         def _store():
             self.params["aisle_mode"] = "total_store"
             self.aisle_sku = self.product_dim.select("upc_id").drop_duplicates()
-            date_dim = self.spark.table("tdm.date_dim").select(
-                "date_id").drop_duplicates()
+            date_dim = (
+                self.spark.table("tdm.date_dim").select("date_id").drop_duplicates()
+            )
             avg_media_fee = self.media_fee / self.target_store.count()
 
-            self.aisle_target_store_conf = \
-                (self.target_store
-                 .join(date_dim.hint("range_join", 14))
-                 .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
-                 .join(self.aisle_sku)
-                 .withColumn("media_fee_psto", F.lit(avg_media_fee))
-                 .withColumn("aisle_scope", F.lit("store"))
-                 )
+            self.aisle_target_store_conf = (
+                self.target_store.join(date_dim.hint("range_join", 14))
+                .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
+                .join(self.aisle_sku)
+                .withColumn("media_fee_psto", F.lit(avg_media_fee))
+                .withColumn("aisle_scope", F.lit("store"))
+            )
             return
 
         def _target_store_config():
-            """Aisle defined by target store config file
-            """
+            """Aisle defined by target store config file"""
             self.params["aisle_mode"] = "target_store_config"
             self.aisle_sku = None
 
-            adj_tbl = self.spark.read.csv(self.adjacency_file.spark_api(
-            ), header=True, inferSchema=True).select("subclass_code", "group").drop_duplicates()
+            adj_tbl = (
+                self.spark.read.csv(
+                    self.adjacency_file.spark_api(), header=True, inferSchema=True
+                )
+                .select("subclass_code", "group")
+                .drop_duplicates()
+            )
             prd_dim = self.product_dim.select(
-                "upc_id", "subclass_code").drop_duplicates()
-            date_dim = self.spark.table("tdm.date_dim").select(
-                "date_id").drop_duplicates()
-            
+                "upc_id", "subclass_code"
+            ).drop_duplicates()
+            date_dim = (
+                self.spark.table("tdm.date_dim").select("date_id").drop_duplicates()
+            )
+
             self.load_target_store()
-            
+
             feat_subclass = (
                 self.product_dim.join(self.feat_sku, "upc_id", "inner")
                 .select("subclass_code")
                 .drop_duplicates()
             )
-            
-            aisle_target_store_media_homeshelf = \
-                (self.target_store
-                 .where(F.col("aisle_scope").isin(["homeshelf"]))
-                 .drop("aisle_subclass")
-                 .join(feat_subclass)
-                 .withColumn("aisle_subclass", F.col("subclass_code"))
-                 .join(adj_tbl, "subclass_code")
-                 .drop("subclass_code")
-                 .join(adj_tbl, "group")
-                 .join(prd_dim, "subclass_code")
-                 .join(date_dim.hint("range_join", 14))
-                 .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
-                 )
-            
-            aisle_target_store_media_x_cate = \
-                (self.target_store.alias("a")
-                 .where(F.col("aisle_scope").isin(["cross_cate"]))
-                 .join(adj_tbl.alias("b"), F.col("a.aisle_subclass") == F.col("b.subclass_code"))
-                 .drop("subclass_code")
-                 .join(adj_tbl, "group")
-                 .join(prd_dim, "subclass_code")
-                 .join(date_dim.hint("range_join", 14))
-                 .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
-                 )
-                
-            aisle_target_store_media_promozone = \
-                (self.target_store
-                 .where(F.col("aisle_scope").isin(["store"]))
-                 .join(prd_dim)
-                 .join(date_dim.hint("range_join", 14))
-                 .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
-                 )
-            self.aisle_target_store_conf = \
-                (aisle_target_store_media_homeshelf
-                 .unionByName(aisle_target_store_media_x_cate, allowMissingColumns=True)
-                 .unionByName(aisle_target_store_media_promozone, allowMissingColumns=True)
+
+            aisle_target_store_media_homeshelf = (
+                self.target_store.where(F.col("aisle_scope").isin(["homeshelf"]))
+                .drop("aisle_subclass")
+                .join(feat_subclass)
+                .withColumn("aisle_subclass", F.col("subclass_code"))
+                .join(adj_tbl, "subclass_code")
+                .drop("subclass_code")
+                .join(adj_tbl, "group")
+                .join(prd_dim, "subclass_code")
+                .join(date_dim.hint("range_join", 14))
+                .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
+            )
+
+            aisle_target_store_media_x_cate = (
+                self.target_store.alias("a")
+                .where(F.col("aisle_scope").isin(["cross_cate"]))
+                .join(
+                    adj_tbl.alias("b"),
+                    F.col("a.aisle_subclass") == F.col("b.subclass_code"),
                 )
+                .drop("subclass_code")
+                .join(adj_tbl, "group")
+                .join(prd_dim, "subclass_code")
+                .join(date_dim.hint("range_join", 14))
+                .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
+            )
+
+            aisle_target_store_media_promozone = (
+                self.target_store.where(F.col("aisle_scope").isin(["store"]))
+                .join(prd_dim)
+                .join(date_dim.hint("range_join", 14))
+                .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
+            )
+            self.aisle_target_store_conf = (
+                aisle_target_store_media_homeshelf.unionByName(
+                    aisle_target_store_media_x_cate, allowMissingColumns=True
+                ).unionByName(
+                    aisle_target_store_media_promozone, allowMissingColumns=True
+                )
+            )
             return
 
-        #---- Main
+        # ---- Main
         if hasattr(self, "aisle_target_store_conf"):
             return
         try:
-            self.aisle_target_store_conf = self.spark.table(f"tdm_seg.th_lotuss_media_eval_aisle_target_store_conf_{self.params['cmp_id'].lower()}_temp")
+            self.aisle_target_store_conf = self.spark.table(
+                f"tdm_seg.th_lotuss_media_eval_aisle_target_store_conf_{self.params['cmp_id'].lower()}_temp"
+            )
             return
         except Exception as e:
             print(e)
             pass
-        
+
         self.load_prod()
         self.cross_cate_cd_list = self.convert_param_to_list("cross_cate_cd")
         if aisle_mode == "":
@@ -828,15 +911,17 @@ class CampaignEval(CampaignParams):
                 _store()
             else:
                 _target_store_config()
-                
+
         # store
         try:
-            (self.aisle_target_store_conf
-             .write
-             .mode("overwrite")
-             .saveAsTable(f"tdm_seg.th_lotuss_media_eval_aisle_target_store_conf_{self.params['cmp_id']}_temp")
+            (
+                self.aisle_target_store_conf.write.mode("overwrite").saveAsTable(
+                    f"tdm_seg.th_lotuss_media_eval_aisle_target_store_conf_{self.params['cmp_id']}_temp"
+                )
             )
-            self.params["aisle_target_store_conf_table"] = f"tdm_seg.th_lotuss_media_eval_aisle_target_store_conf_{self.params['cmp_id'].lower()}_temp"
+            self.params[
+                "aisle_target_store_conf_table"
+            ] = f"tdm_seg.th_lotuss_media_eval_aisle_target_store_conf_{self.params['cmp_id'].lower()}_temp"
         except Exception as e:
             print(e)
         return
@@ -1023,8 +1108,7 @@ class CampaignEval(CampaignParams):
         )  # all product in aisles group
 
         use_ai_sec_list = list(
-            use_ai_df.select(use_ai_df.sec_nm).dropDuplicates().toPandas()[
-                "sec_nm"]
+            use_ai_df.select(use_ai_df.sec_nm).dropDuplicates().toPandas()["sec_nm"]
         )
 
         # get class & Subclass DataFrame
