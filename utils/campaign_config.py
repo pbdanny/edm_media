@@ -821,7 +821,7 @@ class CampaignEval(CampaignParams):
                 _target_store_config()
                 
         # checkpoint for aisle_target_store_conf
-        # self.aisle_target_store_conf =  self.aisle_target_store_conf.checkpoint()
+        self.aisle_target_store_conf =  self.aisle_target_store_conf.checkpoint()
         return
 
     def _get_prod_df(self):

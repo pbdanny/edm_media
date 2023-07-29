@@ -466,7 +466,14 @@ def asso_size_ctrl_pre(cmp: CampaignEval,
 
 def get_asso_kpi(cmp: CampaignEval,
                  prd_scope_df: SparkDataFrame):
-    """
+    """Computes the association size, lift, and uplift for the target and control products.
+
+    Args:
+        cmp: campaing evaluation object.
+        prd_scope_df: The product scope SparkDataframe.
+
+    Returns:
+        A tuple of (combine, lift, uplift) SparkDataFrames.
     """
     test_dur = asso_size_target_dur(cmp, prd_scope_df)
     test_pre = asso_size_target_pre(cmp, prd_scope_df)
