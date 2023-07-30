@@ -830,11 +830,10 @@ def get_cust_by_mech_exposed_purchased(
         tbl_nm = f"tdm_seg.th_lotuss_media_eval_cust_purchased_exposure_count_{cmp.params['cmp_id'].lower()}_lv_{prd_scope_nm}_temp"
         (cust_purchased_exposure_count.write.mode("overwrite").saveAsTable(tbl_nm))
         cmp.params[f"cust_purchased_exposure_count_lv_{prd_scope_nm}"] = tbl_nm
+        return cust_purchased_exposure_count
     except Exception as e:
         print(e)
     return
-
-    return cust_purchased_exposure_count
 
 
 def get_cust_by_mech_last_seen_exposed_tag(
