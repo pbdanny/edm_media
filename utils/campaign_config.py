@@ -912,7 +912,7 @@ class CampaignEval(CampaignParams):
             else:
                 _target_store_config()
 
-        # store
+        # save to optimize load time
         try:
             (
                 self.aisle_target_store_conf.write.mode("overwrite").saveAsTable(
