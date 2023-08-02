@@ -217,7 +217,7 @@ class CampaignEval(CampaignParams):
         self.load_store_dim_adjusted()
         self.load_prod()
         self.load_product_dim_adjusted()
-        self.load_aisle()
+        self.load_aisle(aisle_mode = "target_store_config")
         # self.load_txn()
 
         return
