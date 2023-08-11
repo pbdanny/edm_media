@@ -1,66 +1,77 @@
-# Databricks notebook source
-# MAGIC %run /Users/thanakrit.boonquarmdee@lotuss.com/utils/std_import
+import pprint
+from ast import literal_eval
+from typing import List
+from datetime import datetime, timedelta
+import sys
+import os
 
-# COMMAND ----------
+import numpy as np
+from pandas import DataFrame as PandasDataFrame
+import pandas as pd
 
-sys.path.append(os.path.abspath("/Workspace/Repos/thanakrit.boonquarmdee@lotuss.com/edm_util"))
-from edm_helper import get_lag_wk_id, to_pandas
+from pyspark.sql import SparkSession
+from pyspark.sql import functions as F
+from pyspark.sql import DataFrame as SparkDataFrame
+from pyspark.sql import Window
 
-# COMMAND ----------
+sys.path.append(os.path.abspath(
+    "/Workspace/Repos/thanakrit.boonquarmdee@lotuss.com/edm_util"))
 
-resrv_store_class = "13_77_166_1"
-wk_id_col_nm = "week_id"
-cate_lvl = "subclass"
+import edm_helper
 
-pre_en_wk = 202229
-wk_type = "fis_week"
-txn_all = spark.table("tdm_seg.media_campaign_eval_txn_data_2022_0592_m01m")
-feat_sf = spark.read.csv("dbfs:/FileStore/media/campaign_eval/01_hde/00_cmp_inputs/inputs_files/upc_list_2022_0592_M01M.csv", header=True, inferSchema=True).withColumnRenamed("feature", "upc_id")
-trg_str_df = spark.read.csv("dbfs:/FileStore/media/campaign_eval/01_hde/00_cmp_inputs/inputs_files/target_store_2022_0592_M01M.csv", header=True, inferSchema=True)
+from utils.DBPath import DBPath
+from utils import period_cal
+from utils.campaign_config import CampaignEval
+from exposure.exposed import create_txn_offline_x_aisle_target_store
 
-brand_df = (spark.table(TBL_PROD)
-            .join(feat_sf, "upc_id")
-            .select("brand_name", "subclass_code").drop_duplicates()
-            .join(spark.table(TBL_PROD), ["brand_name", "subclass_code"])
-            .select("upc_id")
-            .drop_duplicates()
-           )
+from utils import period_cal
 
-sclass_df = (spark.table(TBL_PROD)
-             .join(feat_sf, "upc_id")
-             .select("subclass_code").drop_duplicates()
-             .join(spark.table(TBL_PROD), ["subclass_code"])
-             .select("upc_id")
-             .drop_duplicates()
-           )
-# resrv_store_sf = spark.read.csv("dbfs:/FileStore/media/campaign_eval/00_std_inputs/reserved_store_HDE_20211031_master_withcode.csv", header=True, inferSchema=True).where(F.col("class_code")==resrv_store_class).select("store_id")
+#---- Developing
+def forward_compatible_stored_matching_schema(cmp: CampaignEval):
+    """Perform forward compatibility adjustments from matching store saved from in version 1.
+    
+    Args:
+        cmp (CampaignEval): The CampaignEval object containing the stored transactions and necessary information.
+        
+    Returns:
+        None
+    """        
+    if "store_id" in cmp.matched_store.columns:
+        cmp.matched_store = cmp.matched_store.drop("test_store_id").withColumnRenamed("store_id", "test_store_id")
+        
+    if "ctr_store_cos" in cmp.matched_store.columns:
+        cmp.matched_store = cmp.matched_store.drop("ctrl_store_id").withColumnRenamed("ctr_store_cos", "ctrl_store_id")
+    return
 
-u_ctl_str_df = spark.read.csv("dbfs:/FileStore/media/reserved_store/reserved_store_HDE_20221030.csv", header=True, inferSchema=True).where(F.col("class_code")==resrv_store_class).select("store_id")
+def get_backward_compatible_stored_matching_schema(cmp: CampaignEval):
+    """Perform backward compatibility adjustments to the matching store version 1.
+    
+    Args:
+        cmp (CampaignEval): The CampaignEval object containing the stored transactions and necessary information.
+        
+    Returns:
+        None
+    """        
+    if "test_store_id" in cmp.matched_store.columns:
+        back_matched_store = cmp.matched_store.drop("store_id").withColumnRenamed("test_store_id", "store_id")
+        
+    if "ctrl_store_id" in cmp.matched_store.columns:
+        back_matched_store = back_matched_store.drop("ctr_store_cos").withColumnRenamed( "ctrl_store_id", "ctr_store_cos")
+    
+    return back_matched_store
 
-db
-
-# COMMAND ----------
-
-def get_store_matching_across_region(
-        txn: SparkDataFrame,
-        pre_en_wk: int,
-        wk_type: str,
-        feat_sf: SparkDataFrame,
-        brand_df: SparkDataFrame,
-        sclass_df: SparkDataFrame,
-        test_store_sf: SparkDataFrame,
-        reserved_store_sf: SparkDataFrame,
-        matching_methodology: str = 'varience',
-        dbfs_project_path: str = "") -> List:
+def get_store_matching_across_region(cmp: CampaignEval,
+                                     matching_methodology: str = 'cosine_distance',
+                                     bad_match_threshold: float = 2.5):
     """
     Parameters
     ----------
     txn: SparkDataFrame
 
-    pre_en_wk: End pre_period week --> yyyymm
-        Pre period end week
-
     wk_type: "fis_week" or "promo_week"
+
+    pre_en_wk: End of pre_period week id in format yyyyww
+        Support fis_week / promo_week
 
     feat_sf: SparkDataFrame
         Features upc_id
@@ -77,12 +88,11 @@ def get_store_matching_across_region(
     reserved_store_sf: SparkDataFrame
         Customer picked reserved store list, for finding store matching -> control store
 
-    matching_methodology: str, default 'varience'
+    matching_methodology: str, default 'cosine_distance'
         'varience', 'euclidean', 'cosine_distance'
 
-    dbfs_project_path: str, default = ''
-        project path = os.path.join(eval_path_fl, cmp_month, cmp_nm)
-
+    bad_match_threshold: float, default = 2.5
+        Threshold value for `bad match` store, threshod baed on MAD methodology to identify outlier
     """
     from pyspark.sql import functions as F
     from pyspark.sql.types import StringType
@@ -93,19 +103,37 @@ def get_store_matching_across_region(
     import statistics as stats
     from sklearn.metrics.pairwise import cosine_similarity
 
-    #---- Helper fn
-    def _get_wk_id_col_nm(wk_type: str
-                              ) -> str:
-        """Column name for period week identification
-        """
-        if wk_type in ["promo_week"]:
-            wk_id_col_nm = "promoweek_id"
-        elif wk_type in ["promozone"]:
-            wk_id_col_nm = "promoweek_id"
-        else:
-            wk_id_col_nm = "week_id"
+    if hasattr(cmp, "matched_store"):
+        print("Campaign object already have attribute 'matched_store'")
+        return
+    
+    try:
+        cmp.matched_store = cmp.spark.read.csv((cmp.output_path/"output"/"store_matching.csv").spark_api(), header=True, inferSchema=True)
+        forward_compatible_stored_matching_schema(cmp)
+        cmp.matched_store_list = cmp.matched_store.select("ctrl_store_id").drop_duplicates().toPandas()["ctrl_store_id"].to_numpy().tolist()
+        print(f"Load 'matched_store' from {(cmp.output_path/'output'/'store_matching.csv').file_api()}" )
+        return
+    except Exception as e:
+        print(e)
+        pass
 
-        return wk_id_col_nm
+    txn = cmp.txn
+    wk_type = cmp.wk_type
+    pre_st_wk = cmp.pre_st_wk
+    pre_en_wk = cmp.pre_en_wk
+    feat_sf = cmp.feat_sku
+    brand_df = cmp.feat_brand_sku
+    sclass_df = cmp.feat_subclass_sku
+    test_store_sf = cmp.target_store
+    control_store = cmp.control_store
+       
+    wk_id_col_nm = period_cal.get_wk_id_col_nm(cmp)
+    
+    cmp.params["matching_level"] = "store_lv"
+    cmp.params["matching_methodology"] = matching_methodology
+    cmp.params["bad_match_threshold"] = bad_match_threshold
+        
+    #---- Helper fn
 
     def _get_min_wk_sales(prod_scope_df: SparkDataFrame):
         """Count number of week sales by store, return the smallest number of target store, control store
@@ -126,7 +154,7 @@ def get_store_matching_across_region(
 
         # Min sale week ctrl store
         txn_match_ctl = (txn
-                         .join(reserved_store_sf.drop("store_region_orig", "store_region"), "store_id", 'inner')
+                         .join(control_store.drop("store_region_orig", "store_region"), "store_id", 'inner')
                          .join(prod_scope_df, "upc_id", "leftsemi")
                          .where(F.col(wk_id_col_nm).between(pre_st_wk, pre_en_wk))
                          .where(F.col("offline_online_other_channel") == 'OFFLINE')
@@ -171,8 +199,8 @@ def get_store_matching_across_region(
         sales = txn.groupBy("store_id").pivot(wk_id_col_nm).agg(F.sum('net_spend_amt').alias('sales')).fillna(0)
         custs = txn.groupBy("store_id").pivot(wk_id_col_nm).agg(F.count_distinct('household_id').alias('custs')).fillna(0)
 
-        sales_df = to_pandas(sales).astype({'store_id':str}).set_index("store_id")
-        custs_df = to_pandas(custs).astype({'store_id':str}).set_index("store_id")
+        sales_df = edm_helper.to_pandas(sales).astype({'store_id':str}).set_index("store_id")
+        custs_df = edm_helper.to_pandas(custs).astype({'store_id':str}).set_index("store_id")
 
         sales_scaled_df = __get_std(sales_df)
         custs_scaled_df = __get_std(custs_df)
@@ -266,7 +294,7 @@ def get_store_matching_across_region(
         return __get_min_pair(data, test, ctrl, dist_nm)
 
     def _flag_outlier_mad(df: PandasDataFrame,
-                          outlier_score_threshold: float = 3.0):
+                          outlier_score_threshold: float):
         """Flag outlier with MAD method
         Parameter
         ----
@@ -316,11 +344,11 @@ def get_store_matching_across_region(
     #--------------
 
     print("-"*80)
-    wk_id_col_nm = _get_wk_id_col_nm(wk_type=wk_type)
+    wk_id_col_nm = period_cal.get_wk_id_col_nm(cmp)
     print(f"Week_id based on column '{wk_id_col_nm}'")
     print('Matching performance only "OFFLINE" channel')
 
-    pre_st_wk  = get_lag_wk_id(wk_id=pre_en_wk, lag_num=13, inclusive=True)
+    pre_st_wk  = edm_helper.get_lag_wk_id(wk_id=pre_en_wk, lag_num=13, inclusive=True)
 
     # Find level for matching : feature sku / (feature) brand / (feature) subclass
     trg_min_wk, txn_match_trg, ctl_min_wk, txn_match_ctl = _get_min_wk_sales(feat_sf)
@@ -380,20 +408,21 @@ def get_store_matching_across_region(
     all_dist_no_region = pd.concat([all_euc, all_cos, all_var])
 
     # Map store region
-    str_region = txn_matching.select(F.col("store_id").cast(StringType()), "store_region_new").drop_duplicates().toPandas()
+    #str_region = txn_matching.select(F.col("store_id").cast(StringType()), "store_region_new").drop_duplicates().toPandas()
+    str_region = txn_matching.select(F.col("store_id").cast(StringType()), "store_region_new", F.col("store_mech_set")).drop_duplicates().toPandas()  ### --  Add 'store_mech_set' back to dataframe  -- Pat 8 FEb 2023
     test_str_region = str_region.rename(columns={"store_id":"test_store_id", "store_region_new":"test_store_region"})
-    ctrl_str_region = str_region.rename(columns={"store_id":"ctrl_store_id", "store_region_new":"ctrl_store_region"})
+    ctrl_str_region = str_region.rename(columns={"store_id":"ctrl_store_id", "store_region_new":"ctrl_store_region"}).drop("store_mech_set", axis=1)
     all_dist = all_dist_no_region.merge(test_str_region, on="test_store_id", how="left").merge(ctrl_str_region, on="ctrl_store_id", how="left")
 
-    print("All pairs matching - all distance method")
-    all_dist.display()
-    print("Summary all distance method value")
-    all_dist.groupby(["dist_measure"])["value"].agg(["count", np.mean, np.std]).reset_index().display()
-    all_dist.groupby(["dist_measure", "test_store_region"])["value"].agg(["count", np.mean, np.std]).reset_index().display()
+    # print("All distance method - matching result")
+    # all_dist.display()
+    # print("Summary all distance method value")
+    # all_dist.groupby(["dist_measure"])["value"].agg(["count", np.mean, np.std]).reset_index().display()
+    # all_dist.groupby(["dist_measure", "test_store_region"])["value"].agg(["count", np.mean, np.std]).reset_index().display()
 
-    # Set outlier score threshold
-    OUTLIER_SCORE_THRESHOLD = 3.0
-    #----select control store using var method
+    #---- Set outlier score threshold
+    OUTLIER_SCORE_THRESHOLD = bad_match_threshold
+    #---- Select control store from distance method + remove outlier
     if matching_methodology == 'varience':
         flag_outlier = _flag_outlier_mad(all_var, outlier_score_threshold=OUTLIER_SCORE_THRESHOLD)
     elif matching_methodology == 'euclidean':
@@ -405,219 +434,45 @@ def get_store_matching_across_region(
         return None
 
     print("-"*80)
+    print(f"Paired test-ctrl before remove bad match")
+    flag_outlier.display()
+
+    print("-"*80)
     no_outlier = flag_outlier[~flag_outlier["flag_outlier"]]
     print(f"Number of paired test-ctrl after remove bad match : {no_outlier.shape[0]}")
+    # no_outlier.display()
 
-    print("Pair plot matched store")
-    __plt_pair(no_outlier, store_comp_score=store_comp_score)
+    # print("Pair plot matched store")
+    # __plt_pair(no_outlier, store_comp_score=store_comp_score)
 
     print("-"*80)
     print(f"Outlier score threshold : {OUTLIER_SCORE_THRESHOLD}")
     print("Details of bad match pair(s)")
     outlier = flag_outlier[flag_outlier["flag_outlier"]]
-    (outlier
-     .merge(test_str_region, on="test_store_id", how="left")
-     .merge(ctrl_str_region, on="ctrl_store_id", how="left")
-    ).display()
+    
+    #if outlier.count() > 0:
+    if outlier.empty :  ## Pat change to use ".empty" to check empty df -- 14 feb 2023
+        print("No outlier (no bad match)")        
+    else: ## have bad match
+        (outlier
+        .merge(test_str_region, on="test_store_id", how="left")
+        .merge(ctrl_str_region, on="ctrl_store_id", how="left")
+        ).display()
 
-    print("Pair plot bad match store")
-    __plt_pair(outlier, store_comp_score=store_comp_score)
+    # print("Pair plot bad match store")
+    #__plt_pair(outlier, store_comp_score=store_comp_score)
 
+    # Create control store list from matching result & remove bad match
     ctr_store_list = list(set([s for s in no_outlier.ctrl_store_id]))
 
-    # Backward compatibility : rename column to ["store_id", "ctr_store_var"]
+    # Create matched test-ctrl store id & remove bad match pairs
+    # Backward compatibility : rename `test_store_id` -> `store_id` and `ctrl_store_id` -> `ctr_store_var`
     matching_df = (no_outlier
                    .merge(test_str_region, on="test_store_id", how="left")
                    .merge(ctrl_str_region, on="ctrl_store_id", how="left")
-                   .rename(columns={"test_store_id":"store_id", "ctrl_store_id":"ctrl_store_var"})
                   )
 
-    # If specific projoect path, save composite score, outlier score to 'output'
-    if dbfs_project_path != "":
-        pandas_to_csv_filestore(store_comp_score, "store_matching_composite_score.csv", prefix=os.path.join(dbfs_project_path, 'output'))
-        pandas_to_csv_filestore(flag_outlier, "store_matching_flag_outlier.csv", prefix=os.path.join(dbfs_project_path, 'output'))
-
-    return ctr_store_list, matching_df
-
-
-# COMMAND ----------
-
-ctr_store_list, store_matching_df = get_store_matching_across_region(txn=txn_all,
-                                                       pre_en_wk=pre_en_wk,
-                                                       wk_type="fis_week",
-                                                       feat_sf=feat_sf,
-                                                       brand_df=brand_df,
-                                                       sclass_df=sclass_df,
-                                                       test_store_sf=trg_str_df,
-                                                       reserved_store_sf=u_ctl_str_df,
-                                                       matching_methodology="varience",
-                                                       dbfs_project_path="")
-
-# COMMAND ----------
-
-test_pv = store_comp_store_pv_id[store_comp_store_pv_id.index.isin(["1101", "1102", "1104", "1105"])]
-ctrl_pv = store_comp_store_pv_id[store_comp_store_pv_id.index.isin(["1110", "1111"])]
-
-# COMMAND ----------
-
-pair_min_euc = _get_pair_min_dist(test=test_pv, ctrl=ctrl_pv, dist_nm="euclidean")
-pair_min_cos = _get_pair_min_dist(test=test_pv, ctrl=ctrl_pv, dist_nm="cosine")
-
-# COMMAND ----------
-
-all_dist = pd.concat([pair_min_euc, pair_min_cos])
-
-# COMMAND ----------
-
-all_dist.display()
-
-# COMMAND ----------
-
-def mad(df: PandasDataFrame, 
-        outlier_score_threshold: float = 3.0):
-    """Flag outlier with MAD, outlier score
-    """
-    flag = \
-    (df
-     .assign(median = lambda x : x["value"].median())
-     .assign(abs_deviation = lambda x : np.abs(x["value"] - x["median"]) )
-     .assign(mad = lambda x : 1.4826 * np.median( x["abs_deviation"] ) ) 
-     .assign(outlier_score = lambda x : x["abs_deviation"]/x["mad"])
-     .assign(flag_outlier = lambda x : np.where(x["outlier_score"]>=outlier_score_threshold, True, False))
-    )
-    return flag
-
-# COMMAND ----------
-
-flag_out = mad(pair_min_euc, outlier_score_threshold=0.7)
-
-# COMMAND ----------
-
-no_outlier = flag_out[~flag_out["flag_outlier"]]
-
-# COMMAND ----------
-
-outlier = flag_out[flag_out["flag_outlier"]]
-
-# COMMAND ----------
-
-outlier
-
-# COMMAND ----------
-
-def __plt_pair(pair: PandasDataFrame,
-               store_comp_score: PandasDataFrame):
-    """Comparison plot each pair of test-ctrl score
-    """
-    from matplotlib import pyplot as plt
-
-    for i, row in pair.iterrows():
-        test_score = store_comp_score[store_comp_score["store_id"]==row["test_store_id"]].loc[:,["week_id", "comp_score"]]
-        ctrl_score = store_comp_score[store_comp_score["store_id"]==row["ctrl_store_id"]].loc[:,["week_id", "comp_score"]]
-        fig, ax = plt.subplots()
-        test_score.plot(ax=ax, x="week_id", y="comp_score", label=f'Test Store : {row["test_store_id"]}')
-        ctrl_score.plot(ax=ax, x="week_id", y="comp_score", label=f'Ctrl Store : {row["ctrl_store_id"]}')
-        plt.show()
-    return None
-
-# COMMAND ----------
-
-__plt_pair(outlier, store_comp_score)
-
-# COMMAND ----------
-
-__plt_pair(no_outlier, store_comp_score)
-
-# COMMAND ----------
-
-def find_mid_rank(num_max: int, fraction: float):
-    """Calculate mid rank base on fraction x num_max in each group
-    Return ArrayType(IntegerType()) of list in mid rank"""
-
-    import math
+    cmp.matched_store_list = ctr_store_list
+    cmp.matched_store = cmp.spark.createDataFrame(matching_df)
     
-    if (num_max <= 19):
-        num_mid = 1
-    else:
-        num_mid = math.floor(num_max*fraction)
-        if num_mid == 0:
-            num_mid = 1
-        
-    pos_mid = math.floor(num_max/2.0)
-    
-    # create list of [1, -1, 2, -2, 3, -3]
-    idx_alternate = [y for x in range(1, num_mid) for y in (x,-x)]
-    # add 0 at start list
-    idx_alternate.insert(0, 0)
-    idx_alternate_num_mid = idx_alternate[:num_mid]
-    
-    list_mid = [pos_mid+i for i in idx_alternate_num_mid]
-    list_mid.sort()
-    
-#     return num_mid, pos_mid, list_mid
-    return list_mid
-
-# COMMAND ----------
-
-find_mid_rank(2, 0.1)
-
-# COMMAND ----------
-
-import math
-
-math.floor(2*0.1)
-range(1,0)
-
-# COMMAND ----------
-
-
-
-# COMMAND ----------
-
-def find_mid_rank(num_max: int, fraction: float):
-    """Calculate mid rank base on fraction x num_max in each group
-    Return ArrayType(IntegerType()) of list in mid rank"""
-
-    import math
-    
-    if (num_max <= 19):
-        num_mid = 1
-    else:
-        num_mid = math.floor(num_max*fraction)
-        
-    pos_mid = math.floor(num_max/2.0)
-    
-    # create list of [1, -1, 2, -2, 3, -3]
-    idx_alternate = [y for x in range(1, num_mid) for y in (x,-x)]
-    # add 0 at start list
-    idx_alternate.insert(0, 0)
-    idx_alternate_num_mid = idx_alternate[:num_mid]
-    
-    list_mid = [pos_mid+i for i in idx_alternate_num_mid]
-    list_mid.sort()
-    
-#     return num_mid, pos_mid, list_mid
-    return list_mid
-
-# COMMAND ----------
-
-for i in range(1, 30):
-    print(i,",", find_mid_rank(i, 0.1))
-
-# COMMAND ----------
-
-num_max = 3
-pos_mid = math.floor(num_max/2.0)+1
-
-# COMMAND ----------
-
-pos_mid
-
-# COMMAND ----------
-
-list_mid = [pos_mid+i for i in idx_alternate_num_mid]
-list_mid
-
-# COMMAND ----------
-
-
+    return

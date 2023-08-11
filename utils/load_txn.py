@@ -1,0 +1,241 @@
+import pprint
+from ast import literal_eval
+from typing import List
+from datetime import datetime, timedelta
+import sys
+import os
+
+from pyspark.sql import SparkSession
+from pyspark.sql import functions as F
+from pyspark.sql import DataFrame as SparkDataFrame
+
+import pandas as pd
+import numpy as np
+from pathlib import Path
+
+from utils.DBPath import DBPath
+from utils.campaign_config import CampaignEval
+from utils import period_cal
+
+sys.path.append(os.path.abspath(
+    "/Workspace/Repos/thanakrit.boonquarmdee@lotuss.com/edm_util"))
+from edm_class import txnItem
+
+def load_txn(cmp: CampaignEval,
+             txn_mode: str = "pre_generated_118wk"):
+    """Load transaction
+
+    Parameters
+    ----------
+    txn_mode: str, default = "pre_generated_118wk"
+        "pre_generated_118wk" : load from pregenerated tdm_seg.v_latest_txn118wk
+        "stored_campaign_txn" : load from created tdm_seg.media_campaign_eval_txn_data_{cmp.params['cmp_id']}
+        "create_new" : create from raw table
+    """
+    if txn_mode == "create_new":
+        cmp.params["txn_mode"] == "create_new"
+        snap = txnItem(end_wk_id=cmp.cmp_en_wk,
+                       str_wk_id=cmp.ppp_st_wk,
+                       manuf_name=False,
+                       head_col_select=["transaction_uid", "date_id",
+                                        "store_id", "channel", "pos_type", "pos_id"],
+                       item_col_select=['transaction_uid', 'store_id', 'date_id', 'upc_id', 'week_id',
+                                        'net_spend_amt', 'unit', 'customer_id', 'discount_amt', 'cc_flag'],
+                       prod_col_select=['upc_id', 'division_name', 'department_name', 'section_id', 'section_name',
+                                        'class_id', 'class_name', 'subclass_id', 'subclass_name', 'brand_name',
+                                        'department_code', 'section_code', 'class_code', 'subclass_code'])
+
+        cmp.txn = snap.txn
+
+    elif txn_mode == "stored_campaign_txn":
+        try:
+            cmp.txn = cmp.spark.table(
+                f"tdm_seg.media_campaign_eval_txn_data_{cmp.params['cmp_id'].lower()}")
+            cmp.params["txn_mode"] = "stored_campaign_txn"
+        except Exception as e:
+            cmp.params["txn_mode"] = "pre_generated_118wk"
+            cmp.txn = cmp.spark.table("tdm_seg.v_latest_txn118wk")
+    else:
+        cmp.params["txn_mode"] = "pre_generated_118wk"
+        cmp.txn = cmp.spark.table("tdm_seg.v_latest_txn118wk")
+
+    create_period_col(cmp)
+    scope_txn(cmp)
+    replace_brand_nm(cmp)
+    replace_store_region(cmp)
+    forward_compatible_stored_txn_schema(cmp)
+
+    return
+
+def replace_brand_nm(cmp: CampaignEval):
+    """Replace the transactions of multi-feature brands with the first main brand.
+
+    This function replaces the brand names in the transactions with the brand names from the main products. 
+    It ensures that each transaction is associated with a single brand, even if the product has multiple features.
+
+    Args:
+        cmp (CampaignEval): The CampaignEval object containing the transactions and product information.
+
+    Returns:
+        None
+    """
+    cmp.txn = \
+    (cmp.txn
+        .drop("brand_name")
+        .join(cmp.product_dim.select("upc_id", "brand_name"), 'upc_id', 'left')
+        .fillna('Unidentified', subset='brand_name')
+    )
+
+    return
+
+def create_period_col(cmp: CampaignEval):
+    """Create period columns for the CampaignEval object.
+    
+    This function creates three period columns: period_fis_wk, period_promo_wk, and period_promo_mv_wk. 
+    The periods are determined based on the provided CampaignEval object's attributes and flags.
+    
+    Args:
+        cmp (CampaignEval): The CampaignEval object containing relevant information for period column creation.
+          
+    Returns:
+        None
+    """
+    if cmp.gap_flag:
+        cmp.txn = (cmp.txn.withColumn('period_fis_wk',
+                                      F.when(F.col('week_id').between(
+                                          cmp.cmp_st_wk, cmp.cmp_en_wk), F.lit('dur'))
+                                      .when(F.col('week_id').between(cmp.gap_st_wk, cmp.gap_en_wk), F.lit('gap'))
+                                      .when(F.col('week_id').between(cmp.pre_st_wk, cmp.pre_en_wk), F.lit('pre'))
+                                      .when(F.col('week_id').between(cmp.ppp_st_wk, cmp.ppp_en_wk), F.lit('ppp'))
+                                      .otherwise(F.lit('NA')))
+                   .withColumn('period_promo_wk',
+                               F.when(F.col('promoweek_id').between(
+                                   cmp.cmp_st_promo_wk, cmp.cmp_en_promo_wk), F.lit('dur'))
+                               .when(F.col('promoweek_id').between(cmp.gap_st_promo_wk, cmp.gap_en_promo_wk), F.lit('gap'))
+                               .when(F.col('promoweek_id').between(cmp.pre_st_promo_wk, cmp.pre_en_promo_wk), F.lit('pre'))
+                               .when(F.col('promoweek_id').between(cmp.ppp_st_promo_wk, cmp.ppp_en_promo_wk), F.lit('ppp'))
+                               .otherwise(F.lit('NA')))
+                   .withColumn('period_promo_mv_wk',
+                               F.when(F.col('promoweek_id').between(
+                                   cmp.cmp_st_promo_wk, cmp.cmp_en_promo_wk), F.lit('dur'))
+                               .when(F.col('promoweek_id').between(cmp.gap_st_promo_wk, cmp.gap_en_promo_wk), F.lit('gap'))
+                               .when(F.col('promoweek_id').between(cmp.pre_st_promo_mv_wk, cmp.pre_en_promo_mv_wk), F.lit('pre'))
+                               .when(F.col('promoweek_id').between(cmp.ppp_st_promo_mv_wk, cmp.ppp_en_promo_mv_wk), F.lit('ppp'))
+                               .otherwise(F.lit('NA')))
+                   )
+    else:
+        cmp.txn = (cmp.txn.withColumn('period_fis_wk',
+                                      F.when(F.col('week_id').between(
+                                          cmp.cmp_st_wk, cmp.cmp_en_wk), F.lit('dur'))
+                                      .when(F.col('week_id').between(cmp.pre_st_wk, cmp.pre_en_wk), F.lit('pre'))
+                                      .when(F.col('week_id').between(cmp.ppp_st_wk, cmp.ppp_en_wk), F.lit('ppp'))
+                                      .otherwise(F.lit('NA')))
+                   .withColumn('period_promo_wk',
+                               F.when(F.col('promoweek_id').between(
+                                   cmp.cmp_st_promo_wk, cmp.cmp_en_promo_wk), F.lit('dur'))
+                               .when(F.col('promoweek_id').between(cmp.pre_st_promo_wk, cmp.pre_en_promo_wk), F.lit('pre'))
+                               .when(F.col('promoweek_id').between(cmp.ppp_st_promo_wk, cmp.ppp_en_promo_wk), F.lit('ppp'))
+                               .otherwise(F.lit('NA')))
+                   .withColumn('period_promo_mv_wk',
+                               F.when(F.col('promoweek_id').between(
+                                   cmp.cmp_st_promo_wk, cmp.cmp_en_promo_wk), F.lit('dur'))
+                               .when(F.col('promoweek_id').between(cmp.pre_st_promo_mv_wk, cmp.pre_en_promo_mv_wk), F.lit('pre'))
+                               .when(F.col('promoweek_id').between(cmp.ppp_st_promo_mv_wk, cmp.ppp_en_promo_mv_wk), F.lit('ppp'))
+                               .otherwise(F.lit('NA')))
+                   )
+
+    return
+
+def replace_store_region(cmp: CampaignEval):
+    """Remapping txn store_region follow cmp.store_dim
+    """
+    cmp.txn = \
+        (cmp.txn
+         .drop("store_region")
+         .join(cmp.store_dim.select("store_id", "store_region"), 'store_id', 'left')
+         .fillna('Unidentified', subset='store_region')
+        )
+    return
+
+def forward_compatible_stored_txn_schema(cmp: CampaignEval):
+    """Perform forward compatibility adjustments from stored transactions in version 1.
+    
+    This function ensures backward compatibility with the generated transactions from previous code versions by applying the following adjustments:
+    - Change the value in all period columns from 'cmp' to 'dur'.
+    - Change the column name 'pkg_weight_unit' to 'unit'.
+    - Change the column name 'store_format_group' to 'store_format_name'.
+    
+    Args:
+        cmp (CampaignEval): The CampaignEval object containing the stored transactions and necessary information.
+        
+    Returns:
+        None
+    """
+    cmp.txn = cmp.txn.replace({"cmp":"dur"}, subset=['period_fis_wk', 'period_promo_wk', 'period_promo_mv_wk'])
+        
+    if "pkg_weight_unit" in cmp.txn.columns:
+        cmp.txn = cmp.txn.drop("unit").withColumnRenamed("pkg_weight_unit", "unit")
+        
+    if "store_format_group" in cmp.txn.columns:
+        cmp.txn = cmp.txn.drop("store_format_name").withColumnRenamed("store_format_group", "store_format_name")
+    return
+
+def scope_txn(cmp: CampaignEval):
+    """Filter and optimize the performance of pre-joined 118-week transactions.
+    
+    This function improves the performance when using pre-joined 118-week transactions by applying the following steps:
+    1. Determine the minimum and maximum week IDs based on the provided campaign evaluation object (`cmp`) and specific parameters.
+    2. Add a 1-week buffer to the maximum week ID to account for overflow from Monday to Thursday of the promotional week to the following fiscal week.
+    3. Filter the transactions based on the week ID and period columns, retaining only the relevant data.
+    
+    Args:
+        cmp (CampaignEval): The CampaignEval object containing the pre-joined 118-week transactions and relevant information.
+        
+    Returns:
+        None
+    """
+    ppp_wk_list = [cmp.ppp_st_wk, cmp.ppp_st_promo_wk,
+                   cmp.ppp_st_mv_wk, cmp.ppp_st_promo_mv_wk]
+    min_wk_id = min([wk for wk in ppp_wk_list if wk is not None])
+    cmp_wk_list = [cmp.cmp_en_wk, cmp.cmp_en_promo_wk]
+    max_wk_id = max([wk for wk in cmp_wk_list if wk is not None])
+    # +1 week buffer for eval with promo week, data of promo week from Mon - Thur will overflow to fis_week + 1
+    max_wk_id = period_cal.week_cal(max_wk_id, 1)
+    cmp.txn = \
+        (cmp.txn
+         .where(F.col("week_id").between(min_wk_id, max_wk_id))
+         .where((F.col("period_fis_wk").isin(["dur", "gap", "pre", "ppp"])) |
+                (F.col("period_promo_wk").isin(["dur", "gap", "pre", "ppp"])) |
+                (F.col("period_promo_mv_wk").isin(["dur", "gap", "pre", "ppp"])))
+         )
+    return
+
+def save_txn(cmp: CampaignEval):
+    load_txn()
+    cmp.txn.write.saveAsTable(
+        f"tdm_seg.media_campaign_eval_txn_data_{cmp.params['cmp_id']}")
+    return
+
+def get_backward_compatible_txn_schema(cmp: CampaignEval):
+    """Perform backward compatibility adjustments to the stored transactions.
+    
+    This function ensures backward compatibility with the generated transactions from previous code versions by applying the following adjustments:
+    - Change the value in all period columns from 'dur' to 'cmp'.
+    - Change the column name 'unit' to 'pkg_weight_unit'.
+    - Change the column name 'store_format_name' to 'store_format_group'.
+    
+    Args:
+        cmp (CampaignEval): The CampaignEval object containing the stored transactions and necessary information.
+        
+    Returns:
+        SparkDataFrame
+    """
+    back_txn = cmp.txn.replace({"dur":"cmp"}, subset=['period_fis_wk', 'period_promo_wk', 'period_promo_mv_wk'])
+        
+    if "unit" in cmp.txn.columns:
+        back_txn = back_txn.drop("pkg_weight_unit").withColumnRenamed("unit", "pkg_weight_unit")
+        
+    if "store_format_name" in cmp.txn.columns:
+        back_txn = back_txn.drop("store_format_group").withColumnRenamed("store_format_name", "store_format_group")
+    
+    return back_txn
