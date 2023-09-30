@@ -182,7 +182,9 @@ class CampaignEval(CampaignParams):
         )
         self.spark.conf.set("spark.databricks.io.cache.enabled", True)
         self.spark.conf.set("spark.databricks.queryWatchdog.maxQueryTasks", 0)
-        self.spark.conf.set("spark.databricks.queryWatchdog.outputRatioThreshold", 10000)
+        self.spark.conf.set(
+            "spark.databricks.queryWatchdog.outputRatioThreshold", 10000
+        )
 
         dbutils = DBUtils(self.spark)
 
@@ -218,7 +220,7 @@ class CampaignEval(CampaignParams):
         self.load_store_dim_adjusted()
         self.load_prod()
         self.load_product_dim_adjusted()
-        self.load_aisle(aisle_mode = "target_store_config")
+        self.load_aisle(aisle_mode="target_store_config")
         # self.load_txn()
 
         return
@@ -708,8 +710,10 @@ class CampaignEval(CampaignParams):
             )
         return
 
-    def load_aisle(self, aisle_mode: str = ""):
-        """Load aisle for exposure calculation
+    def load_aisle(self, aisle_mode: str = "target_store_config"):
+        """Load aisle for exposure calculation, default "target_store_config"
+        For aisle scope `homeshelf` & `store` will use information from config file
+        But for `cross_cate` will use aisle_subclass and IGNORE input in config file
 
         Parameters
         ----------
@@ -841,7 +845,7 @@ class CampaignEval(CampaignParams):
                 .select("subclass_code")
                 .drop_duplicates()
             )
-
+            # For store defind aisle_scope = homeshelf
             aisle_target_store_media_homeshelf = (
                 self.target_store.where(F.col("aisle_scope").isin(["homeshelf"]))
                 .drop("aisle_subclass")
@@ -854,7 +858,8 @@ class CampaignEval(CampaignParams):
                 .join(date_dim.hint("range_join", 14))
                 .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
             )
-
+            # For store defined aisle_scope = cross_cate, will ignore cross_cate_cd in config and use
+            # aisle cross cate by store
             aisle_target_store_media_x_cate = (
                 self.target_store.alias("a")
                 .where(F.col("aisle_scope").isin(["cross_cate"]))
@@ -869,12 +874,14 @@ class CampaignEval(CampaignParams):
                 .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
             )
 
+            # Aisle at store level
             aisle_target_store_media_promozone = (
                 self.target_store.where(F.col("aisle_scope").isin(["store"]))
                 .join(prd_dim)
                 .join(date_dim.hint("range_join", 14))
                 .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
             )
+            # Combine each aisle scope into one object
             self.aisle_target_store_conf = (
                 aisle_target_store_media_homeshelf.unionByName(
                     aisle_target_store_media_x_cate, allowMissingColumns=True
@@ -885,9 +892,11 @@ class CampaignEval(CampaignParams):
             return
 
         # ---- Main
+        # If object aisle_target_store_conf alread created, use it
         if hasattr(self, "aisle_target_store_conf"):
             return
         try:
+            # if object not created, try to load from stored table
             self.aisle_target_store_conf = self.spark.table(
                 f"tdm_dev.th_lotuss_media_eval_aisle_target_store_conf_{self.params['cmp_id'].lower()}_temp"
             )
@@ -896,13 +905,16 @@ class CampaignEval(CampaignParams):
             print(e)
             pass
 
+        # Then create object aisle_target_store_conf
         self.load_prod()
         self.cross_cate_cd_list = self.convert_param_to_list("cross_cate_cd")
+        # If not specified aisle_mode, will create aisle from x_cate if config have cross_cate_cd unless create aisle from homeshelf
         if aisle_mode == "":
             if not self.cross_cate_cd_list:
                 _homeshelf()
             else:
                 _x_cat()
+        # If defined aisle mode, will create accordingly
         else:
             if aisle_mode == "homeshelf":
                 _homeshelf()
