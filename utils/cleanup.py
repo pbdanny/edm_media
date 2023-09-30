@@ -25,7 +25,7 @@ def clear_attr_and_temp_tbl(cmp: CampaignEval):
     # clear aisle_target_store_conf
     if hasattr(cmp, "aisle_target_store_conf"):
         delattr(cmp, "aisle_target_store_conf")
-    tbl_nm = f"tdm_seg.th_lotuss_media_eval_aisle_target_store_conf_{cmp.params['cmp_id']}_temp"
+    tbl_nm = f"tdm_dev.th_lotuss_media_eval_aisle_target_store_conf_{cmp.params['cmp_id']}_temp"
     print(f"Drop temp table (if exist) {tbl_nm}")
     spark.sql(f"DROP TABLE IF EXISTS {tbl_nm}")
     
@@ -33,5 +33,5 @@ def clear_attr_and_temp_tbl(cmp: CampaignEval):
     tbl_nm_pattern = f"th_lotuss_media_eval_cust_purchased_exposure_count_{cmp.params['cmp_id'].lower()}_lv*"
     tables = spark.sql(f"SHOW TABLES IN tdm_seg LIKE '{tbl_nm_pattern}'")
     for row in tables.collect():
-        print(f"Drop temp table (if exist) tdm_seg.{row[1]}")
-        spark.sql(f"DROP TABLE IF EXISTS tdm_seg.{row[1]}")
+        print(f"Drop temp table (if exist) tdm_dev.{row[1]}")
+        spark.sql(f"DROP TABLE IF EXISTS tdm_dev.{row[1]}")
