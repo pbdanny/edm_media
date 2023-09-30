@@ -889,7 +889,7 @@ class CampaignEval(CampaignParams):
             return
         try:
             self.aisle_target_store_conf = self.spark.table(
-                f"tdm_seg.th_lotuss_media_eval_aisle_target_store_conf_{self.params['cmp_id'].lower()}_temp"
+                f"tdm_dev.th_lotuss_media_eval_aisle_target_store_conf_{self.params['cmp_id'].lower()}_temp"
             )
             return
         except Exception as e:
@@ -917,12 +917,12 @@ class CampaignEval(CampaignParams):
         try:
             (
                 self.aisle_target_store_conf.write.mode("overwrite").saveAsTable(
-                    f"tdm_seg.th_lotuss_media_eval_aisle_target_store_conf_{self.params['cmp_id']}_temp"
+                    f"tdm_dev.th_lotuss_media_eval_aisle_target_store_conf_{self.params['cmp_id']}_temp"
                 )
             )
             self.params[
                 "aisle_target_store_conf_table"
-            ] = f"tdm_seg.th_lotuss_media_eval_aisle_target_store_conf_{self.params['cmp_id'].lower()}_temp"
+            ] = f"tdm_dev.th_lotuss_media_eval_aisle_target_store_conf_{self.params['cmp_id'].lower()}_temp"
         except Exception as e:
             print(e)
         return
