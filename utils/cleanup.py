@@ -31,7 +31,7 @@ def clear_attr_and_temp_tbl(cmp: CampaignEval):
     
     # clear cust_purchased_exposure_count
     tbl_nm_pattern = f"th_lotuss_media_eval_cust_purchased_exposure_count_{cmp.params['cmp_id'].lower()}_lv*"
-    tables = spark.sql(f"SHOW TABLES IN tdm_seg LIKE '{tbl_nm_pattern}'")
+    tables = spark.sql(f"SHOW TABLES IN tdm_dev LIKE '{tbl_nm_pattern}'")
     for row in tables.collect():
         print(f"Drop temp table (if exist) tdm_dev.{row[1]}")
         spark.sql(f"DROP TABLE IF EXISTS tdm_dev.{row[1]}")

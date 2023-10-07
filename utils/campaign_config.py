@@ -190,7 +190,8 @@ class CampaignEval(CampaignParams):
 
         self.store_fmt = self.params["store_fmt"].lower()
         self.wk_type = self.params["wk_type"]
-
+        
+        self.cmp_id = self.params['cmp_id']
         self.cmp_nm = self.params["cmp_nm"]
         self.cmp_start = self.params["cmp_start"]
         self.cmp_end = self.params["cmp_end"]
@@ -220,6 +221,7 @@ class CampaignEval(CampaignParams):
         self.load_store_dim_adjusted()
         self.load_prod()
         self.load_product_dim_adjusted()
+        self.clean_up_temp_table()
         self.load_aisle(aisle_mode="target_store_config")
         # self.load_txn()
 
@@ -937,6 +939,22 @@ class CampaignEval(CampaignParams):
             ] = f"tdm_dev.th_lotuss_media_eval_aisle_target_store_conf_{self.params['cmp_id'].lower()}_temp"
         except Exception as e:
             print(e)
+        return
+    
+    def clean_up_temp_table(self):
+        """Clean up temp table (if any)
+        """
+        cmp_id = self.params["cmp_id"]
+        tbl_nm = f"tdm_dev.th_lotuss_media_eval_aisle_target_store_conf_{cmp_id}_temp"
+        print(f"Drop temp table (if exist) {tbl_nm}")
+        self.spark.sql(f"DROP TABLE IF EXISTS {tbl_nm}")
+        
+        # clear cust_purchased_exposure_count
+        tbl_nm_pattern = f"th_lotuss_media_eval_cust_purchased_exposure_count_{cmp_id.lower()}_lv*"
+        tables = self.spark.sql(f"SHOW TABLES IN tdm_dev LIKE '{tbl_nm_pattern}'")
+        for row in tables.collect():
+            print(f"Drop temp table (if exist) tdm_dev.{row[1]}")
+            self.spark.sql(f"DROP TABLE IF EXISTS tdm_dev.{row[1]}")
         return
 
     def _get_prod_df(self):
