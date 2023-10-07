@@ -60,7 +60,7 @@ conf.display_details()
 # COMMAND ----------
 
 from utils import cleanup
-cmp = CampaignEval(conf, cmp_row_no=4)
+cmp = CampaignEval(conf, cmp_row_no=5)
 cleanup.clear_attr_and_temp_tbl(cmp)
 
 # COMMAND ----------
