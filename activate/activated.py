@@ -30,7 +30,7 @@ def get_cust_activated(cmp: CampaignEval):
     wk_type:
         "fis_week" or "promo_week"
     """
-    cmp.spark.sparkContext.setCheckpointDir("dbfs:/FileStore/thanakrit/temp/checkpoint")
+    cmp.spark.sparkContext.setCheckpointDir("dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint")
 
     txn = cmp.txn
     cp_start_date = cmp.cmp_start
@@ -279,7 +279,7 @@ def get_cust_activated_by_mech(cmp: CampaignEval, promozone_flag: bool = False):
     wk_type:
         "fis_week" or "promo_week"
     """
-    cmp.spark.sparkContext.setCheckpointDir("dbfs:/FileStore/thanakrit/temp/checkpoint")
+    cmp.spark.sparkContext.setCheckpointDir("dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint")
     txn = cmp.txn
     cp_start_date = cmp.cmp_start
     cp_end_date = cmp.cmp_end

@@ -178,7 +178,7 @@ class CampaignEval(CampaignParams):
             f"campaignEval_{self.params['cmp_id']}"
         ).getOrCreate()
         self.spark.sparkContext.setCheckpointDir(
-            "dbfs:/FileStore/thanakrit/temp/checkpoint"
+            "dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint"
         )
         self.spark.conf.set("spark.databricks.io.cache.enabled", True)
         self.spark.conf.set("spark.databricks.queryWatchdog.maxQueryTasks", 0)
@@ -190,8 +190,8 @@ class CampaignEval(CampaignParams):
 
         self.store_fmt = self.params["store_fmt"].lower()
         self.wk_type = self.params["wk_type"]
-        
-        self.cmp_id = self.params['cmp_id']
+
+        self.cmp_id = self.params["cmp_id"]
         self.cmp_nm = self.params["cmp_nm"]
         self.cmp_start = self.params["cmp_start"]
         self.cmp_end = self.params["cmp_end"]
@@ -940,17 +940,18 @@ class CampaignEval(CampaignParams):
         except Exception as e:
             print(e)
         return
-    
+
     def clean_up_temp_table(self):
-        """Clean up temp table (if any)
-        """
+        """Clean up temp table (if any)"""
         cmp_id = self.params["cmp_id"]
         tbl_nm = f"tdm_dev.th_lotuss_media_eval_aisle_target_store_conf_{cmp_id}_temp"
         print(f"Drop temp table (if exist) {tbl_nm}")
         self.spark.sql(f"DROP TABLE IF EXISTS {tbl_nm}")
-        
+
         # clear cust_purchased_exposure_count
-        tbl_nm_pattern = f"th_lotuss_media_eval_cust_purchased_exposure_count_{cmp_id.lower()}_lv*"
+        tbl_nm_pattern = (
+            f"th_lotuss_media_eval_cust_purchased_exposure_count_{cmp_id.lower()}_lv*"
+        )
         tables = self.spark.sql(f"SHOW TABLES IN tdm_dev LIKE '{tbl_nm_pattern}'")
         for row in tables.collect():
             print(f"Drop temp table (if exist) tdm_dev.{row[1]}")
