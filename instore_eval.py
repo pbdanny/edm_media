@@ -2912,10 +2912,14 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
 
 
    # Save and load temp table
-   spark.sql('DROP TABLE IF EXISTS tdm_seg.cust_uplift_by_mech_temp')
-   movement_and_exposure_by_mech.write.saveAsTable('tdm_seg.cust_uplift_by_mech_temp')
+#    spark.sql('DROP TABLE IF EXISTS tdm_seg.cust_uplift_by_mech_temp')
+#    movement_and_exposure_by_mech.write.saveAsTable('tdm_seg.cust_uplift_by_mech_temp')
+#    movement_and_exposure_by_mech = spark.table('tdm_seg.cust_uplift_by_mech_temp')
 
-   movement_and_exposure_by_mech = spark.table('tdm_seg.cust_uplift_by_mech_temp')
+   spark.sql('DROP TABLE IF EXISTS tdm_dev.cust_uplift_by_mech_temp')
+   movement_and_exposure_by_mech.write.saveAsTable('tdm_dev.cust_uplift_by_mech_temp')
+   movement_and_exposure_by_mech = spark.table('tdm_dev.cust_uplift_by_mech_temp')
+
 
    print('customer movement new logic:')
    movement_and_exposure_by_mech.groupBy('customer_group').pivot('group').agg(F.countDistinct('household_id')).show()
@@ -3605,7 +3609,7 @@ def get_cust_cltv(txn: SparkDataFrame,
     print("-"*80)
 
     #---- I) Calculate brand SpC of brand activated customer
-    activated_cust = spark.table(f"tdm_seg.media_camp_eval_{cmp_id}_cust_brand_activated")
+    activated_cust = spark.table(f"tdm_dev.media_camp_eval_{cmp_id}_cust_brand_activated")
     brand_kpi = _get_shppr_kpi(txn=txn, period_wk_col_nm=period_wk_col, prd_scope_df=brand_sf, activated_cust=activated_cust)
     spc_multi = brand_kpi.where(F.col('visits') > 1).agg(F.avg('spending').alias('spc_multi')).select('spc_multi').collect()[0][0]
     spc_onetime = brand_kpi.where(F.col('visits') == 1).agg(F.avg('spending').alias('spc_onetime')).select('spc_onetime').collect()[0][0]
