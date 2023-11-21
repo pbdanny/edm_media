@@ -788,7 +788,7 @@ def get_cust_by_mech_exposed_purchased(
     # Load from created table
     try:
         cust_purchased_exposure_count = cmp.spark.table(
-            f"tdm_seg.th_lotuss_media_eval_cust_purchased_exposure_count_{cmp.params['cmp_id'].lower()}_lv_{prd_scope_nm}_temp"
+            f"tdm_dev.th_lotuss_media_eval_cust_purchased_exposure_count_{cmp.params['cmp_id'].lower()}_lv_{prd_scope_nm}_temp"
         )
         return cust_purchased_exposure_count
     except Exception as e:
@@ -827,7 +827,7 @@ def get_cust_by_mech_exposed_purchased(
 
     # save to optimize load time
     try:
-        tbl_nm = f"tdm_seg.th_lotuss_media_eval_cust_purchased_exposure_count_{cmp.params['cmp_id'].lower()}_lv_{prd_scope_nm}_temp"
+        tbl_nm = f"tdm_dev.th_lotuss_media_eval_cust_purchased_exposure_count_{cmp.params['cmp_id'].lower()}_lv_{prd_scope_nm}_temp"
         (cust_purchased_exposure_count.write.mode("overwrite").saveAsTable(tbl_nm))
         cmp.params[f"cust_purchased_exposure_count_lv_{prd_scope_nm}"] = tbl_nm
         return cust_purchased_exposure_count

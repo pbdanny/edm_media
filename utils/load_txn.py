@@ -28,8 +28,8 @@ def load_txn(cmp: CampaignEval,
     Parameters
     ----------
     txn_mode: str, default = "pre_generated_118wk"
-        "pre_generated_118wk" : load from pregenerated tdm_seg.v_latest_txn118wk
-        "stored_campaign_txn" : load from created tdm_seg.media_campaign_eval_txn_data_{cmp.params['cmp_id']}
+        "pre_generated_118wk" : load from pregenerated tdm_dev.v_latest_txn118wk
+        "stored_campaign_txn" : load from created tdm_dev.media_campaign_eval_txn_data_{cmp.params['cmp_id']}
         "create_new" : create from raw table
     """
     if txn_mode == "create_new":
@@ -50,14 +50,14 @@ def load_txn(cmp: CampaignEval,
     elif txn_mode == "stored_campaign_txn":
         try:
             cmp.txn = cmp.spark.table(
-                f"tdm_seg.media_campaign_eval_txn_data_{cmp.params['cmp_id'].lower()}")
+                f"tdm_dev.media_campaign_eval_txn_data_{cmp.params['cmp_id'].lower()}")
             cmp.params["txn_mode"] = "stored_campaign_txn"
         except Exception as e:
             cmp.params["txn_mode"] = "pre_generated_118wk"
-            cmp.txn = cmp.spark.table("tdm_seg.v_latest_txn118wk")
+            cmp.txn = cmp.spark.table("tdm_dev.v_latest_txn118wk")
     else:
         cmp.params["txn_mode"] = "pre_generated_118wk"
-        cmp.txn = cmp.spark.table("tdm_seg.v_latest_txn118wk")
+        cmp.txn = cmp.spark.table("tdm_dev.v_latest_txn118wk")
 
     create_period_col(cmp)
     scope_txn(cmp)
@@ -213,7 +213,7 @@ def scope_txn(cmp: CampaignEval):
 def save_txn(cmp: CampaignEval):
     load_txn()
     cmp.txn.write.saveAsTable(
-        f"tdm_seg.media_campaign_eval_txn_data_{cmp.params['cmp_id']}")
+        f"tdm_dev.media_campaign_eval_txn_data_{cmp.params['cmp_id']}")
     return
 
 def get_backward_compatible_txn_schema(cmp: CampaignEval):

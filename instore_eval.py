@@ -2912,9 +2912,9 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
 
 
    # Save and load temp table
-#    spark.sql('DROP TABLE IF EXISTS tdm_seg.cust_uplift_by_mech_temp')
-#    movement_and_exposure_by_mech.write.saveAsTable('tdm_seg.cust_uplift_by_mech_temp')
-#    movement_and_exposure_by_mech = spark.table('tdm_seg.cust_uplift_by_mech_temp')
+#    spark.sql('DROP TABLE IF EXISTS tdm_dev.cust_uplift_by_mech_temp')
+#    movement_and_exposure_by_mech.write.saveAsTable('tdm_dev.cust_uplift_by_mech_temp')
+#    movement_and_exposure_by_mech = spark.table('tdm_dev.cust_uplift_by_mech_temp')
 
    spark.sql('DROP TABLE IF EXISTS tdm_dev.cust_uplift_by_mech_temp')
    movement_and_exposure_by_mech.write.saveAsTable('tdm_dev.cust_uplift_by_mech_temp')

@@ -45,10 +45,10 @@ def get_sku_activated_cust_movement(cmp: CampaignEval):
 
     try:
         cmp.sku_activated_cust_movement = cmp.spark.table(
-            f"tdm_seg.media_camp_eval_{cmp.params['cmp_id']}_cust_mv"
+            f"tdm_dev.media_camp_eval_{cmp.params['cmp_id']}_cust_mv"
         )
         print(
-            f"Load 'matched_store' from tdm_seg.media_camp_eval_f{cmp.params['cmp_id']}_cust_mv"
+            f"Load 'matched_store' from tdm_dev.media_camp_eval_f{cmp.params['cmp_id']}_cust_mv"
         )
         return
     except Exception as e:
