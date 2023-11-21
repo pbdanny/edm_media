@@ -155,7 +155,7 @@ def get_cust_activated(txn: SparkDataFrame,
     wk_type:
         "fis_week" or "promo_week"
     """
-    spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
+    spark.sparkContext.setCheckpointDir("dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint")
 
     #--- Helper fn
     def _get_period_wk_col_nm(wk_type: str
@@ -359,7 +359,7 @@ def get_cust_movement(txn: SparkDataFrame,
     """Customer movement based on tagged feature activated & brand activated
 
     """
-    spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
+    spark.sparkContext.setCheckpointDir("dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint")
     #---- Helper function
     def _get_period_wk_col_nm(wk_type: str
                               ) -> str:
@@ -560,7 +560,7 @@ def get_cust_brand_switching_and_penetration(
         ):
     """Media evaluation solution, customer switching
     """
-    spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
+    spark.sparkContext.setCheckpointDir("dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint")
     #---- Helper fn
     def _get_period_wk_col_nm(wk_type: str
                               ) -> str:
@@ -758,7 +758,7 @@ def get_cust_brand_switching_and_penetration_multi(
         ):
     """Media evaluation solution, customer switching
     """
-    spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
+    spark.sparkContext.setCheckpointDir("dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint")
     #---- Helper fn
     def _get_period_wk_col_nm(wk_type: str
                               ) -> str:
@@ -849,7 +849,7 @@ def get_cust_sku_switching(
         ):
     """Media evaluation solution, customer sku switching
     """
-    spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
+    spark.sparkContext.setCheckpointDir("dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint")
     #---- Helper fn
     def _get_period_wk_col_nm(wk_type: str
                               ) -> str:
@@ -3098,7 +3098,7 @@ def get_cust_activated_prmzn(
     wk_type:
     "fis_week" or "promo"
     """
-    spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
+    spark.sparkContext.setCheckpointDir("dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint")
 
     #--- Helper fn
     def _get_period_wk_col_nm(wk_type: str
@@ -3796,7 +3796,7 @@ def _get_cust_brnd_swtchng_pntrtn(
     Customer brand switching and penetration
     Support feature brand in multi subclass
     """
-    spark.sparkContext.setCheckpointDir('dbfs:/FileStore/thanakrit/temp/checkpoint')
+    spark.sparkContext.setCheckpointDir("dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint")
     #---- Helper fn
     def _get_period_wk_col_nm(wk_type: str
                               ) -> str:
