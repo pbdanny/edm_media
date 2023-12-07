@@ -767,7 +767,7 @@ class CampaignEval(CampaignParams):
             self.aisle_sku = homeshelf_aisle_sku
 
             date_dim = (
-                self.spark.table("tdm.date_dim").select("date_id").drop_duplicates()
+                self.spark.table("tdm.v_date_dim").select("date_id").drop_duplicates()
             )
             avg_media_fee = self.media_fee / self.target_store.count()
             self.aisle_target_store_conf = (
@@ -791,7 +791,7 @@ class CampaignEval(CampaignParams):
             self.aisle_sku = x_cate_aisle_sku
 
             date_dim = (
-                self.spark.table("tdm.date_dim").select("date_id").drop_duplicates()
+                self.spark.table("tdm.v_date_dim").select("date_id").drop_duplicates()
             )
             avg_media_fee = self.media_fee / self.target_store.count()
 
@@ -808,7 +808,7 @@ class CampaignEval(CampaignParams):
             self.params["aisle_mode"] = "total_store"
             self.aisle_sku = self.product_dim.select("upc_id").drop_duplicates()
             date_dim = (
-                self.spark.table("tdm.date_dim").select("date_id").drop_duplicates()
+                self.spark.table("tdm.v_date_dim").select("date_id").drop_duplicates()
             )
             avg_media_fee = self.media_fee / self.target_store.count()
 
@@ -837,7 +837,7 @@ class CampaignEval(CampaignParams):
                 "upc_id", "subclass_code"
             ).drop_duplicates()
             date_dim = (
-                self.spark.table("tdm.date_dim").select("date_id").drop_duplicates()
+                self.spark.table("tdm.v_date_dim").select("date_id").drop_duplicates()
             )
 
             self.load_target_store()
