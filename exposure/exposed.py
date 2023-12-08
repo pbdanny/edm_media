@@ -27,7 +27,7 @@ def create_txn_offline_x_aisle_target_store(cmp: CampaignEval):
         return
     
     cmp.txn_offline_x_aisle_target_store = \
-        (cmp.txn.join(cmp.aisle_target_store_conf, ["store_id", "upc_id", "date_id"])
+        (cmp.txn.join(cmp.aisle_target_store_conf, ["store_id", "upc_id", "date_id", "week_id"])
          .where(F.col("offline_online_other_channel")=="OFFLINE")
         )
     return
