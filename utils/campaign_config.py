@@ -882,7 +882,7 @@ class CampaignEval(CampaignParams):
             __upc_txn = \
                 (self.spark.table("tdm_dev.v_latest_txn118wk")
                  .join(self.target_store.select("store_id").drop_duplicates(), "store_id")
-                 .select("ucp_id")
+                 .select("upc_id")
                  .drop_duplicates()
                 )
             
