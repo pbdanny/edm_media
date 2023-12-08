@@ -183,7 +183,7 @@ class CampaignEval(CampaignParams):
         self.spark.conf.set("spark.databricks.io.cache.enabled", True)
         self.spark.conf.set("spark.databricks.queryWatchdog.maxQueryTasks", 0)
         self.spark.conf.set(
-            "spark.databricks.queryWatchdog.outputRatioThreshold", 10000
+            "spark.databricks.queryWatchdog.outputRatioThreshold", 20000
         )
 
         dbutils = DBUtils(self.spark)

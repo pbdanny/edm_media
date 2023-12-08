@@ -11,7 +11,7 @@ from utils.campaign_config import CampaignConfigFile, CampaignEval
 
 # COMMAND ----------
 
-conf = CampaignConfigFile("/dbfs/FileStore/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_pakc_new.csv")
+conf = CampaignConfigFile("/dbfs/mnt/pvtdmbobazc01/edminput/filestore/share/media/campaign_eval/02_gofresh/00_cmp_inputs/cmp_list_gf_than.csv")
 
 # COMMAND ----------
 
@@ -19,7 +19,7 @@ conf.display_details()
 
 # COMMAND ----------
 
-cmp = CampaignEval(conf, cmp_row_no=70)
+cmp = CampaignEval(conf, cmp_row_no=5)
 
 # COMMAND ----------
 
