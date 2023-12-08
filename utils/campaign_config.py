@@ -878,11 +878,20 @@ class CampaignEval(CampaignParams):
             )
 
             # Aisle at store level
+            #---- Scope upc_id from real txn
+            __upc_txn = \
+                (self.spark.table("tdm_dev.v_latest_txn118wk")
+                 .join(self.target_store.select("store_id").drop_duplicates(), "store_id")
+                 .select("ucp_id")
+                 .drop_duplicates()
+                )
+            
             aisle_target_store_media_promozone = (
                 self.target_store.where(F.col("aisle_scope").isin(["store"]))
-                .join(prd_dim)
                 .join(date_dim.hint("range_join", 14))
                 .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
+                # .join(prd_dim)
+                .join(__upc_txn)
             )
             # Combine each aisle scope into one object
             self.aisle_target_store_conf = (
