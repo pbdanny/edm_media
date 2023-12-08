@@ -15,7 +15,7 @@ from pathlib import Path
 from utils import period_cal
 from utils.DBPath import DBPath
 from utils import logger
-
+from utils import helper
 
 class CampaignConfigFile:
     def __init__(self, source_file):
@@ -235,7 +235,8 @@ class CampaignEval(CampaignParams):
             str: The string representation of the object.
         """
         return f"CampaignEval class \nConfig file : '{self.cmp_config_file}'\nRow number : {self.row_no}"
-
+    
+    @helper.timer
     def load_period(self, eval_mode: str = "homeshelf"):
         """Load campaign period : cmp, pre, ppp & gap
         For evaluation type "promotion_zone" the pre period number of week = same week as cmp period
@@ -464,7 +465,7 @@ class CampaignEval(CampaignParams):
             )
 
         return
-
+    @helper.timer
     def load_target_store(self):
         """Load target store
 
@@ -481,7 +482,7 @@ class CampaignEval(CampaignParams):
             .fillna(str(self.cmp_end), subset="c_end")
         )
         return
-
+    @helper.timer
     def load_control_store(self, control_store_mode: str = ""):
         """Load control store
 
@@ -562,7 +563,7 @@ class CampaignEval(CampaignParams):
             else:
                 _rest()
         return
-
+    @helper.timer
     def load_store_dim_adjusted(self):
         """Create internal store dim with adjusted store region & combine "West" & "Central" -> West+Central"
 
@@ -600,7 +601,7 @@ class CampaignEval(CampaignParams):
         )
 
         return
-
+    @helper.timer
     def load_prod(self):
         """Load feature product, feature brand name, feature subclass, feature subclass
 
@@ -674,7 +675,7 @@ class CampaignEval(CampaignParams):
             self.feat_brand_nm = None
             self.feat_brand_sku = None
         return
-
+    @helper.timer
     def load_product_dim_adjusted(self):
         """Create product_dim with adjustment
         1) Mulitiple feature brand name -> Single brand name
@@ -711,7 +712,7 @@ class CampaignEval(CampaignParams):
                 ).otherwise(F.col("brand_name")),
             )
         return
-
+    @helper.timer
     def load_aisle(self, aisle_mode: str = "target_store_config"):
         """Load aisle for exposure calculation, default "target_store_config"
         For aisle scope `homeshelf` & `store` will use information from config file
@@ -950,7 +951,7 @@ class CampaignEval(CampaignParams):
         except Exception as e:
             print(e)
         return
-
+    @helper.timer
     def clean_up_temp_table(self):
         """Clean up temp table (if any)"""
         cmp_id = self.params["cmp_id"]
@@ -967,7 +968,7 @@ class CampaignEval(CampaignParams):
             print(f"Drop temp table (if exist) tdm_dev.{row[1]}")
             self.spark.sql(f"DROP TABLE IF EXISTS tdm_dev.{row[1]}")
         return
-
+    @helper.timer
     def _get_prod_df(self):
         """To get Product information refering to input SKU list (expected input as list )
         function will return feature dataframe (feat_df)

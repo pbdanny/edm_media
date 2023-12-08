@@ -2,6 +2,7 @@ from typing import List
 from copy import deepcopy
 from datetime import datetime, timedelta
 import functools
+import time
 
 import os
 import pandas as pd
@@ -15,6 +16,17 @@ from pyspark.sql import Window
 from pyspark.sql import DataFrame as SparkDataFrame
 
 spark = SparkSession.builder.appName("helper").getOrCreate()
+
+def timer(func):
+    @functools.wraps(func)
+    def wrapper_timer(*args, **kwargs):
+        tic = time.perf_counter()
+        value = func(*args, **kwargs)
+        toc = time.perf_counter()
+        elapsed_time = toc - tic
+        print(f"Elapsed time: {elapsed_time:0.4f} seconds")
+        return value
+    return wrapper_timer
 
 def sparkDataFrame_to_csv_filestore(sf: SparkDataFrame, csv_folder_name: str, prefix: str) -> str:
     """Save spark DataFrame in DBFS Filestores path, under specifided as single CSV file
