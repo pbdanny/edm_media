@@ -964,7 +964,7 @@ def get_profile_truprice(txn: SparkDataFrame,
         # Find period id to map Truprice / if the truprice period not publish yet use latest period
         bck_p_id = __get_p_id(cp_end_date, bck_days=180)
         truprice_all = \
-            (spark.table("tdm_seg.srai_truprice_full_history")
+            (spark.table("tdm.srai_truprice_full_history")
              .where(F.col("period_id")>=bck_p_id)
              .select("household_id", "truprice_seg_desc", "period_id")
              .drop_duplicates()

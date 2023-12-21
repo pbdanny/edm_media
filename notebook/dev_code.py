@@ -13,7 +13,7 @@ from utils.helper import to_pandas
 # COMMAND ----------
 
 # conf = CampaignConfigFile("/dbfs/FileStore/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_hde_than_2023_08.csv")
-conf = CampaignConfigFile("/dbfs/FileStore/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_hde_than_amp2024.csv")
+conf = CampaignConfigFile("/dbfs/mnt/pvtdmbobazc01/edminput/filestore/share/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_hde_than.csv")
 
 # COMMAND ----------
 
@@ -25,7 +25,11 @@ spark.table("tdm.v_prod_dim_c").where(F.col("upc_id").isin([]))
 
 # COMMAND ----------
 
-cmp = CampaignEval(conf, cmp_row_no=2)
+cmp = CampaignEval(conf, cmp_row_no=1)
+
+# COMMAND ----------
+
+cmp.feat_brand_nm.display()
 
 # COMMAND ----------
 
