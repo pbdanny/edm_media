@@ -954,7 +954,7 @@ def get_profile_truprice(txn: SparkDataFrame,
                        bck_days: int = 0)-> str:
             """Get period_id for current or back date
             """
-            date_dim = spark.table("tdm.v_date_dim")
+            date_dim = spark.table("tdm.v_th_date_dim")
             bck_date = (datetime.strptime(date_id, "%Y-%m-%d") - timedelta(days=bck_days)).strftime("%Y-%m-%d")
             bck_date_df = date_dim.where(F.col("date_id")==bck_date)
             bck_p_id = bck_date_df.select("period_id").drop_duplicates().collect()[0][0]

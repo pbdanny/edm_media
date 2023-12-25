@@ -1,7 +1,7 @@
 def _get_last_dt_id_txt(wk_id: int) -> str:
     """
     """
-    dt_id = spark.table("tdm.v_date_dim").where(F.col("week_id")==wk_id).agg(F.max("date_id")).collect()[0][0]
+    dt_id = spark.table("tdm.v_th_date_dim").where(F.col("week_id")==wk_id).agg(F.max("date_id")).collect()[0][0]
     dt_id_txt = dt_id.strftime("%Y-%m-%d")
     return dt_id_txt
 
@@ -15,7 +15,7 @@ def _get_truprice_seg(cp_end_date: str):
                    bck_days: int = 0)-> str:
         """Get period_id for current or back date
         """
-        date_dim = spark.table("tdm.v_date_dim")
+        date_dim = spark.table("tdm.v_th_date_dim")
         bck_date = (datetime.strptime(date_id, "%Y-%m-%d") - timedelta(days=bck_days)).strftime("%Y-%m-%d")
         bck_date_df = date_dim.where(F.col("date_id")==bck_date)
         bck_p_id = bck_date_df.select("period_id").drop_duplicates().collect()[0][0]
