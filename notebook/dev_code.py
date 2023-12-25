@@ -21,10 +21,6 @@ conf.display_details()
 
 # COMMAND ----------
 
-spark.table("tdm.v_prod_dim_c").where(F.col("upc_id").isin([]))
-
-# COMMAND ----------
-
 cmp = CampaignEval(conf, cmp_row_no=1)
 
 # COMMAND ----------
