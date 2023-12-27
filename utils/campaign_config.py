@@ -1212,5 +1212,5 @@ class CampaignParamsO2O(CampaignParams):
             self.output_path = (
                 config_file.cmp_output
                 / self.params["cmp_month"]
-                / f'{self.params["cmp_id_offline"]}_{self.params["cmp_id_online"]}_self.params["cmp_nm"]'
+                / f'{self.params["cmp_id_offline"]}_{self.params["cmp_id_online"]}_{self.params["cmp_nm"]}'
             )
