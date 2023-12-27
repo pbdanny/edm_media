@@ -1205,3 +1205,7 @@ class CampaignEval(CampaignParams):
             use_ai_grp_list,
             use_ai_sec_list,
         )
+
+class CampaignParamsO2O(CampaignParams):
+    def __init__(self, config_file, cmp_row_no):
+            super().__init__()
