@@ -1295,7 +1295,7 @@ class CampaignEvalO2O(CampaignParamsO2O):
             self.load_prod()
             self.load_product_dim_adjusted()
             self.clean_up_temp_table()
-            self.load_aisle(aisle_mode="target_store_config")
+            # self.load_aisle(aisle_mode="target_store_config")
         
     def __repr__(self):
         """
