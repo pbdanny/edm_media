@@ -1216,11 +1216,30 @@ class CampaignParamsO2O(CampaignParams):
             )
             
 class CampaignEvalO2O(CampaignParamsO2O, CampaignEval):
+    def convert_param_to_list(self, param_name: str) -> List:
+        """
+        Convert a parameter to a list.
+
+        Args:
+            param_name (str): The name of the parameter to convert.
+
+        Returns:
+            List: The converted parameter as a list.
+
+        Raises:
+            None
+        """
+        if self.params[param_name] is not None:
+            param = self.params["cross_cate_cd"]
+            if param.find("[") != -1:
+                return literal_eval(param)
+            elif param.find(",") != -1:
+                return str.split(param)
+            else:
+                return [param]
+        else:
+            return []
+    
     def __init__(self, config_file, cmp_row_no):
-            super().__init__(config_file, cmp_row_no)
+            CampaignParamsO2O.__init__(config_file, cmp_row_no)
             self.cmp_id = f'{self.params["cmp_id_offline"]}_{self.params["cmp_id_online"]}'
-            self.output_path = (
-                config_file.cmp_output
-                / self.params["cmp_month"]
-                / f'{self.params["cmp_id_offline"]}_{self.params["cmp_id_online"]}_{self.params["cmp_nm"]}'
-            )
