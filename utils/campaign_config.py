@@ -1220,7 +1220,7 @@ class CampaignParamsO2O(CampaignParams):
 class CampaignEvalO2O(CampaignEval):
 
     def __init__(self, config_file, cmp_row_no):
-            super().__init__(self, config_file, cmp_row_no)
+            super().__init__(config_file, cmp_row_no)
             self.output_path = (
                 config_file.cmp_output
                 / self.params["cmp_month"]
