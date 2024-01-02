@@ -1360,34 +1360,34 @@ class CampaignEvalO2O(CampaignParamsO2O):
         # self.gap_start_date = self.params["gap_start_date"]
         # self.gap_end_date = self.params["gap_end_date"]
 
-        if (self.gap_start_date is None) & (self.gap_end_date is None):
-            print(f"No Gap Week for campaign : {self.cmp_nm}")
-            self.gap_flag = False
-            chk_pre_dt = self.cmp_start
+        # if (self.gap_start_date is None) & (self.gap_end_date is None):
+            # print(f"No Gap Week for campaign : {self.cmp_nm}")
+        self.gap_flag = False
+        chk_pre_dt = self.cmp_start
 
-        elif (self.gap_start_date is not None) & (self.gap_end_date is not None):
-            print(
-                f"Campaign {self.cmp_nm} has gap period between : {self.gap_start_date} and {self.gap_end_date}"
-            )
+        # elif (self.gap_start_date is not None) & (self.gap_end_date is not None):
+        #     print(
+        #         f"Campaign {self.cmp_nm} has gap period between : {self.gap_start_date} and {self.gap_end_date}"
+        #     )
 
-            # fis_week
-            self.gap_st_wk = period_cal.wk_of_year_ls(self.gap_start_date)
-            self.gap_en_wk = period_cal.wk_of_year_ls(self.gap_end_date)
+        #     # fis_week
+        #     self.gap_st_wk = period_cal.wk_of_year_ls(self.gap_start_date)
+        #     self.gap_en_wk = period_cal.wk_of_year_ls(self.gap_end_date)
 
-            # promo
-            self.gap_st_promo_wk = period_cal.wk_of_year_promo_ls(self.gap_start_date)
-            self.gap_en_promo_wk = period_cal.wk_of_year_promo_ls(self.gap_end_date)
+        #     # promo
+        #     self.gap_st_promo_wk = period_cal.wk_of_year_promo_ls(self.gap_start_date)
+        #     self.gap_en_promo_wk = period_cal.wk_of_year_promo_ls(self.gap_end_date)
 
-            self.gap_flag = True
+        #     self.gap_flag = True
 
-            chk_pre_dt = self.gap_start_date
+        #     chk_pre_dt = self.gap_start_date
 
-        else:
-            print("Incorrect gap period. Please recheck - Code will skip\n")
-            print(
-                f'Received Gap = {self.gap_start_date} + " and " + {self.gap_end_date}'
-            )
-            raise Exception("Incorrect Gap period value please recheck")
+        # else:
+        #     print("Incorrect gap period. Please recheck - Code will skip\n")
+        #     print(
+        #         f'Received Gap = {self.gap_start_date} + " and " + {self.gap_end_date}'
+        #     )
+        #     raise Exception("Incorrect Gap period value please recheck")
 
         self.pre_en_date = (
             datetime.strptime(chk_pre_dt, "%Y-%m-%d") + timedelta(days=-1)
