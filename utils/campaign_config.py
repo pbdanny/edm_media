@@ -1241,5 +1241,5 @@ class CampaignEvalO2O(CampaignParamsO2O, CampaignEval):
             return []
     
     def __init__(self, config_file, cmp_row_no):
-            CampaignParamsO2O.__init__(config_file, cmp_row_no)
+            CampaignParamsO2O.__init__(self, config_file, cmp_row_no)
             self.cmp_id = f'{self.params["cmp_id_offline"]}_{self.params["cmp_id_online"]}'
