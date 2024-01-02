@@ -1215,7 +1215,12 @@ class CampaignParamsO2O(CampaignParams):
                 / f'{self.params["cmp_id_offline"]}_{self.params["cmp_id_online"]}_{self.params["cmp_nm"]}'
             )
             
-class CampaignEvalO2O(CampaignParamsO2O):
+class CampaignEvalO2O(CampaignEval):
     def __init__(self, config_file, cmp_row_no):
             super().__init__(config_file, cmp_row_no)
+            self.output_path = (
+                config_file.cmp_output
+                / self.params["cmp_month"]
+                / f'{self.params["cmp_id_offline"]}_{self.params["cmp_id_online"]}_{self.params["cmp_nm"]}'
+            )
             self.cmp_id = f'{self.params["cmp_id_offline"]}_{self.params["cmp_id_online"]}'
