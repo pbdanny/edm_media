@@ -1263,14 +1263,16 @@ class CampaignEvalO2O(CampaignParamsO2O):
             self.store_fmt = self.params["store_fmt"].lower()
             self.wk_type = self.params["wk_type"]
             self.cmp_id = self.params["cmp_id"]
+            self.cmp_id_offline = self.params["cmp_id_offline"]
+            self.cmp_id_online = self.params["cmp_id_online"]
             self.cmp_nm = self.params["cmp_nm"]
             self.cmp_start = self.params["cmp_start"]
             self.cmp_end = self.params["cmp_end"]
             # self.media_fee = self.params["media_fee"]
 
-            self.sku_file = self.cmp_inputs_files / f"upc_list_{self.params['cmp_id']}.csv"
+            self.sku_file = self.cmp_inputs_files / f"upc_list_{self.params['cmp_id_offline']}.csv"
             self.target_store_file = (
-                self.cmp_inputs_files / f"target_store_{self.params['cmp_id']}.csv"
+                self.cmp_inputs_files / f"target_store_{self.params['cmp_id_offline']}.csv"
             )
 
             # self.resrv_store_file = (
@@ -1285,7 +1287,16 @@ class CampaignEvalO2O(CampaignParamsO2O):
             self.adjacency_file = self.std_input_path / f"{self.params['adjacency_file']}"
             # self.svv_table = self.params["svv_table"]
             # self.purchase_cyc_table = self.params["purchase_cyc_table"]
-
+            
+            self.load_period()
+            self.load_target_store()
+            # self.load_control_store()
+            self.load_store_dim_adjusted()
+            self.load_prod()
+            self.load_product_dim_adjusted()
+            self.clean_up_temp_table()
+            self.load_aisle(aisle_mode="target_store_config")
+        
     def __repr__(self):
         """
         Returns a string representation of the CampaignEval object.
@@ -1346,8 +1357,8 @@ class CampaignEvalO2O(CampaignParamsO2O):
         diff_days = dt_diff.days
         wk_cmp = int(np.round(diff_days / 7, 0))
 
-        self.gap_start_date = self.params["gap_start_date"]
-        self.gap_end_date = self.params["gap_end_date"]
+        # self.gap_start_date = self.params["gap_start_date"]
+        # self.gap_end_date = self.params["gap_end_date"]
 
         if (self.gap_start_date is None) & (self.gap_end_date is None):
             print(f"No Gap Week for campaign : {self.cmp_nm}")
