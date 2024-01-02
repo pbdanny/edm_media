@@ -1217,6 +1217,7 @@ class CampaignParamsO2O(CampaignParams):
             self.params["cmp_id"] = f'{self.params["cmp_id_offline"]}_{self.params["cmp_id_online"]}'
             
             return
+
 class CampaignEvalO2O(CampaignParamsO2O):
     def convert_param_to_list(self, param_name: str) -> List:
         """
@@ -1261,30 +1262,29 @@ class CampaignEvalO2O(CampaignParamsO2O):
 
             self.store_fmt = self.params["store_fmt"].lower()
             self.wk_type = self.params["wk_type"]
-
             self.cmp_id = self.params["cmp_id"]
             self.cmp_nm = self.params["cmp_nm"]
             self.cmp_start = self.params["cmp_start"]
             self.cmp_end = self.params["cmp_end"]
-            self.media_fee = self.params["media_fee"]
+            # self.media_fee = self.params["media_fee"]
 
             self.sku_file = self.cmp_inputs_files / f"upc_list_{self.params['cmp_id']}.csv"
             self.target_store_file = (
                 self.cmp_inputs_files / f"target_store_{self.params['cmp_id']}.csv"
             )
 
-            self.resrv_store_file = (
-                self.std_input_path / f"{self.params['resrv_store_file']}"
-            )
-            self.use_reserved_store = bool(self.params["use_reserved_store"])
+            # self.resrv_store_file = (
+            #     self.std_input_path / f"{self.params['resrv_store_file']}"
+            # )
+            # self.use_reserved_store = bool(self.params["use_reserved_store"])
 
-            self.custom_ctrl_store_file = (
-                self.cmp_inputs_files / f"control_store_{self.params['cmp_id']}.csv"
-            )
+            # self.custom_ctrl_store_file = (
+            #     self.cmp_inputs_files / f"control_store_{self.params['cmp_id']}.csv"
+            # )
 
             self.adjacency_file = self.std_input_path / f"{self.params['adjacency_file']}"
-            self.svv_table = self.params["svv_table"]
-            self.purchase_cyc_table = self.params["purchase_cyc_table"]
+            # self.svv_table = self.params["svv_table"]
+            # self.purchase_cyc_table = self.params["purchase_cyc_table"]
 
     def __repr__(self):
         """
@@ -1293,7 +1293,7 @@ class CampaignEvalO2O(CampaignParamsO2O):
         Returns:
             str: The string representation of the object.
         """
-        return f"CampaignEval class \nConfig file : '{self.cmp_config_file}'\nRow number : {self.row_no}"
+        return f"CampaignEvalO2O class \nConfig file : '{self.cmp_config_file}'\nRow number : {self.row_no}"
     
     @helper.timer
     def load_period(self, eval_mode: str = "homeshelf"):
