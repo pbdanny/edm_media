@@ -1214,7 +1214,8 @@ class CampaignParamsO2O(CampaignParams):
                 / self.params["cmp_month"]
                 / f'{self.params["cmp_id_offline"]}_{self.params["cmp_id_online"]}_{self.params["cmp_nm"]}'
             )
-            self.cmp_id = f'{self.params["cmp_id_offline"]}_{self.params["cmp_id_online"]}'
+            self.params["cmp_id"] = f'{self.params["cmp_id_offline"]}_{self.params["cmp_id_online"]}'
+            
             return
 class CampaignEvalO2O(CampaignParamsO2O, CampaignEval):
 
