@@ -6,14 +6,14 @@ from pyspark.sql import functions as F
 
 # COMMAND ----------
 
-from utils.DBPath import DBPath, save_PandasDataFrame_to_csv_FileStore
-from utils.campaign_config import CampaignConfigFile, CampaignEval
-from utils.helper import to_pandas
+from utils.campaign_config import CampaignConfigFile, CampaignEvalO2O
+from utils.helper import timer
 
 # COMMAND ----------
 
 # conf = CampaignConfigFile("/dbfs/FileStore/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_hde_than_2023_08.csv")
-conf = CampaignConfigFile("/dbfs/mnt/pvtdmbobazc01/edminput/filestore/share/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_hde_than.csv")
+conf = CampaignConfigFile("/dbfs/mnt/pvtdmbobazc01/edminput/filestore/share/media/campaign_eval/04_O2O/00_cmp_inputs/cmp_list_o2o_than.csv")
+# conf = CampaignConfigFile("/dbfs/mnt/pvtdmbobazc01/edminput/filestore/share/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_pakc_temp.csv")
 
 # COMMAND ----------
 
@@ -21,19 +21,11 @@ conf.display_details()
 
 # COMMAND ----------
 
-cmp = CampaignEval(conf, cmp_row_no=1)
+eval = CampaignEvalO2O(conf, cmp_row_no=2)
 
 # COMMAND ----------
 
-cmp.feat_brand_nm.display()
-
-# COMMAND ----------
-
-cmp.target_store.display()
-
-# COMMAND ----------
-
-cmp.aisle_target_store_conf.display()
+eval.params
 
 # COMMAND ----------
 
