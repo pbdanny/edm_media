@@ -939,6 +939,7 @@ class CampaignEval(CampaignParams):
 
         # save to optimize load time
         try:
+            self.spark.sql(f"drop table if exists tdm_dev.th_lotuss_media_eval_aisle_target_store_conf_{self.params['cmp_id']}_temp")
             (
                 self.aisle_target_store_conf.write
                 .mode("overwrite")
