@@ -31,7 +31,7 @@ class CampaignConfigFile:
         self.source_config_file = source_file
         self.cmp_config_file = DBPath(str("/dbfs" + source_file[5:]))
         self.cmp_config_file_name = self.cmp_config_file.name
-        self.cmp_config_df = pd.read_csv(self.cmp_config_file.file_api())
+        self.cmp_config_df = pd.read_csv(self.cmp_config_file.file_api(), dtype={"cross_cate_cd":pd.StringDtype()})
         self.cmp_config_df.insert(
             loc=0, column="row_num", value=self.cmp_config_df.index + 1
         )
