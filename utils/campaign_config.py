@@ -72,7 +72,6 @@ class CampaignConfigFile:
         """
         return self.cmp_config_df[self.cmp_config_df[column].str.contains(search_key)]
 
-
 class CampaignParams:
     def __init__(self, config_file, cmp_row_no):
         """
@@ -135,7 +134,6 @@ class CampaignParams:
         """
         pprint.pp(self.params)
         return
-
 
 class CampaignEval(CampaignParams):
     def convert_param_to_list(self, param_name: str) -> List:
@@ -1217,7 +1215,7 @@ class CampaignParamsO3(CampaignParams):
             
             return
 
-class CampaignEvalO3(CampaignEval):
+class CampaignEvalO3(CampaignParamsO3, CampaignEval):
     def __init__(self, config_file, cmp_row_no):
         super().__init__(config_file, cmp_row_no)
         self.params["cmp_id"] = f'{self.params["cmp_id_offline"]}_{self.params["cmp_id_online"]}'
