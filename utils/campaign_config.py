@@ -135,7 +135,7 @@ class CampaignParams:
         pprint.pp(self.params)
         return
 
-class CampaignEval(CampaignParams):
+class CampaignEval():
     def convert_param_to_list(self, param_name: str) -> List:
         """
         Convert a parameter to a list.
@@ -171,7 +171,6 @@ class CampaignEval(CampaignParams):
         Returns:
             None
         """
-        super().__init__(config_file, cmp_row_no)
         self.spark = SparkSession.builder.appName(f"campaignEval").getOrCreate()
         self.spark.sparkContext.setCheckpointDir(
             "dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint"
@@ -181,6 +180,34 @@ class CampaignEval(CampaignParams):
         self.spark.conf.set(
             "spark.databricks.queryWatchdog.outputRatioThreshold", 20000
         )
+        
+        self.cmp_config_file = config_file.cmp_config_file
+        self.all_cmp_df = config_file.cmp_config_df
+        self.all_cmp_max_row = config_file.total_rows
+        self.cmp_inputs_files = config_file.cmp_inputs_files
+
+        if cmp_row_no > self.all_cmp_max_row:
+            raise ValueError(
+                f"Campaign input have only '{self.all_cmp_max_row}' rows, request {cmp_row_no} is not available"
+            )
+        elif cmp_row_no < 0:
+            raise ValueError(
+                f"Campaign input have only '{self.all_cmp_max_row}' rows, request {cmp_row_no} is not available"
+            )
+        else:
+            self.row_no = cmp_row_no
+            self.params = (
+                self.all_cmp_df.applymap(lambda x: x.strip() if type(x) == str else x)
+                .iloc[self.row_no - 1]
+                .replace(np.nan, None)
+                .replace("", None)
+            ).to_dict()
+            self.output_path = (
+                config_file.cmp_output
+                / self.params["cmp_month"]
+                / self.params["cmp_nm"]
+            )
+            self.std_input_path = config_file.cmp_output.parent / "00_std_inputs"
 
         dbutils = DBUtils(self.spark)
 
@@ -1215,11 +1242,9 @@ class CampaignParamsO3(CampaignParams):
             
             return
 
-class CampaignEvalO3(CampaignParamsO3, CampaignEval):
+class CampaignEvalO3(CampaignEval):
     def __init__(self, config_file, cmp_row_no):
-        CampaignParamsO3.__init__(self, config_file, cmp_row_no)
         CampaignEval.__init__(self, config_file, cmp_row_no)
-        
-        # self.params["cmp_id"] = f'{self.params["cmp_id_offline"]}_{self.params["cmp_id_online"]}'
-        # self.cmp_id = self.params["cmp_id"]
+        self.params["cmp_id"] = f'{self.params["cmp_id_offline"]}_{self.params["cmp_id_online"]}'
+        self.cmp_id = self.params["cmp_id"]
         return
