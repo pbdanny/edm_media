@@ -1184,7 +1184,7 @@ class CampaignEval(CampaignEvalTemplate):
         return f"CampaignEval class \nConfig file : '{self.cmp_config_file}'\nRow number : {self.row_no}"
 
 class CampaignEvalO3(CampaignEvalTemplate):
-    def __init__(self, config_file, cmp_row_no):    
+    def __init__(self, config_file, cmp_row_no):
         super().__init__(config_file, cmp_row_no)
 
         self.store_fmt = self.params["store_fmt"].lower()
@@ -1233,3 +1233,23 @@ class CampaignEvalO3(CampaignEvalTemplate):
             str: The string representation of the object.
         """
         return f"CampaignEvalO3 class \nConfig file : '{self.cmp_config_file}'\nRow number : {self.row_no}"
+    
+    @helper.timer
+    def load_target_store(self):
+        """Load target store
+
+        Loads the target store data from a CSV file and fills missing values for the 'c_start' and 'c_end' columns with the campaign start and end dates respectively.
+
+        Returns:
+            None
+        """
+        self.target_store = (
+            self.spark.read.csv(
+                self.target_store_file.spark_api(), header=True, inferSchema=True
+            )
+            .fillna(str(self.cmp_start), subset="c_start")
+            .fillna(str(self.cmp_end), subset="c_end")
+            .where(~F.col("aisle_scope").isin(["dgs"]))
+        )
+        self.params["target_store_adjment"] = "Exclude `aisle_scope` = dgs"
+        return
