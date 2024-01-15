@@ -1217,8 +1217,8 @@ class CampaignParamsO3(CampaignParams):
 
 class CampaignEvalO3(CampaignParamsO3, CampaignEval):
     def __init__(self, config_file, cmp_row_no):
-        CampaignParamsO3.__init__(config_file, cmp_row_no)
-        CampaignEval.__init__(config_file, cmp_row_no)
+        CampaignParamsO3.__init__(self, config_file, cmp_row_no)
+        CampaignEval.__init__(self, config_file, cmp_row_no)
         
         # self.params["cmp_id"] = f'{self.params["cmp_id_offline"]}_{self.params["cmp_id_online"]}'
         # self.cmp_id = self.params["cmp_id"]
