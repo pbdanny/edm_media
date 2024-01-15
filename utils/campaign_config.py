@@ -1208,7 +1208,9 @@ class CampaignEvalO3(CampaignEvalTemplate):
         self.params["resrv_store_class"] = None
         self.params["use_reserved_store"] = 0
         self.use_reserved_store = False
-        self.custom_ctrl_store_file = ""
+        self.custom_ctrl_store_file = (
+            self.cmp_inputs_files / f"control_store_{self.params['cmp_id']}.csv"
+        )
         
         self.load_period()
         self.load_target_store()
