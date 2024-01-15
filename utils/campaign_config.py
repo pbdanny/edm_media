@@ -1202,19 +1202,6 @@ class CampaignEvalO3(CampaignEvalTemplate):
             self.cmp_inputs_files / f"target_store_{self.params['cmp_id_offline']}.csv"
         )
 
-        self.resrv_store_file = (
-            self.std_input_path / f"{self.params['resrv_store_file']}"
-        )
-        self.use_reserved_store = bool(self.params["use_reserved_store"])
-
-        self.custom_ctrl_store_file = (
-            self.cmp_inputs_files / f"control_store_{self.params['cmp_id_offline']}.csv"
-        )
-
-        self.adjacency_file = self.std_input_path / f"{self.params['adjacency_file']}"
-        self.svv_table = self.params["svv_table"]
-        self.purchase_cyc_table = self.params["purchase_cyc_table"]
-
         self.load_period()
         self.load_target_store()
         self.load_control_store()
