@@ -72,7 +72,7 @@ class CampaignConfigFile:
         """
         return self.cmp_config_df[self.cmp_config_df[column].str.contains(search_key)]
 
-class CampaignEvalTemplate():
+class CampaignEvalTemplate:
     def convert_param_to_list(self, param_name: str) -> List:
         """
         Convert a parameter to a list.
@@ -739,7 +739,6 @@ class CampaignEvalTemplate():
             """Aisle defined by target store config file"""
             self.params["aisle_mode"] = "target_store_config"
             self.aisle_sku = None
-
             adj_tbl = (
                 self.spark.read.csv(
                     self.adjacency_file.spark_api(), header=True, inferSchema=True
@@ -753,9 +752,7 @@ class CampaignEvalTemplate():
             date_dim = (
                 self.spark.table("tdm.v_th_date_dim").select("date_id","week_id").drop_duplicates()
             )
-
             self.load_target_store()
-
             feat_subclass = (
                 self.product_dim.join(self.feat_sku, "upc_id", "inner")
                 .select("subclass_code")
@@ -794,6 +791,7 @@ class CampaignEvalTemplate():
             #---- Scope upc_id from real txn
             __upc_txn = \
                 (self.spark.table("tdm_dev.v_latest_txn118wk")
+                 .where("week_id").between(self.ppp_st_mv_wk, self.cmp_en_wk)
                  .join(self.target_store.select("store_id").drop_duplicates(), "store_id")
                  .select("upc_id")
                  .drop_duplicates()
