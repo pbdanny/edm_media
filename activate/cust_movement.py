@@ -19,7 +19,7 @@ from exposure.exposed import create_txn_offline_x_aisle_target_store
 from activate import activated
 
 
-def get_sku_activated_cust_movement(cmp: CampaignEval):
+def get_sku_activated_cust_movement(cmp):
     """Customer movement based on tagged feature activated & brand activated"""
     cmp.spark.sparkContext.setCheckpointDir(
         "dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint"

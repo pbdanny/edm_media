@@ -12,7 +12,7 @@ from pyspark.sql import DataFrame as SparkDataFrame
 from utils.DBPath import DBPath
 from utils.campaign_config import CampaignEval
 
-def create_txn_offline_x_aisle_target_store(cmp: CampaignEval):
+def create_txn_offline_x_aisle_target_store(cmp):
     """Create the offline transaction data for the aisle target store.
     
     This function checks if the `txn_offline_x_aisle_target_store` attribute already exists in the provided CampaignEval object (`cmp`). If it does, the function returns without performing any further actions. Otherwise, it creates the offline transaction data for the aisle target store by joining the transaction data and aisle target store configuration based on matching store IDs, UPCs, and date IDs. It filters the resulting data to include only offline transactions.
@@ -32,7 +32,7 @@ def create_txn_offline_x_aisle_target_store(cmp: CampaignEval):
         )
     return
 
-def create_store_mech_exposure_cmp(cmp: CampaignEval):
+def create_store_mech_exposure_cmp(cmp):
     """Get store and mechanic exposure data for the campaign evaluation.
 
     This function calculates the store and mechanic exposure data for the campaign evaluation. It checks if the `str_mech_exposure_cmp` attribute already exists in the provided CampaignEval object (`cmp`). If it does, the function returns without performing any further actions. Otherwise, it performs the following steps:
@@ -84,7 +84,7 @@ def create_store_mech_exposure_cmp(cmp: CampaignEval):
         )
     return
 
-def _exposure_all(cmp: CampaignEval):
+def _exposure_all(cmp):
     """Calculate overall exposure metrics for the campaign evaluation.
 
     This function calculates the overall exposure metrics for the campaign evaluation based on the provided CampaignEval object (`cmp`). It performs the following steps:
@@ -133,7 +133,7 @@ def _exposure_all(cmp: CampaignEval):
         
     return exposure_all
 
-def _exposure_region(cmp: CampaignEval):
+def _exposure_region(cmp):
     create_store_mech_exposure_cmp(cmp)    
     create_txn_offline_x_aisle_target_store(cmp)
             
@@ -161,7 +161,7 @@ def _exposure_region(cmp: CampaignEval):
         
     return region_impression
 
-def _exposure_mech(cmp: CampaignEval):
+def _exposure_mech(cmp):
     create_store_mech_exposure_cmp(cmp)    
     create_txn_offline_x_aisle_target_store(cmp)
             
@@ -190,7 +190,7 @@ def _exposure_mech(cmp: CampaignEval):
     return mech_impression
 
 #---- V2   
-def get_exposure(cmp: CampaignEval):
+def get_exposure(cmp):
         
     if cmp.params["aisle_mode"] in ["total_store"]:
         cmp.params["exposure_type"] = "store_lv"
@@ -210,7 +210,7 @@ def get_exposure(cmp: CampaignEval):
     return exposure_all, exposure_region, exposure_mech
 
 #---- V1, migrated
-def get_awareness(cmp: CampaignEval):
+def get_awareness(cmp):
     """For Awareness of HDE, Talad
 
     """

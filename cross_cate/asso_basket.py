@@ -47,7 +47,7 @@ def _agg_wkly(txn):
     return out 
 
 #---- target dur
-def get_txn_target_store_aisle_cross_cate_dur(cmp: CampaignEval):
+def get_txn_target_store_aisle_cross_cate_dur(cmp):
     """
     """
     exposed.create_txn_offline_x_aisle_target_store(cmp)
@@ -57,7 +57,7 @@ def get_txn_target_store_aisle_cross_cate_dur(cmp: CampaignEval):
          )
     return txn_aisle_cross_cate
 
-def get_txn_target_store_feature_dur(cmp: CampaignEval,
+def get_txn_target_store_feature_dur(cmp,
                                   prd_scope_df: SparkDataFrame):
     """
     """
@@ -72,7 +72,7 @@ def get_txn_target_store_feature_dur(cmp: CampaignEval,
         )
     return txn_target_store_feature
 
-def get_txn_target_store_total_dur(cmp: CampaignEval):
+def get_txn_target_store_total_dur(cmp):
     """
     """
     period_wk_col_nm = period_cal.get_period_wk_col_nm(cmp)
@@ -85,7 +85,7 @@ def get_txn_target_store_total_dur(cmp: CampaignEval):
         )
     return txn_target_store
 
-def get_bask_asso_target_dur(cmp: CampaignEval,
+def get_bask_asso_target_dur(cmp,
                   prd_scope_df: SparkDataFrame):
     """
     """
@@ -101,7 +101,7 @@ def get_bask_asso_target_dur(cmp: CampaignEval,
 
     return bask_asso
 
-def asso_size_target_dur(cmp: CampaignEval,
+def asso_size_target_dur(cmp,
               prd_scope_df: SparkDataFrame):
     """
     """
@@ -127,7 +127,7 @@ def asso_size_target_dur(cmp: CampaignEval,
     return combine_add_col
 
 #---- target pre
-def get_txn_target_store_aisle_cross_cate_pre(cmp: CampaignEval):
+def get_txn_target_store_aisle_cross_cate_pre(cmp):
     """
     """
     period_wk_col_nm = period_cal.get_period_wk_col_nm(cmp)
@@ -145,7 +145,7 @@ def get_txn_target_store_aisle_cross_cate_pre(cmp: CampaignEval):
          )
     return txn_aisle_cross_cate_pre
 
-def get_txn_target_store_feature_pre(cmp: CampaignEval,
+def get_txn_target_store_feature_pre(cmp,
                                      prd_scope_df: SparkDataFrame):
     """
     """
@@ -160,7 +160,7 @@ def get_txn_target_store_feature_pre(cmp: CampaignEval,
         )
     return txn_target_store_feature_pre
 
-def get_txn_target_store_total_pre(cmp: CampaignEval,):
+def get_txn_target_store_total_pre(cmp,):
     """
     """
     period_wk_col_nm = period_cal.get_period_wk_col_nm(cmp)
@@ -173,7 +173,7 @@ def get_txn_target_store_total_pre(cmp: CampaignEval,):
         )
     return txn_target_store
 
-def get_bask_target_asso_pre(cmp: CampaignEval,
+def get_bask_target_asso_pre(cmp,
                   prd_scope_df: SparkDataFrame):
     """
     """
@@ -189,7 +189,7 @@ def get_bask_target_asso_pre(cmp: CampaignEval,
 
     return bask_asso
 
-def asso_size_target_pre(cmp: CampaignEval,
+def asso_size_target_pre(cmp,
                   prd_scope_df: SparkDataFrame):
     """
     """
@@ -214,7 +214,7 @@ def asso_size_target_pre(cmp: CampaignEval,
     return combine_add_col
 
 #---- ctrl dur
-def get_txn_ctrl_store_aisle_cross_cate_dur(cmp: CampaignEval):
+def get_txn_ctrl_store_aisle_cross_cate_dur(cmp):
     """
     """
     store_matching.get_store_matching_across_region(cmp)
@@ -249,7 +249,7 @@ def get_txn_ctrl_store_aisle_cross_cate_dur(cmp: CampaignEval):
 
     return txn_aisle_cross_cate_ctrl
 
-def get_txn_ctrl_store_feature_dur(cmp: CampaignEval,
+def get_txn_ctrl_store_feature_dur(cmp,
                                prd_scope_df: SparkDataFrame):
     """
     """
@@ -274,7 +274,7 @@ def get_txn_ctrl_store_feature_dur(cmp: CampaignEval,
 
     return txn_ctrl_store_feature
 
-def get_txn_ctrl_store_total_dur(cmp: CampaignEval):
+def get_txn_ctrl_store_total_dur(cmp):
     """
     """
     store_matching.get_store_matching_across_region(cmp)    
@@ -296,7 +296,7 @@ def get_txn_ctrl_store_total_dur(cmp: CampaignEval):
 
     return txn_ctrl_store
 
-def get_bask_asso_ctrl_dur(cmp: CampaignEval,
+def get_bask_asso_ctrl_dur(cmp,
                        prd_scope_df: SparkDataFrame):
     """
     """
@@ -312,7 +312,7 @@ def get_bask_asso_ctrl_dur(cmp: CampaignEval,
 
     return bask_asso
 
-def asso_size_ctrl_dur(cmp: CampaignEval,
+def asso_size_ctrl_dur(cmp,
               prd_scope_df: SparkDataFrame):
     """
     """
@@ -337,7 +337,7 @@ def asso_size_ctrl_dur(cmp: CampaignEval,
     return combine_add_col
 
 #---- ctrl pre
-def get_txn_ctrl_store_aisle_cross_cate_pre(cmp: CampaignEval):
+def get_txn_ctrl_store_aisle_cross_cate_pre(cmp):
     """
     """
     store_matching.get_store_matching_across_region(cmp)
@@ -373,7 +373,7 @@ def get_txn_ctrl_store_aisle_cross_cate_pre(cmp: CampaignEval):
 
     return txn_aisle_cross_cate_ctrl
 
-def get_txn_ctrl_store_feature_pre(cmp: CampaignEval,
+def get_txn_ctrl_store_feature_pre(cmp,
                                prd_scope_df: SparkDataFrame):
     """
     """
@@ -398,7 +398,7 @@ def get_txn_ctrl_store_feature_pre(cmp: CampaignEval,
 
     return txn_ctrl_store_feature
 
-def get_txn_ctrl_store_total_pre(cmp: CampaignEval):
+def get_txn_ctrl_store_total_pre(cmp):
     """
     """
     store_matching.get_store_matching_across_region(cmp)
@@ -421,7 +421,7 @@ def get_txn_ctrl_store_total_pre(cmp: CampaignEval):
 
     return txn_ctrl_store
 
-def get_bask_asso_ctrl_pre(cmp: CampaignEval,
+def get_bask_asso_ctrl_pre(cmp,
                        prd_scope_df: SparkDataFrame):
     """
     """
@@ -437,7 +437,7 @@ def get_bask_asso_ctrl_pre(cmp: CampaignEval,
 
     return bask_asso
 
-def asso_size_ctrl_pre(cmp: CampaignEval,
+def asso_size_ctrl_pre(cmp,
                        prd_scope_df: SparkDataFrame):
     """
     """
@@ -464,7 +464,7 @@ def asso_size_ctrl_pre(cmp: CampaignEval,
 
 #---- Visit uplift
 
-def get_asso_kpi(cmp: CampaignEval,
+def get_asso_kpi(cmp,
                  prd_scope_df: SparkDataFrame):
     """Computes the association size, lift, and uplift for the target and control products.
 
@@ -508,7 +508,7 @@ def get_asso_kpi(cmp: CampaignEval,
     return combine, lift, uplift
 
 #---- weekly trend
-def asso_size_target_dur_wkly(cmp: CampaignEval,
+def asso_size_target_dur_wkly(cmp,
                               prd_scope_df: SparkDataFrame):
     """
     """
@@ -533,7 +533,7 @@ def asso_size_target_dur_wkly(cmp: CampaignEval,
 
     return combine_add_col
 
-def asso_size_target_pre_wkly(cmp: CampaignEval,
+def asso_size_target_pre_wkly(cmp,
                               prd_scope_df: SparkDataFrame):
     """
     """
@@ -557,7 +557,7 @@ def asso_size_target_pre_wkly(cmp: CampaignEval,
 
     return combine_add_col
 
-def asso_size_ctrl_dur_wkly(cmp: CampaignEval,
+def asso_size_ctrl_dur_wkly(cmp,
               prd_scope_df: SparkDataFrame):
     """
     """
@@ -581,7 +581,7 @@ def asso_size_ctrl_dur_wkly(cmp: CampaignEval,
 
     return combine_add_col
 
-def asso_size_ctrl_pre_wkly(cmp: CampaignEval,
+def asso_size_ctrl_pre_wkly(cmp,
                             prd_scope_df: SparkDataFrame):
     """
     """
@@ -606,7 +606,7 @@ def asso_size_ctrl_pre_wkly(cmp: CampaignEval,
 
     return combine_add_col
 
-def get_asso_kpi_wkly(cmp: CampaignEval,
+def get_asso_kpi_wkly(cmp,
                  prd_scope_df: SparkDataFrame):
     """
     """

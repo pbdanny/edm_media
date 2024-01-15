@@ -27,7 +27,7 @@ from exposure.exposed import create_txn_offline_x_aisle_target_store
 from utils import period_cal
 
 #---- Developing
-def forward_compatible_stored_matching_schema(cmp: CampaignEval):
+def forward_compatible_stored_matching_schema(cmp):
     """Perform forward compatibility adjustments from matching store saved from in version 1.
     
     Args:
@@ -43,7 +43,7 @@ def forward_compatible_stored_matching_schema(cmp: CampaignEval):
         cmp.matched_store = cmp.matched_store.drop("ctrl_store_id").withColumnRenamed("ctr_store_cos", "ctrl_store_id")
     return
 
-def get_backward_compatible_stored_matching_schema(cmp: CampaignEval):
+def get_backward_compatible_stored_matching_schema(cmp):
     """Perform backward compatibility adjustments to the matching store version 1.
     
     Args:
@@ -60,7 +60,7 @@ def get_backward_compatible_stored_matching_schema(cmp: CampaignEval):
     
     return back_matched_store
 
-def get_store_matching_across_region(cmp: CampaignEval,
+def get_store_matching_across_region(cmp,
                                      matching_methodology: str = 'cosine_distance',
                                      bad_match_threshold: float = 2.5):
     """

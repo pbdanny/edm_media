@@ -16,7 +16,7 @@ from pathlib import Path
 from utils.DBPath import DBPath
 from utils.campaign_config import CampaignEval
 
-def check_target_store(cmp: CampaignEval):
+def check_target_store(cmp):
     """Base on store group name,
     - if HDE / Talad -> count check test vs total store
     - if GoFresh -> adjust 'store_region' in txn, count check
@@ -80,7 +80,7 @@ def check_target_store(cmp: CampaignEval):
 
     return test_vs_all_store_count
 
-def get_target_control_store_dup(cmp: CampaignEval):
+def get_target_control_store_dup(cmp):
     """4 Jan 2023  -- Paksirinat Chanchana - initial version
 
     2 input parameter as sparkdataframe (target_store_df, control_store_df)

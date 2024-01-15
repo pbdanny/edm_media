@@ -267,7 +267,7 @@ def promo_week_cal(in_promo_wk, n):
     return out_wk
 
 
-def get_period_wk_col_nm(cmp: CampaignEval) -> str:
+def get_period_wk_col_nm(cmp) -> str:
     """Column name for period week use for kpi calculation"""
     if cmp.wk_type in ["promo_week", "promo_wk"]:
         period_wk_col_nm = "period_promo_wk"
@@ -279,7 +279,7 @@ def get_period_wk_col_nm(cmp: CampaignEval) -> str:
     return period_wk_col_nm
 
 
-def get_period_cust_mv_wk_col_nm(cmp: CampaignEval) -> str:
+def get_period_cust_mv_wk_col_nm(cmp) -> str:
     """Column name for period week use for Customer movement
     - Promozone eval have use special column for "period_promo_mv_wk"
     """
@@ -293,7 +293,7 @@ def get_period_cust_mv_wk_col_nm(cmp: CampaignEval) -> str:
     return period_wk_col_nm
 
 
-def get_wk_id_col_nm(cmp: CampaignEval) -> str:
+def get_wk_id_col_nm(cmp) -> str:
     """Column name for period week identification"""
     if cmp.wk_type in ["promo_week", "promo_wk"]:
         wk_id_col_nm = "promoweek_id"

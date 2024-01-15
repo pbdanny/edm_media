@@ -20,7 +20,7 @@ import activate.cust_movement as cust_movement
 from exposure.exposed import create_txn_offline_x_aisle_target_store
 
 
-def get_cust_brand_switching_and_penetration(cmp: CampaignEval):
+def get_cust_brand_switching_and_penetration(cmp):
     """Media evaluation solution, customer switching"""
     cmp.spark.sparkContext.setCheckpointDir(
         "dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint"
@@ -271,7 +271,7 @@ def get_cust_brand_switching_and_penetration(cmp: CampaignEval):
     return new_to_brand_switching, brand_cust_pen, cust_brand_switching_and_pen
 
 
-def get_cust_brand_switching_and_penetration_multi(cmp: CampaignEval):
+def get_cust_brand_switching_and_penetration_multi(cmp):
     """Media evaluation solution, customer switching"""
     cmp.spark.sparkContext.setCheckpointDir(
         "dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint"
@@ -365,7 +365,7 @@ def get_cust_brand_switching_and_penetration_multi(cmp: CampaignEval):
     return switch_pen
 
 
-def get_cust_sku_switching(cmp: CampaignEval):
+def get_cust_sku_switching(cmp):
     """Media evaluation solution, customer sku switching"""
     cmp.spark.sparkContext.setCheckpointDir(
         "dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint"
