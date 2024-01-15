@@ -288,90 +288,91 @@ elif wk_type == 'fis_wk':
 
 # COMMAND ----------
 
-##--------------------------------------------------------------------
-## main transaction table from campaign eval
-## tdm_dev.media_campaign_eval_txn_data_2022_0744_m01c
-##--------------------------------------------------------------------
-use_txn_ofn_flag = float(use_txn_ofn)
-
-if use_txn_ofn_flag == 1 :
-  
-  txn_tab    = 'tdm_dev.media_campaign_eval_txn_data_' + c_id_ofn.lower()
-  print(' Default campaign traction table name from instore = ' + txn_tab + '\n')
-  
-  ## Check if exist to use else need to create it for o2o
-  
-  try :
-    ctxn       = spark.table(txn_tab)
-    ctxn       = ctxn.withColumn('hh_flag',F.when(ctxn.household_id.isNull(), lit(0))
-                                            .otherwise(lit(1)))  
-    print(' Default campaign transaction table exist.  Process will use it as initial table \n')
-    
-  except:
-    #print('test')
-    txn_tab    = 'tdm_dev.media_campaign_eval_txn_data_o2o_' + c_id.lower()
-    
-    try :
-      ctxn     = spark.table(txn_tab)
-      print(' Default campaign transaction table from O2O exist process will use data from : ' + txn_tab + ' \n')
-    except:
-      print(' Default campaign transaction table from instore and O2O does not exist!! \n')
-      print(' Process will create o2o transaction table ' + txn_tab + '\n')
-      ## call function to create table
-      if wk_type == 'fis_wk':
-        txn_all  = get_trans_itm_wkly(start_week_id=ppp_st_wk, end_week_id=cmp_en_wk, store_format=[1,2,3,4,5], 
-                                      prod_col_select=['upc_id', 'division_name', 'department_name', 'section_id', 'section_name', 
-                                                         'class_id', 'class_name', 'subclass_id', 'subclass_name', 'brand_name',
-                                                         'department_code', 'section_code', 'class_code', 'subclass_code'])
-      elif wk_type == 'promo_wk':
-        txn_all  = get_trans_itm_wkly(start_week_id=ppp_st_promo_wk, end_week_id=cmp_en_promo_wk, store_format=[1,2,3,4,5], 
-                                      prod_col_select=['upc_id', 'division_name', 'department_name', 'section_id', 'section_name', 
-                                                         'class_id', 'class_name', 'subclass_id', 'subclass_name', 'brand_name',
-                                                         'department_code', 'section_code', 'class_code', 'subclass_code'])
-      ## end if
-      ## additional column based on household_id not cc_flag
-      txn_all     = txn_all.withColumn('hh_flag',F.when(txn_all.household_id.isNull(), lit(0))
-                                                  .otherwise(lit(1)))
-      ## save table
-      txn_all.write.mode('overwrite').partitionBy('hh_flag').saveAsTable(txn_tab)
-      ## Pat add, delete dataframe before re-read
-      del txn_all
-      ## Re-read from table
-      ctxn = spark.table(txn_tab)
-      
-else: ## use O2O trans as initial
-  
-  txn_tab    = 'tdm_dev.media_campaign_eval_txn_data_o2o_' + c_id.lower()
-    
-  try :
-    ctxn     = spark.table(txn_tab)
-    print(' Default campaign transaction table from O2O exist process will use data from : ' + txn_tab + ' \n')
-  except:
-    print(' Default campaign transaction table from instore and O2O does not exist!! \n')
-    print(' Process will create o2o transaction table ' + txn_tab + '\n')
-    ## call function to create table
-    if wk_type == 'fis_wk':
-      txn_all  = get_trans_itm_wkly(start_week_id=ppp_st_wk, end_week_id=cmp_en_wk, store_format=[1,2,3,4,5], 
-                                    prod_col_select=['upc_id', 'division_name', 'department_name', 'section_id', 'section_name', 
-                                                       'class_id', 'class_name', 'subclass_id', 'subclass_name', 'brand_name',
-                                                       'department_code', 'section_code', 'class_code', 'subclass_code'])
-    elif wk_type == 'promo_wk':
-      txn_all  = get_trans_itm_wkly(start_week_id=ppp_st_promo_wk, end_week_id=cmp_en_promo_wk, store_format=[1,2,3,4,5], 
-                                    prod_col_select=['upc_id', 'division_name', 'department_name', 'section_id', 'section_name', 
-                                                       'class_id', 'class_name', 'subclass_id', 'subclass_name', 'brand_name',
-                                                       'department_code', 'section_code', 'class_code', 'subclass_code'])
-    ## end if
-    ## additional column based on household_id not cc_flag
-    txn_all    = txn_all.withColumn('hh_flag',F.when(txn_all.household_id.isNull(), lit(0))
-                                                .otherwise(lit(1)))
-
-    ## save table
-    txn_all.write.mode('overwrite').partitionBy('hh_flag').saveAsTable(txn_tab)
-    ## Pat add, delete dataframe before re-read
-    del txn_all
-    ## Re-read from table
-    ctxn = spark.table(txn_tab)
-## end if
+# MAGIC %md
+# MAGIC ##--------------------------------------------------------------------
+# MAGIC ## main transaction table from campaign eval
+# MAGIC ## tdm_dev.media_campaign_eval_txn_data_2022_0744_m01c
+# MAGIC ##--------------------------------------------------------------------
+# MAGIC use_txn_ofn_flag = float(use_txn_ofn)
+# MAGIC
+# MAGIC if use_txn_ofn_flag == 1 :
+# MAGIC   
+# MAGIC   txn_tab    = 'tdm_dev.media_campaign_eval_txn_data_' + c_id_ofn.lower()
+# MAGIC   print(' Default campaign traction table name from instore = ' + txn_tab + '\n')
+# MAGIC   
+# MAGIC   ## Check if exist to use else need to create it for o2o
+# MAGIC   
+# MAGIC   try :
+# MAGIC     ctxn       = spark.table(txn_tab)
+# MAGIC     ctxn       = ctxn.withColumn('hh_flag',F.when(ctxn.household_id.isNull(), lit(0))
+# MAGIC                                             .otherwise(lit(1)))  
+# MAGIC     print(' Default campaign transaction table exist.  Process will use it as initial table \n')
+# MAGIC     
+# MAGIC   except:
+# MAGIC     #print('test')
+# MAGIC     txn_tab    = 'tdm_dev.media_campaign_eval_txn_data_o2o_' + c_id.lower()
+# MAGIC     
+# MAGIC     try :
+# MAGIC       ctxn     = spark.table(txn_tab)
+# MAGIC       print(' Default campaign transaction table from O2O exist process will use data from : ' + txn_tab + ' \n')
+# MAGIC     except:
+# MAGIC       print(' Default campaign transaction table from instore and O2O does not exist!! \n')
+# MAGIC       print(' Process will create o2o transaction table ' + txn_tab + '\n')
+# MAGIC       ## call function to create table
+# MAGIC       if wk_type == 'fis_wk':
+# MAGIC         txn_all  = get_trans_itm_wkly(start_week_id=ppp_st_wk, end_week_id=cmp_en_wk, store_format=[1,2,3,4,5], 
+# MAGIC                                       prod_col_select=['upc_id', 'division_name', 'department_name', 'section_id', 'section_name', 
+# MAGIC                                                          'class_id', 'class_name', 'subclass_id', 'subclass_name', 'brand_name',
+# MAGIC                                                          'department_code', 'section_code', 'class_code', 'subclass_code'])
+# MAGIC       elif wk_type == 'promo_wk':
+# MAGIC         txn_all  = get_trans_itm_wkly(start_week_id=ppp_st_promo_wk, end_week_id=cmp_en_promo_wk, store_format=[1,2,3,4,5], 
+# MAGIC                                       prod_col_select=['upc_id', 'division_name', 'department_name', 'section_id', 'section_name', 
+# MAGIC                                                          'class_id', 'class_name', 'subclass_id', 'subclass_name', 'brand_name',
+# MAGIC                                                          'department_code', 'section_code', 'class_code', 'subclass_code'])
+# MAGIC       ## end if
+# MAGIC       ## additional column based on household_id not cc_flag
+# MAGIC       txn_all     = txn_all.withColumn('hh_flag',F.when(txn_all.household_id.isNull(), lit(0))
+# MAGIC                                                   .otherwise(lit(1)))
+# MAGIC       ## save table
+# MAGIC       txn_all.write.mode('overwrite').partitionBy('hh_flag').saveAsTable(txn_tab)
+# MAGIC       ## Pat add, delete dataframe before re-read
+# MAGIC       del txn_all
+# MAGIC       ## Re-read from table
+# MAGIC       ctxn = spark.table(txn_tab)
+# MAGIC       
+# MAGIC else: ## use O2O trans as initial
+# MAGIC   
+# MAGIC   txn_tab    = 'tdm_dev.media_campaign_eval_txn_data_o2o_' + c_id.lower()
+# MAGIC     
+# MAGIC   try :
+# MAGIC     ctxn     = spark.table(txn_tab)
+# MAGIC     print(' Default campaign transaction table from O2O exist process will use data from : ' + txn_tab + ' \n')
+# MAGIC   except:
+# MAGIC     print(' Default campaign transaction table from instore and O2O does not exist!! \n')
+# MAGIC     print(' Process will create o2o transaction table ' + txn_tab + '\n')
+# MAGIC     ## call function to create table
+# MAGIC     if wk_type == 'fis_wk':
+# MAGIC       txn_all  = get_trans_itm_wkly(start_week_id=ppp_st_wk, end_week_id=cmp_en_wk, store_format=[1,2,3,4,5], 
+# MAGIC                                     prod_col_select=['upc_id', 'division_name', 'department_name', 'section_id', 'section_name', 
+# MAGIC                                                        'class_id', 'class_name', 'subclass_id', 'subclass_name', 'brand_name',
+# MAGIC                                                        'department_code', 'section_code', 'class_code', 'subclass_code'])
+# MAGIC     elif wk_type == 'promo_wk':
+# MAGIC       txn_all  = get_trans_itm_wkly(start_week_id=ppp_st_promo_wk, end_week_id=cmp_en_promo_wk, store_format=[1,2,3,4,5], 
+# MAGIC                                     prod_col_select=['upc_id', 'division_name', 'department_name', 'section_id', 'section_name', 
+# MAGIC                                                        'class_id', 'class_name', 'subclass_id', 'subclass_name', 'brand_name',
+# MAGIC                                                        'department_code', 'section_code', 'class_code', 'subclass_code'])
+# MAGIC     ## end if
+# MAGIC     ## additional column based on household_id not cc_flag
+# MAGIC     txn_all    = txn_all.withColumn('hh_flag',F.when(txn_all.household_id.isNull(), lit(0))
+# MAGIC                                                 .otherwise(lit(1)))
+# MAGIC
+# MAGIC     ## save table
+# MAGIC     txn_all.write.mode('overwrite').partitionBy('hh_flag').saveAsTable(txn_tab)
+# MAGIC     ## Pat add, delete dataframe before re-read
+# MAGIC     del txn_all
+# MAGIC     ## Re-read from table
+# MAGIC     ctxn = spark.table(txn_tab)
+# MAGIC ## end if
 
 # COMMAND ----------
 
@@ -474,6 +475,7 @@ if use_ca_tab_flg == 1 :
     
     file_nm   = c_nm + '_target_CA_X_group_duplicate.csv'
     full_nm   = out_path + file_nm
+    
     
     dup_trg_pd.to_csv(full_nm, index = False, header = True, encoding = 'utf8')
     
@@ -589,8 +591,10 @@ else :  ## use previous solution, read from file (Use txn flag == 0 or specific 
     file_nm   = c_nm + '_target_CA_X_group_duplicate.csv'
     full_nm   = out_path + file_nm
     
-    dup_trg_pd.to_csv(full_nm, index = False, header = True, encoding = 'utf8')
-    
+    # Use function to create new folder & save csv
+    # dup_trg_pd.to_csv(full_nm, index = False, header = True, encoding = 'utf8')
+    pandas_to_csv_filestore(dup_trg_pd, csv_file_name=file_nm, prefix=out_path, index = False, header = True, encoding = 'utf8')
+
     ## get number of duplicate customer to show
     cc_dup = dup_df.agg (sum(lit(1)).alias('hh_cnt')).collect()[0].hh_cnt 
     
@@ -1012,7 +1016,8 @@ prod_ipd  = prod_info.toPandas()
 file_nm   = c_nm + '_product_brand_info.csv'
 full_nm   = out_path + file_nm
 
-prod_ipd.to_csv(full_nm, index = False, header = True, encoding = 'utf8')
+# prod_ipd.to_csv(full_nm, index = False, header = True, encoding = 'utf8')
+pandas_to_csv_filestore(prod_ipd, csv_file_name=file_nm, prefix=out_path, index = False, header = True, encoding = 'utf8')
 
 
 # COMMAND ----------
@@ -1070,6 +1075,68 @@ trg_str_df = spark.createDataFrame(trg_str)
 
 #print( '#record ca = ' + str(len(ca)) + ' after drop duplicate = ' + str(len(ca_c)))
 #print( '#record control ca = ' + str(len(ctl)) + ' after drop duplicate = ' + str(len(ctl_c)))
+
+# COMMAND ----------
+
+# MAGIC %md ## Split DGS by mech_name
+
+# COMMAND ----------
+
+ctxn = spark.table("tdm_dev.media_campaign_eval_txn_data_o2o_dev_2023_0150_m03e_2023_0150_0518")
+target_store_sf = spark.read.csv(s_in_path + 'target_store_' + c_id_ofn + '.csv', header=True, inferSchema=True)
+
+txn_cmp_hde_offline = (ctxn.where(F.col("household_id").isNotNull())
+                           .where(F.col("date_id").between(cmp_st_dt, cmp_en_dt))
+                           .where(F.col("store_format_group") == "HDE")
+                           .where(F.col("offline_online_other_channel") == 'OFFLINE')) 
+
+# COMMAND ----------
+
+dgs_target_store_sf = target_store_sf.where( F.trim(F.lower(F.col("mech_name"))).isin(["dgs"]) ).select("store_id").drop_duplicates()
+is_target_store_sf =  target_store_sf.join(dgs_target_store_sf, "store_id", "leftanti").select("store_id").drop_duplicates()
+rest_hde_target_store_sf = spark.table("tdm.v_store_dim_c").where(F.col("format_id").isin([1,2,3])).join(target_store_sf, "store_id", "left_anti").select("store_id").drop_duplicates()
+
+is_cust = (txn_cmp_hde_offline
+           .join(is_target_store_sf, "store_id", "left_semi")
+           .join(use_ai_df, "upc_id", "left_semi")
+           .select("household_id")
+           .drop_duplicates()
+)
+
+dgs_cust = (txn_cmp_hde_offline
+           .join(dgs_target_store_sf, "store_id", "left_semi")
+           .select("household_id")           
+           ).drop_duplicates()
+
+is_dgs_gr = is_cust.join(dgs_cust, "household_id", "inner").drop_duplicates()
+is_gr = is_cust.join(is_dgs_gr, "household_id", "left_semi").drop_duplicates()
+dgs_gr = dgs_cust.join(is_dgs_gr, "household_id", "left_semi").drop_duplicates()
+
+rest_hde_txn = txn_cmp_hde_offline.join(is_target_store_sf, "store_id", "left_anti").join(dgs_target_store_sf, "store_id", "left_anti")
+
+nis_ndgs_gr = (rest_hde_txn
+               .join(use_ai_df, "upc_id", "left_semi")
+               .select("household_id")
+               .drop_duplicates()
+               .join(is_dgs_gr, "household_id", "left_anti")
+               .join(is_gr, "household_id", "left_anti")
+               .join(dgs_gr,"household_id", "left_anti")
+)
+
+ndgs_gr = (rest_hde_txn
+           .join(nis_ndgs_gr, "household_id", "left_anti")
+           .select("household_id")
+           .drop_duplicates()
+           .join(is_dgs_gr, "household_id", "left_anti")
+           .join(is_gr, "household_id", "left_anti")
+           .join(dgs_gr,"household_id", "left_anti")
+           .join(ndgs_gr,"household_id", "left_anti")
+)
+           
+
+# COMMAND ----------
+
+target_store.display()
 
 # COMMAND ----------
 
