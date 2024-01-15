@@ -791,7 +791,7 @@ class CampaignEvalTemplate:
             #---- Scope upc_id from real txn
             __upc_txn = \
                 (self.spark.table("tdm_dev.v_latest_txn118wk")
-                 .where("week_id").between(self.ppp_st_mv_wk, self.cmp_en_wk)
+                 .where(F.col("week_id").between(self.ppp_st_mv_wk, self.cmp_en_wk))
                  .join(self.target_store.select("store_id").drop_duplicates(), "store_id")
                  .select("upc_id")
                  .drop_duplicates()
