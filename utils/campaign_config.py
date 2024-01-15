@@ -1208,6 +1208,7 @@ class CampaignEvalO3(CampaignEvalTemplate):
         self.params["resrv_store_class"] = None
         self.params["use_reserved_store"] = 0
         self.use_reserved_store = False
+        self.custom_ctrl_store_file = None
         
         self.load_period()
         self.load_target_store()
