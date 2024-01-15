@@ -1205,7 +1205,7 @@ class CampaignEval(CampaignParams):
 
 class CampaignParamsO3(CampaignParams):
     def __init__(self, config_file, cmp_row_no):
-            super().__init__(config_file, cmp_row_no)
+            CampaignParams.__init__(self, config_file, cmp_row_no)
             self.output_path = (
                 config_file.cmp_output
                 / self.params["cmp_month"]
