@@ -1202,9 +1202,10 @@ class CampaignEvalO3(CampaignEvalTemplate):
             self.cmp_inputs_files / f"target_store_{self.params['cmp_id_offline']}.csv"
         )
         
-        # Compatibility with Template code
+        # Compatibility with Template class
         self.params["gap_start_date"] = None
         self.params["gap_end_date"] = None
+        self.params["resrv_store_class"] = None
         
         self.load_period()
         self.load_target_store()
