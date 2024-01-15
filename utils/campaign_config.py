@@ -1219,7 +1219,7 @@ class CampaignParamsO3(CampaignParams):
             
             return
 
-class CampaignEvalO3(CampaignParamsO3):
+class CampaignEvalO3(CampaignEval):
     def __init__(self, config_file, cmp_row_no):
         super().__init__(config_file, cmp_row_no)
         return
