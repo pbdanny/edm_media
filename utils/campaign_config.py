@@ -1221,5 +1221,5 @@ class CampaignParamsO3(CampaignParams):
 
 class CampaignEvalO3(CampaignParamsO3):
     def __init__(self, config_file, cmp_row_no):
-        super.__init__(self, config_file, cmp_row_no)
+        super().__init__(self, config_file, cmp_row_no)
         return
