@@ -1207,7 +1207,7 @@ class CampaignEval(CampaignParams):
             use_ai_sec_list,
         )
 
-class CampaignParamsO2O(CampaignParams):
+class CampaignParamsO3(CampaignParams):
     def __init__(self, config_file, cmp_row_no):
             super().__init__(config_file, cmp_row_no)
             self.output_path = (
@@ -1219,7 +1219,11 @@ class CampaignParamsO2O(CampaignParams):
             
             return
 
-class CampaignEvalO2O(CampaignParamsO2O):
+class CampaignEvalO3(CampaignParamsO3):
+    def __init__(self, config_file, cmp_row_no):
+        super.__init__(self, config_file, cmp_row_no)
+
+# class CampaignEvalO3(CampaignParamsO3):
     def convert_param_to_list(self, param_name: str) -> List:
         """
         Convert a parameter to a list.
