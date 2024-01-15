@@ -1201,7 +1201,11 @@ class CampaignEvalO3(CampaignEvalTemplate):
         self.target_store_file = (
             self.cmp_inputs_files / f"target_store_{self.params['cmp_id_offline']}.csv"
         )
-
+        
+        # Compatibility with Template code
+        self.gap_start_date = None
+        self.gap_end_date = None
+        
         self.load_period()
         self.load_target_store()
         self.load_control_store()
@@ -1222,4 +1226,3 @@ class CampaignEvalO3(CampaignEvalTemplate):
             str: The string representation of the object.
         """
         return f"CampaignEvalO3 class \nConfig file : '{self.cmp_config_file}'\nRow number : {self.row_no}"
-    
