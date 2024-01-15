@@ -1211,7 +1211,13 @@ class CampaignEvalO3(CampaignEvalTemplate):
         self.custom_ctrl_store_file = (
             self.cmp_inputs_files / f"control_store_{self.params['cmp_id']}.csv"
         )
+        self.params["cross_cate_flag"] = ""
+        self.params["cross_cate_cd"] = ""
         
+        self.cross_cate_flag = None
+        self.cross_cate_cd = None
+        
+
         self.load_period()
         self.load_target_store()
         self.load_control_store()
@@ -1219,7 +1225,7 @@ class CampaignEvalO3(CampaignEvalTemplate):
         self.load_prod()
         self.load_product_dim_adjusted()
         self.clean_up_temp_table()
-        # self.load_aisle(aisle_mode="target_store_config")
+        self.load_aisle(aisle_mode="target_store_config")
         # self.load_txn()
 
         return
