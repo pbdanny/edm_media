@@ -174,9 +174,7 @@ class CampaignEval(CampaignParams):
             None
         """
         super().__init__(config_file, cmp_row_no)
-        self.spark = SparkSession.builder.appName(
-            f"campaignEval_{self.params['cmp_id']}"
-        ).getOrCreate()
+        self.spark = SparkSession.builder.appName(f"campaignEval").getOrCreate()
         self.spark.sparkContext.setCheckpointDir(
             "dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint"
         )
