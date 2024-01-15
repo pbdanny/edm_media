@@ -1203,8 +1203,8 @@ class CampaignEvalO3(CampaignEvalTemplate):
         )
         
         # Compatibility with Template code
-        self.gap_start_date = None
-        self.gap_end_date = None
+        self.params["gap_start_date"] = None
+        self.params["gap_end_date"] = None
         
         self.load_period()
         self.load_target_store()
