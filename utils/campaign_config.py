@@ -1249,5 +1249,5 @@ class CampaignEvalO3(CampaignEvalTemplate):
             .fillna(str(self.cmp_end), subset="c_end")
             .where(~F.col("aisle_scope").isin(["dgs"]))
         )
-        self.params["target_store_adjment"] = "Exclude `aisle_scope` = dgs"
+        self.params["target_store_adjusment"] = "Exclude `aisle_scope` = dgs"
         return
