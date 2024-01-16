@@ -16,7 +16,7 @@ from utils.DBPath import DBPath
 from utils.campaign_config import CampaignEval
 from utils import period_cal
 from exposure import exposed
-
+from utils import helper
 
 def get_cust_activated(cmp):
     """Get customer exposed & unexposed / shopped, not shop
@@ -265,7 +265,6 @@ def get_cust_activated(cmp):
         brand_activated_sum,
         sku_activated_sum,
     )
-
 
 def get_cust_activated_by_mech(cmp, promozone_flag: bool = False):
     """Get customer exposed & unexposed / shopped, not shop
@@ -600,7 +599,6 @@ def get_cust_activated_by_mech(cmp, promozone_flag: bool = False):
         activated_both_num,
     )
 
-
 # ---- Exposure any mechnaics
 def get_cust_first_exposed_any_mech(cmp):
     """First exposure any mechanics, ignore difference of mechanic name,
@@ -619,7 +617,6 @@ def get_cust_first_exposed_any_mech(cmp):
     )
     return cust_first_exposed
 
-
 def get_cust_first_prod_purchase_date(cmp, prd_scope_df: SparkDataFrame):
     """Get first product scope (feature sku / feature brand) purchased date
     - within "DUR" period
@@ -637,7 +634,6 @@ def get_cust_first_prod_purchase_date(cmp, prd_scope_df: SparkDataFrame):
         .drop_duplicates()
     )
     return cust_first_prod_purchase
-
 
 def get_cust_any_mech_activated(
     cmp, prd_scope_df: SparkDataFrame, prd_scope_nm: str
@@ -672,7 +668,6 @@ def get_cust_any_mech_activated(
         .withColumn("level", F.lit(prd_scope_nm))
     )
     return cust_activated
-
 
 def get_cust_any_mech_activated_sales(
     cmp, prd_scope_df: SparkDataFrame, prd_scope_nm: str
@@ -729,6 +724,7 @@ def get_cust_any_mech_activated_sales(
 
 
 # ---- Exposure by mechanics
+@helper.timer
 def get_cust_txn_all_exposed_date_n_mech(cmp):
     """household_id exposed by mech_name
     - Improve version : add aisle_scope
@@ -742,7 +738,6 @@ def get_cust_txn_all_exposed_date_n_mech(cmp):
         .withColumnRenamed("tran_datetime", "exposed_tran_datetime")
     )
     return cust_txn_exposed_mech
-
 
 def get_cust_txn_all_prod_purchase_date(
     cmp, prd_scope_df: SparkDataFrame
@@ -765,7 +760,7 @@ def get_cust_txn_all_prod_purchase_date(
     )
     return cust_all_prod_purchase
 
-
+@helper.timer
 def get_cust_by_mech_exposed_purchased(
     cmp, prd_scope_df: SparkDataFrame, prd_scope_nm: str
 ):
@@ -835,7 +830,6 @@ def get_cust_by_mech_exposed_purchased(
         print(e)
     return
 
-
 def get_cust_by_mech_last_seen_exposed_tag(
     cmp, prd_scope_df: SparkDataFrame, prd_scope_nm: str
 ):
@@ -867,7 +861,6 @@ def get_cust_by_mech_last_seen_exposed_tag(
     )
 
     return total_purchased_exposure_flagged_by_cust
-
 
 def get_cust_by_mach_activated(cmp):
     mechanic_list = (
@@ -935,26 +928,3 @@ def get_cust_by_mach_activated(cmp):
         cmp_shppr_last_seen_sku_exposed_tag,
         activated_both_num,
     )
-
-
-# ---- Draft : Cross categoy exposure
-# def get_bask_by_aisle_scope_last_seen(cmp,
-#                                           prd_scope_df: SparkDataFrame,
-#                                           prd_scope_nm: str):
-#     """
-#     """
-#     get_cust_txn_all_exposed_date_n_mech(cmp)
-#     get_cust_txn_all_prod_purchase_date(cmp, prd_scope_df)
-
-#     txn_each_purchase_most_recent_media_exposed = \
-#     (cmp.cust_all_exposed
-#     .join(cmp.cust_all_prod_purchase, on='household_id', how='inner')
-#     .where(F.col('exposed_tran_datetime') <= F.col('purchase_tran_datetime'))
-#     .withColumn('time_diff', F.col('purchase_tran_datetime') - F.col('exposed_tran_datetime'))
-#     .withColumn('recency_rank', F.dense_rank().over(Window.partitionBy('purchase_transaction_uid').orderBy(F.col('time_diff'))))
-#     .where(F.col('recency_rank') == 1)
-#     .drop_duplicates()
-#     .select('household_id', 'exposed_transaction_uid', 'mech_name','aisle_scope','purchase_transaction_uid', "net_spend_amt", "unit")
-#     )
-
-#     return txn_each_purchase_most_recent_media_exposed

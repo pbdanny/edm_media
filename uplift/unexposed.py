@@ -16,6 +16,7 @@ from utils.campaign_config import CampaignEval
 from utils import period_cal
 from activate import activated
 from matching import store_matching
+from utils import helper
 
 #---- Create txn offline at aisle of matched store
 def create_txn_offline_x_aisle_matched_store(cmp):
@@ -111,6 +112,7 @@ def get_cust_any_mech_unexposed_purchased(cmp,
     return cust_unexposed_purchased
 
 #---- Unexposure by mechanics
+@helper.timer
 def get_cust_txn_all_unexposed_date_n_mech(cmp):
     """household_id unexposed by mech_name
     - Improve version : add aisle_scope
@@ -125,7 +127,7 @@ def get_cust_txn_all_unexposed_date_n_mech(cmp):
          .withColumnRenamed('tran_datetime', 'unexposed_tran_datetime')
         )
     return cust_txn_unexposed_mech
-
+@helper.timer
 def get_cust_by_mech_unexposed_purchased(cmp,
                                          prd_scope_df: SparkDataFrame,
                                          prd_scope_nm: str):

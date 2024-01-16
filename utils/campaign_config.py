@@ -796,7 +796,6 @@ class CampaignEvalTemplate:
                  .select("upc_id")
                  .drop_duplicates()
                 )
-            
             aisle_target_store_media_promozone = (
                 self.target_store.where(F.col("aisle_scope").isin(["store"]))
                 .join(date_dim.hint("range_join", 14))
@@ -804,14 +803,28 @@ class CampaignEvalTemplate:
                 # .join(prd_dim)
                 .join(__upc_txn)
             )
+            
+            # Aisle for dgs, store level
+            #---- Scope upc_id from real txn
+            aisle_target_store_media_dgs = (
+                self.target_store.where(F.col("aisle_scope").isin(["dgs"]))
+                .join(date_dim.hint("range_join", 14))
+                .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
+                # .join(prd_dim)
+                .join(__upc_txn)
+            )
+            
             # Combine each aisle scope into one object
             self.aisle_target_store_conf = (
                 aisle_target_store_media_homeshelf.unionByName(
                     aisle_target_store_media_x_cate, allowMissingColumns=True
                 ).unionByName(
                     aisle_target_store_media_promozone, allowMissingColumns=True
+                ).unionByName(
+                    aisle_target_store_media_dgs, allowMissingColumns=True
                 )
             )
+
             return
 
         # ---- Main
@@ -1231,23 +1244,3 @@ class CampaignEvalO3(CampaignEvalTemplate):
             str: The string representation of the object.
         """
         return f"CampaignEvalO3 class \nConfig file : '{self.cmp_config_file}'\nRow number : {self.row_no}"
-    
-    @helper.timer
-    def load_target_store(self):
-        """Load target store
-
-        Loads the target store data from a CSV file and fills missing values for the 'c_start' and 'c_end' columns with the campaign start and end dates respectively.
-
-        Returns:
-            None
-        """
-        self.target_store = (
-            self.spark.read.csv(
-                self.target_store_file.spark_api(), header=True, inferSchema=True
-            )
-            .fillna(str(self.cmp_start), subset="c_start")
-            .fillna(str(self.cmp_end), subset="c_end")
-            .where(~F.col("aisle_scope").isin(["dgs"]))
-        )
-        self.params["target_store_adjusment"] = "Exclude `aisle_scope` = dgs"
-        return

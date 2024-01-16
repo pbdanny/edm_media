@@ -21,8 +21,9 @@ from utils.campaign_config import CampaignEval
 from utils import period_cal
 from activate import activated
 from uplift import unexposed
+from utils import helper
 
-
+@helper.timer
 def _get_cust_mvmnt_ppp_pre(
     cmp, prd_scope_df: SparkDataFrame, prd_scope_nm: str
 ) -> SparkDataFrame:
@@ -1261,6 +1262,7 @@ def get_customer_uplift_per_mechanic(
 
 
 # ---- New code
+@helper.timer
 def get_cust_uplift_by_mech(
     cmp, prd_scope_df: SparkDataFrame, prd_scope_nm: str
 ):
