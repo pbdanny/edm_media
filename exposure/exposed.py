@@ -10,7 +10,7 @@ from pyspark.sql import functions as F
 from pyspark.sql import DataFrame as SparkDataFrame
 
 from utils.DBPath import DBPath
-from utils.campaign_config import CampaignEval
+from utils.campaign_config import CampaignEval, CampaignEvalO3
 
 def create_txn_offline_x_aisle_target_store(cmp):
     """Create the offline transaction data for the aisle target store.
@@ -73,7 +73,12 @@ def create_store_mech_exposure_cmp(cmp):
                 'transaction_uid')).otherwise(None))).alias('non_carded_visits')
                 )
         )
-            
+        
+    # Check eval object O3, exclude aisle_scope = "dgh"
+    if isinstance(cmp, CampaignEvalO3):
+        str_mech_visits = str_mech_visits.where(~F.col("aisle_scope").isin(["dgs"]))
+        cmp.params["exposure_adjustment"] = "Exclude `aisle_scope` = dgs from exposure calculation"    
+    
     cmp.str_mech_exposure_cmp = \
         (str_mech_visits
             .join(STORE_FMT_FAMILY_SIZE, "store_format_name", "left")
