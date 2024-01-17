@@ -12,13 +12,13 @@ from utils.helper import timer
 
 # COMMAND ----------
 
-inst = CampaignConfigFile("/dbfs/mnt/pvtdmbobazc01/edminput/filestore/share/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_hde_than.csv")
+# inst = CampaignConfigFile("/dbfs/mnt/pvtdmbobazc01/edminput/filestore/share/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_hde_than.csv")
 
 o3 = CampaignConfigFile("/dbfs/mnt/pvtdmbobazc01/edminput/filestore/share/media/campaign_eval/05_O3/00_cmp_inputs/cmp_list_o3_than.csv")
 
 # COMMAND ----------
 
-inst.display_details()
+# inst.display_details()
 
 # COMMAND ----------
 
