@@ -139,11 +139,6 @@ class CampaignEvalTemplate:
                 .replace(np.nan, None)
                 .replace("", None)
             ).to_dict()
-            self.output_path = (
-                config_file.cmp_output
-                / self.params["cmp_month"]
-                / self.params["cmp_nm"]
-            )
             self.std_input_path = config_file.cmp_output.parent / "00_std_inputs"
 
             dbutils = DBUtils(self.spark)
@@ -1146,6 +1141,12 @@ class CampaignEval(CampaignEvalTemplate):
         """
         super().__init__(config_file, cmp_row_no)
         
+        self.output_path = (
+            config_file.cmp_output
+            / self.params["cmp_month"]
+            / self.params["cmp_nm"]
+        )
+        
         self.store_fmt = self.params["store_fmt"].lower()
         self.wk_type = self.params["wk_type"]
 
@@ -1197,12 +1198,19 @@ class CampaignEval(CampaignEvalTemplate):
 class CampaignEvalO3(CampaignEvalTemplate):
     def __init__(self, config_file, cmp_row_no):
         super().__init__(config_file, cmp_row_no)
+        
+        self.params["cmp_id"] = f'{self.params["cmp_id_offline"]}_{self.params["cmp_id_online"]}'
+        self.cmp_nm = self.params["cmp_nm"]
+        
+        self.output_path = (
+            config_file.cmp_output
+            / self.params["cmp_month"]
+            / f'{self.params["cmp_id_offline"]}_{self.params["cmp_id_online"]}_{self.params["cmp_nm"]}'
+        )
 
         self.store_fmt = self.params["store_fmt"].lower()
         self.wk_type = self.params["wk_type"]
 
-        self.params["cmp_id"] = f'{self.params["cmp_id_offline"]}_{self.params["cmp_id_online"]}'
-        self.cmp_nm = self.params["cmp_nm"]
         self.cmp_start = self.params["cmp_start"]
         self.cmp_end = self.params["cmp_end"]
         self.media_fee_offline = self.params["media_fee_offline"]

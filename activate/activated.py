@@ -18,6 +18,8 @@ from utils import period_cal
 from exposure import exposed
 from utils import helper
 
+# ---- First exposed > First purchase date
+# Current logic for activated customer
 def get_cust_activated(cmp):
     """Get customer exposed & unexposed / shopped, not shop
 
@@ -635,9 +637,7 @@ def get_cust_first_prod_purchase_date(cmp, prd_scope_df: SparkDataFrame):
     )
     return cust_first_prod_purchase
 
-def get_cust_any_mech_activated(
-    cmp, prd_scope_df: SparkDataFrame, prd_scope_nm: str
-):
+def get_cust_any_mech_activated(cmp, prd_scope_df: SparkDataFrame, prd_scope_nm: str):
     """Get product scope (feature sku / feature brand) activated
     - Exposure
         - Period based on target store config
@@ -669,9 +669,7 @@ def get_cust_any_mech_activated(
     )
     return cust_activated
 
-def get_cust_any_mech_activated_sales(
-    cmp, prd_scope_df: SparkDataFrame, prd_scope_nm: str
-):
+def get_cust_any_mech_activated_sales(cmp, prd_scope_df: SparkDataFrame, prd_scope_nm: str):
     get_cust_any_mech_activated(cmp, prd_scope_df)
 
     period_wk_col_nm = period_cal.get_period_wk_col_nm(cmp)
@@ -722,8 +720,8 @@ def get_cust_any_mech_activated_sales(
 
     return actv_sales_df, sum_actv_sales_df
 
-
 # ---- Exposure by mechanics
+# Used for customer uplift calculation
 @helper.timer
 def get_cust_txn_all_exposed_date_n_mech(cmp):
     """household_id exposed by mech_name
@@ -739,9 +737,8 @@ def get_cust_txn_all_exposed_date_n_mech(cmp):
     )
     return cust_txn_exposed_mech
 
-def get_cust_txn_all_prod_purchase_date(
-    cmp, prd_scope_df: SparkDataFrame
-):
+@helper.timer
+def get_cust_txn_all_prod_purchase_date(cmp, prd_scope_df: SparkDataFrame):
     """Get all brand shopped date or feature shopped date, based on input upc_id
     Shopper in campaign period at any store format & any channel
     """
@@ -761,9 +758,7 @@ def get_cust_txn_all_prod_purchase_date(
     return cust_all_prod_purchase
 
 @helper.timer
-def get_cust_by_mech_exposed_purchased(
-    cmp, prd_scope_df: SparkDataFrame, prd_scope_nm: str
-):
+def get_cust_by_mech_exposed_purchased(cmp, prd_scope_df: SparkDataFrame, prd_scope_nm: str):
     """Get the count of customers who made purchases of specific products within a given product scope after being exposed to specific mechanics.
 
     This function calculates the count of customers who made purchases of specific products within a given product scope after being exposed to specific mechanics. It takes the following inputs:
@@ -830,9 +825,7 @@ def get_cust_by_mech_exposed_purchased(
         print(e)
     return
 
-def get_cust_by_mech_last_seen_exposed_tag(
-    cmp, prd_scope_df: SparkDataFrame, prd_scope_nm: str
-):
+def get_cust_by_mech_last_seen_exposed_tag(cmp, prd_scope_df: SparkDataFrame, prd_scope_nm: str):
     purchased_exposure_count = get_cust_by_mech_exposed_purchased(
         cmp, prd_scope_df, prd_scope_nm
     )
