@@ -1199,13 +1199,13 @@ class CampaignEvalO3(CampaignEvalTemplate):
     def __init__(self, config_file, cmp_row_no):
         super().__init__(config_file, cmp_row_no)
         
-        self.params["cmp_id"] = f'{self.params["cmp_id_offline"]}_{self.params["cmp_id_online"]}'
+        self.params["cmp_id"] = f'{self.params["cmp_id_is"]}_{self.params["cmp_id_online"]}_{self.params["cmp_id_dgs"]}'
         self.cmp_nm = self.params["cmp_nm"]
         
         self.output_path = (
             config_file.cmp_output
             / self.params["cmp_month"]
-            / f'{self.params["cmp_id_offline"]}_{self.params["cmp_id_online"]}_{self.params["cmp_nm"]}'
+            / f'{self.params["cmp_id_is"]}_{self.params["cmp_id_online"]}__{self.params["cmp_id_dgs"]}_{self.params["cmp_nm"]}'
         )
 
         self.store_fmt = self.params["store_fmt"].lower()
@@ -1216,9 +1216,9 @@ class CampaignEvalO3(CampaignEvalTemplate):
         self.media_fee_offline = self.params["media_fee_offline"]
         self.media_fee_online = self.params["media_fee_online"]
 
-        self.sku_file = self.cmp_inputs_files / f"upc_list_{self.params['cmp_id_offline']}.csv"
+        self.sku_file = self.cmp_inputs_files / f"upc_list_{self.params['cmp_id_is']}.csv"
         self.target_store_file = (
-            self.cmp_inputs_files / f"target_store_{self.params['cmp_id_offline']}.csv"
+            self.cmp_inputs_files / f"target_store_{self.params['cmp_id_is']}.csv"
         )
         
         # Compatibility with Template class
