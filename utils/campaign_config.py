@@ -883,6 +883,7 @@ class CampaignEvalTemplate:
             self.spark.sql(f"drop table if exists tdm_dev.th_lotuss_media_eval_aisle_target_store_conf_{self.params['cmp_id']}_temp")
             (
                 self.aisle_target_store_conf.write
+                .format("parquet")
                 .mode("overwrite")
                 .option('overwriteSchema', 'true')
                 .partitionBy("week_id")
