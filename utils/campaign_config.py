@@ -145,15 +145,17 @@ class CampaignEvalTemplate:
         return
 
     @helper.timer
-    def load_period(self, eval_mode: str = "homeshelf"):
+    def load_period(self, eval_mode: str = ""):
         """Load campaign period : cmp, pre, ppp & gap
-        For evaluation type "promotion_zone" the pre period number of week = same week as cmp period
-        For evaluation type "homeshelf" the pre period number of week 13 week before cmp period
+        For evaluation type "promotion_zone" KPI of the pre period number of week = same week as cmp period
+        For evaluation type "homeshelf" the KPI pre period number of week 13 week before cmp period
+        
+        For both
 
         Parameters
         ----------
-        eval_mode: str, default "homeshelf"
-            Evaluation type : "promotion_zone", "homeshelf"
+        eval_mode: str, default ""
+            Evaluation type : "promotion_zone", "homeshelf" if "" will determine from params["week_type"]
 
         Attributes:
             - cmp_st_wk (int): Start week ID of the campaign.
@@ -248,7 +250,11 @@ class CampaignEvalTemplate:
         self.ppp_st_mv_wk = self.ppp_st_wk
         self.ppp_st_promo_wk = period_cal.promo_week_cal(self.ppp_en_promo_wk, -12)
         self.ppp_st_promo_mv_wk = self.ppp_st_promo_wk
-
+        
+        if eval_mode == "" & self.params["wk_type"] == "promo_wk":
+            eval_mode = "promozone"
+            
+        # If override all pre period wk calculation with number of week = same week as cmp period 
         if eval_mode == "promozone":
             self.pre_st_wk = period_cal.week_cal(self.pre_en_wk, (wk_cmp - 1) * -1)
             self.pre_st_promo_wk = period_cal.promo_week_cal(
