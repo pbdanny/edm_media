@@ -257,7 +257,7 @@ class CampaignEvalTemplate:
         self.ppp_st_promo_wk = period_cal.promo_week_cal(self.ppp_en_promo_wk, -12)
         self.ppp_st_promo_mv_wk = self.ppp_st_promo_wk
         
-        if eval_mode == "" & self.params["wk_type"] == "promo_wk":
+        if (eval_mode == "") & (self.params["wk_type"] == "promo_wk"):
             eval_mode = "promozone"
             
         # If override all pre period wk calculation with number of week = same week as cmp period 
