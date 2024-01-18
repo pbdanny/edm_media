@@ -180,6 +180,12 @@ class CampaignEvalTemplate:
             - ppp_st_promo_mv_wk (int): Start week ID of the prior-promotion period's promotion and moving window period.
             - ppp_en_promo_mv_wk (int): End week ID of the prior-promotion period's promotion and moving window period.
         """
+        if self.params["wk_type"] is None :
+            print("Week type must be `fis_wk` or `promo_wk`. None definded will enforce to be `fis_wk`")
+            self.params["wk_type"] = "fis_wk"
+        if not(self.params["wk_type"] in ["fis_wk", "promo_wk"]):
+            raise(f"Week type must be `fis_wk` or `promo_wk`. But defined as {self['wk_type']}")
+        
         self.cmp_st_wk = period_cal.wk_of_year_ls(self.cmp_start)
         self.params["cmp_st_wk"] = self.cmp_st_wk
         self.cmp_en_wk = period_cal.wk_of_year_ls(self.cmp_end)
