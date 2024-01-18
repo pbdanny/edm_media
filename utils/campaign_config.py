@@ -143,7 +143,17 @@ class CampaignEvalTemplate:
 
             dbutils = DBUtils(self.spark)
         return
+    
+    def display_details(self):
+        """
+        Displays the details of the CampaignParams object.
 
+        Returns:
+            None
+        """
+        pprint.pp(self.params)
+        return
+    
     @helper.timer
     def load_period(self, eval_mode: str = ""):
         """Load campaign period : cmp, pre, ppp & gap
