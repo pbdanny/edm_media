@@ -9,9 +9,9 @@ headers = {
 
 data = {
     "pipeline_name": "PL_EDM_MANUAL_JOB_CLUSTER",
-    "notebookPath": ["/Repos/thanakrit.boonquarmdee@lotuss.com/edm_media_dev/notebook/dev_code_o2o"],
+    "notebookPath": ["/EDM_Share/EDM_Media/Campaign_Evaluation/O3/02_ozone_evaluation"],
     "job_type": "standard",
-    "clusterSize": "s",
+    "clusterSize": "xl",
     "period_id": "",
     "week_id": "",
     "date_id": "",
