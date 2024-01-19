@@ -217,7 +217,7 @@ class CampaignEvalTemplate:
         self.gap_end_date = self.params["gap_end_date"]
 
         if (self.gap_start_date is None) & (self.gap_end_date is None):
-            print(f"No Gap Week for campaign : {self.cmp_nm}")
+            # print(f"No Gap Week for campaign : {self.cmp_nm}")
             self.gap_flag = False
             chk_pre_dt = self.cmp_start
 
