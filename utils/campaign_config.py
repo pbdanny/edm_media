@@ -153,7 +153,13 @@ class CampaignEvalTemplate:
         """
         pprint.pp(self.params)
         return
-    
+    def save_details(self):
+        import json
+        save_path = (self.output_path/"output"/"params.json").file_api()
+        with open(save_path, "w") as f:
+            json.dump(self.params, f, indent=4)
+        return 
+
     @helper.timer
     def load_period(self, eval_mode: str = ""):
         """Load campaign period : cmp, pre, ppp & gap
