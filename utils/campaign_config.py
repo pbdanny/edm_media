@@ -153,12 +153,19 @@ class CampaignEvalTemplate:
         """
         pprint.pp(self.params)
         return
-    def save_details(self):
+    
+    def save_details(self) -> str:
+        """
+        Save campaign parameters (.params) as .json file
+        
+        Returns:
+            Path of saved params file 
+        """
         import json
         save_path = (self.output_path/"output"/"params.json").file_api()
         with open(save_path, "w") as f:
             json.dump(self.params, f, indent=4)
-        return 
+        return save_path
 
     @helper.timer
     def load_period(self, eval_mode: str = ""):
