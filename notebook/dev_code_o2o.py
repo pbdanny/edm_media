@@ -12,7 +12,7 @@ from utils.helper import timer
 
 # COMMAND ----------
 
-inst = CampaignConfigFile("/dbfs/mnt/pvtdmbobazc01/edminput/filestore/share/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_hde_than.csv")
+inst = CampaignConfigFile("/dbfs/mnt/pvtdmbobazc01/edminput/filestore/share/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_pakc_new.csv")
 
 # o3 = CampaignConfigFile("/dbfs/mnt/pvtdmbobazc01/edminput/filestore/share/media/campaign_eval/05_O3/00_cmp_inputs/cmp_list_o3_than.csv")
 
@@ -22,35 +22,26 @@ inst.display_details()
 
 # COMMAND ----------
 
-inst_eval = CampaignEval(inst, cmp_row_no=12)
-
-# COMMAND ----------
-
-o3.display_details()
-
-# COMMAND ----------
-
-o3_eval = CampaignEvalO3(o3, cmp_row_no=1)
-
-# COMMAND ----------
-
-isinstance(o3_eval, CampaignEvalO3)
-
-# COMMAND ----------
-
-o3_eval.params
-
-# COMMAND ----------
-
-o3_eval.target_store.display()
+inst_eval = CampaignEval(inst, cmp_row_no=90)
 
 # COMMAND ----------
 
 from utils import load_txn
+load_txn.load_txn(inst_eval, txn_mode="pre_generated_118wk")
 
 # COMMAND ----------
 
-load_txn.load_txn(o3_eval, txn_mode="pre_generated_118wk")
+inst_eval.display_details()
+
+# COMMAND ----------
+
+from 
+
+# COMMAND ----------
+
+import polars as pl
+pf = pl.read_json('/dbfs/mnt/pvtdmbobazc01/edminput/filestore/share/media/campaign_eval/01_hde/Sep_2023/2023_0770_M02C_mirinda_shelftalker/output/params.json')
+display(pf)
 
 # COMMAND ----------
 
