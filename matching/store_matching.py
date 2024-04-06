@@ -356,6 +356,7 @@ def get_store_matching_across_region(cmp: CampaignEval,
     if (trg_min_wk >= 3) & (ctl_min_wk >= 3):
         match_lvl = 'feature sku'
         txn_matching = txn_match_trg.union(txn_match_ctl)
+
     else:
         trg_min_wk, txn_match_trg, ctl_min_wk, txn_match_ctl = _get_min_wk_sales(brand_df)
         if (trg_min_wk >= 3) & (ctl_min_wk >= 3):
@@ -365,7 +366,11 @@ def get_store_matching_across_region(cmp: CampaignEval,
             trg_min_wk, txn_match_trg, ctl_min_wk, txn_match_ctl = _get_min_wk_sales(sclass_df)
             match_lvl = 'subclass'
             txn_matching = txn_match_trg.union(txn_match_ctl)
-
+    
+    # Store match level , and min week match level for target , control store
+    cmp.params["match_lvl"] = match_lvl
+    cmp.params["trg_min_wk"] = trg_min_wk
+    cmp.params["ctrl_min_wk"] = ctl_min_wk
     print(f'This campaign will do matching at "{match_lvl.upper()}"')
     print(f'Matching method "{matching_methodology.upper()}"')
     print("-"*80)
