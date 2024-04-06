@@ -1739,10 +1739,10 @@ def get_store_matching_across_region(
     print("-"*80)
     wk_id_col_nm = _get_wk_id_col_nm(wk_type=wk_type)
     print(f"Week_id based on column '{wk_id_col_nm}'")
-    print('Matching performance only "OFFLINE" channel')
-
     pre_st_wk  = get_lag_wk_id(wk_id=pre_en_wk, lag_num=13, inclusive=True)
-
+    print(f"Matching period from week {pre_st_wk} - {pre_en_wk}")
+    print('Matching performance only "OFFLINE" channel')
+    
     # Find level for matching : feature sku / (feature) brand / (feature) subclass
     trg_min_wk, txn_match_trg, ctl_min_wk, txn_match_ctl = _get_min_wk_sales(feat_sf)
 

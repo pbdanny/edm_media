@@ -19,7 +19,7 @@ from utils.campaign_config import CampaignEval
 
 spark = SparkSession.builder.appName("clear_temp").getOrCreate()
 
-def clear_attr_and_temp_tbl(cmp: CampaignEval):
+def clear_attr_and_temp_tbl(cmp):
     """Clear attribute from campaing objeect & delete temp table (if any)
     """
     # clear aisle_target_store_conf

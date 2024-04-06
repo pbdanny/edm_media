@@ -511,7 +511,7 @@ def sales_uplift_reg_mech(txn,
 ## End def    
 
 #---- Dev Code
-def sales_uplift_by_region_mechanic(cmp: CampaignEval,
+def sales_uplift_by_region_mechanic(cmp,
                                     prd_scope_df: SparkDataFrame,
                                     prd_scope_nm: str):
     """Support multi class, subclass

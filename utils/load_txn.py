@@ -21,7 +21,7 @@ sys.path.append(os.path.abspath(
     "/Workspace/Repos/thanakrit.boonquarmdee@lotuss.com/edm_util"))
 from edm_class import txnItem
 
-def load_txn(cmp: CampaignEval,
+def load_txn(cmp,
              txn_mode: str = "pre_generated_118wk"):
     """Load transaction
 
@@ -67,7 +67,7 @@ def load_txn(cmp: CampaignEval,
 
     return
 
-def replace_brand_nm(cmp: CampaignEval):
+def replace_brand_nm(cmp):
     """Replace the transactions of multi-feature brands with the first main brand.
 
     This function replaces the brand names in the transactions with the brand names from the main products. 
@@ -88,7 +88,7 @@ def replace_brand_nm(cmp: CampaignEval):
 
     return
 
-def create_period_col(cmp: CampaignEval):
+def create_period_col(cmp):
     """Create period columns for the CampaignEval object.
     
     This function creates three period columns: period_fis_wk, period_promo_wk, and period_promo_mv_wk. 
@@ -146,7 +146,7 @@ def create_period_col(cmp: CampaignEval):
 
     return
 
-def replace_store_region(cmp: CampaignEval):
+def replace_store_region(cmp):
     """Remapping txn store_region follow cmp.store_dim
     """
     cmp.txn = \
@@ -157,7 +157,7 @@ def replace_store_region(cmp: CampaignEval):
         )
     return
 
-def forward_compatible_stored_txn_schema(cmp: CampaignEval):
+def forward_compatible_stored_txn_schema(cmp):
     """Perform forward compatibility adjustments from stored transactions in version 1.
     
     This function ensures backward compatibility with the generated transactions from previous code versions by applying the following adjustments:
@@ -180,7 +180,7 @@ def forward_compatible_stored_txn_schema(cmp: CampaignEval):
         cmp.txn = cmp.txn.drop("store_format_name").withColumnRenamed("store_format_group", "store_format_name")
     return
 
-def scope_txn(cmp: CampaignEval):
+def scope_txn(cmp):
     """Filter and optimize the performance of pre-joined 118-week transactions.
     
     This function improves the performance when using pre-joined 118-week transactions by applying the following steps:
@@ -210,13 +210,13 @@ def scope_txn(cmp: CampaignEval):
          )
     return
 
-def save_txn(cmp: CampaignEval):
+def save_txn(cmp):
     load_txn()
     cmp.txn.write.saveAsTable(
         f"tdm_dev.media_campaign_eval_txn_data_{cmp.params['cmp_id']}")
     return
 
-def get_backward_compatible_txn_schema(cmp: CampaignEval):
+def get_backward_compatible_txn_schema(cmp):
     """Perform backward compatibility adjustments to the stored transactions.
     
     This function ensures backward compatibility with the generated transactions from previous code versions by applying the following adjustments:

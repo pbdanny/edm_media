@@ -21,10 +21,11 @@ from utils.campaign_config import CampaignEval
 from utils import period_cal
 from activate import activated
 from uplift import unexposed
+from utils import helper
 
-
+@helper.timer
 def _get_cust_mvmnt_ppp_pre(
-    cmp: CampaignEval, prd_scope_df: SparkDataFrame, prd_scope_nm: str
+    cmp, prd_scope_df: SparkDataFrame, prd_scope_nm: str
 ) -> SparkDataFrame:
     """Get customer spending for prior (prior-campagign) and pre (pre-campaign) periods.
 
@@ -66,7 +67,7 @@ def _get_cust_mvmnt_ppp_pre(
 
 
 def get_cust_uplift_any_mech(
-    cmp: CampaignEval, prd_scope_df: SparkDataFrame, prd_scope_nm: str
+    cmp, prd_scope_df: SparkDataFrame, prd_scope_nm: str
 ):
     """Calculate customer uplift for any mechanism.
 
@@ -273,7 +274,7 @@ def get_cust_uplift_any_mech(
 
 # ---- Migrated code
 def get_customer_uplift_per_mechanic(
-    cmp: CampaignEval, prd_scope_df: SparkDataFrame, prd_scope_nm: str
+    cmp, prd_scope_df: SparkDataFrame, prd_scope_nm: str
 ):
     """Customer Uplift : Exposed vs Unexposed
     Exposed : shop adjacency product during campaing in test store
@@ -1261,8 +1262,9 @@ def get_customer_uplift_per_mechanic(
 
 
 # ---- New code
+@helper.timer
 def get_cust_uplift_by_mech(
-    cmp: CampaignEval, prd_scope_df: SparkDataFrame, prd_scope_nm: str
+    cmp, prd_scope_df: SparkDataFrame, prd_scope_nm: str
 ):
     """
     Calculates customer uplift by mechanics based on the provided inputs.

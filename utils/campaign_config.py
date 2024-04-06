@@ -31,7 +31,7 @@ class CampaignConfigFile:
         self.source_config_file = source_file
         self.cmp_config_file = DBPath(str("/dbfs" + source_file[5:]))
         self.cmp_config_file_name = self.cmp_config_file.name
-        self.cmp_config_df = pd.read_csv(self.cmp_config_file.file_api())
+        self.cmp_config_df = pd.read_csv(self.cmp_config_file.file_api(), dtype={"cross_cate_cd":pd.StringDtype()})
         self.cmp_config_df.insert(
             loc=0, column="row_num", value=self.cmp_config_df.index + 1
         )
@@ -72,72 +72,7 @@ class CampaignConfigFile:
         """
         return self.cmp_config_df[self.cmp_config_df[column].str.contains(search_key)]
 
-
-class CampaignParams:
-    def __init__(self, config_file, cmp_row_no):
-        """
-        Initializes a CampaignParams object.
-
-        Args:
-            config_file (CampaignConfigFile): The CampaignConfigFile object.
-            cmp_row_no (int): The row number of the campaign.
-
-        Raises:
-            ValueError: If cmp_row_no is greater than the maximum available rows or less than 0.
-
-        Returns:
-            None
-        """
-        self.cmp_config_file = config_file.cmp_config_file
-        self.all_cmp_df = config_file.cmp_config_df
-        self.all_cmp_max_row = config_file.total_rows
-        self.cmp_inputs_files = config_file.cmp_inputs_files
-
-        if cmp_row_no > self.all_cmp_max_row:
-            raise ValueError(
-                f"Campaign input have only '{self.all_cmp_max_row}' rows, request {cmp_row_no} is not available"
-            )
-        elif cmp_row_no < 0:
-            raise ValueError(
-                f"Campaign input have only '{self.all_cmp_max_row}' rows, request {cmp_row_no} is not available"
-            )
-        else:
-            self.row_no = cmp_row_no
-            self.params = (
-                self.all_cmp_df.applymap(lambda x: x.strip() if type(x) == str else x)
-                .iloc[self.row_no - 1]
-                .replace(np.nan, None)
-                .replace("", None)
-            ).to_dict()
-            self.output_path = (
-                config_file.cmp_output
-                / self.params["cmp_month"]
-                / self.params["cmp_nm"]
-            )
-            self.std_input_path = config_file.cmp_output.parent / "00_std_inputs"
-        return
-
-    def __repr__(self):
-        """
-        Returns a string representation of the CampaignParams object.
-
-        Returns:
-            str: The string representation of the object.
-        """
-        return f"CampaignParams class, config file : '{self.cmp_input_file}'\nRow number : {self.row_no}"
-
-    def display_details(self):
-        """
-        Displays the details of the CampaignParams object.
-
-        Returns:
-            None
-        """
-        pprint.pp(self.params)
-        return
-
-
-class CampaignEval(CampaignParams):
+class CampaignEvalTemplate:
     def convert_param_to_list(self, param_name: str) -> List:
         """
         Convert a parameter to a list.
@@ -161,7 +96,7 @@ class CampaignEval(CampaignParams):
                 return [param]
         else:
             return []
-
+        
     def __init__(self, config_file, cmp_row_no):
         """
         Initializes a CampaignEval object.
@@ -173,10 +108,7 @@ class CampaignEval(CampaignParams):
         Returns:
             None
         """
-        super().__init__(config_file, cmp_row_no)
-        self.spark = SparkSession.builder.appName(
-            f"campaignEval_{self.params['cmp_id']}"
-        ).getOrCreate()
+        self.spark = SparkSession.builder.appName(f"campaignEval").getOrCreate()
         self.spark.sparkContext.setCheckpointDir(
             "dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint"
         )
@@ -185,67 +117,68 @@ class CampaignEval(CampaignParams):
         self.spark.conf.set(
             "spark.databricks.queryWatchdog.outputRatioThreshold", 20000
         )
+        
+        self.cmp_config_file = config_file.cmp_config_file
+        self.all_cmp_df = config_file.cmp_config_df
+        self.all_cmp_max_row = config_file.total_rows
+        self.cmp_inputs_files = config_file.cmp_inputs_files
 
-        dbutils = DBUtils(self.spark)
+        if cmp_row_no > self.all_cmp_max_row:
+            raise ValueError(
+                f"Campaign input have only '{self.all_cmp_max_row}' rows, request {cmp_row_no} is not available"
+            )
+        elif cmp_row_no < 0:
+            raise ValueError(
+                f"Campaign input have only '{self.all_cmp_max_row}' rows, request {cmp_row_no} is not available"
+            )
+        else:
+            self.row_no = cmp_row_no
+            self.params = (
+                self.all_cmp_df.applymap(lambda x: x.strip() if type(x) == str else x)
+                .iloc[self.row_no - 1]
+                .replace(np.nan, None)
+                .replace("", None)
+            ).to_dict()
+            self.std_input_path = config_file.cmp_output.parent / "00_std_inputs"
 
-        self.store_fmt = self.params["store_fmt"].lower()
-        self.wk_type = self.params["wk_type"]
-
-        self.cmp_id = self.params["cmp_id"]
-        self.cmp_nm = self.params["cmp_nm"]
-        self.cmp_start = self.params["cmp_start"]
-        self.cmp_end = self.params["cmp_end"]
-        self.media_fee = self.params["media_fee"]
-
-        self.sku_file = self.cmp_inputs_files / f"upc_list_{self.params['cmp_id']}.csv"
-        self.target_store_file = (
-            self.cmp_inputs_files / f"target_store_{self.params['cmp_id']}.csv"
-        )
-
-        self.resrv_store_file = (
-            self.std_input_path / f"{self.params['resrv_store_file']}"
-        )
-        self.use_reserved_store = bool(self.params["use_reserved_store"])
-
-        self.custom_ctrl_store_file = (
-            self.cmp_inputs_files / f"control_store_{self.params['cmp_id']}.csv"
-        )
-
-        self.adjacency_file = self.std_input_path / f"{self.params['adjacency_file']}"
-        self.svv_table = self.params["svv_table"]
-        self.purchase_cyc_table = self.params["purchase_cyc_table"]
-
-        self.load_period()
-        self.load_target_store()
-        self.load_control_store()
-        self.load_store_dim_adjusted()
-        self.load_prod()
-        self.load_product_dim_adjusted()
-        self.clean_up_temp_table()
-        self.load_aisle(aisle_mode="target_store_config")
-        # self.load_txn()
-
+            dbutils = DBUtils(self.spark)
         return
-
-    def __repr__(self):
+    
+    def display_details(self):
         """
-        Returns a string representation of the CampaignEval object.
+        Displays the details of the CampaignParams object.
 
         Returns:
-            str: The string representation of the object.
+            None
         """
-        return f"CampaignEval class \nConfig file : '{self.cmp_config_file}'\nRow number : {self.row_no}"
+        pprint.pp(self.params)
+        return
     
+    def save_details(self) -> str:
+        """
+        Save campaign parameters (.params) as .json file
+        
+        Returns:
+            Path of saved params file 
+        """
+        import json
+        save_path = (self.output_path/"output"/"params.json").file_api()
+        with open(save_path, "w") as f:
+            json.dump(self.params, f, indent=4)
+        return save_path
+
     @helper.timer
-    def load_period(self, eval_mode: str = "homeshelf"):
+    def load_period(self, eval_mode: str = ""):
         """Load campaign period : cmp, pre, ppp & gap
-        For evaluation type "promotion_zone" the pre period number of week = same week as cmp period
-        For evaluation type "homeshelf" the pre period number of week 13 week before cmp period
+        For evaluation type "promotion_zone" KPI of the pre period number of week = same week as cmp period
+        For evaluation type "homeshelf" the KPI pre period number of week 13 week before cmp period
+        
+        For both
 
         Parameters
         ----------
-        eval_mode: str, default "homeshelf"
-            Evaluation type : "promotion_zone", "homeshelf"
+        eval_mode: str, default ""
+            Evaluation type : "promotion_zone", "homeshelf" if "" will determine from params["week_type"]
 
         Attributes:
             - cmp_st_wk (int): Start week ID of the campaign.
@@ -270,6 +203,12 @@ class CampaignEval(CampaignParams):
             - ppp_st_promo_mv_wk (int): Start week ID of the prior-promotion period's promotion and moving window period.
             - ppp_en_promo_mv_wk (int): End week ID of the prior-promotion period's promotion and moving window period.
         """
+        if self.params["wk_type"] is None :
+            print("Week type must be `fis_wk` or `promo_wk`. None definded will enforce to be `fis_wk`")
+            self.params["wk_type"] = "fis_wk"
+        if not(self.params["wk_type"] in ["fis_wk", "promo_wk"]):
+            raise(f"Week type must be `fis_wk` or `promo_wk`. But defined as {self['wk_type']}")
+        
         self.cmp_st_wk = period_cal.wk_of_year_ls(self.cmp_start)
         self.params["cmp_st_wk"] = self.cmp_st_wk
         self.cmp_en_wk = period_cal.wk_of_year_ls(self.cmp_end)
@@ -291,7 +230,7 @@ class CampaignEval(CampaignParams):
         self.gap_end_date = self.params["gap_end_date"]
 
         if (self.gap_start_date is None) & (self.gap_end_date is None):
-            print(f"No Gap Week for campaign : {self.cmp_nm}")
+            # print(f"No Gap Week for campaign : {self.cmp_nm}")
             self.gap_flag = False
             chk_pre_dt = self.cmp_start
 
@@ -340,7 +279,11 @@ class CampaignEval(CampaignParams):
         self.ppp_st_mv_wk = self.ppp_st_wk
         self.ppp_st_promo_wk = period_cal.promo_week_cal(self.ppp_en_promo_wk, -12)
         self.ppp_st_promo_mv_wk = self.ppp_st_promo_wk
-
+        
+        if (eval_mode == "") & (self.params["wk_type"] == "promo_wk"):
+            eval_mode = "promozone"
+            
+        # If override all pre period wk calculation with number of week = same week as cmp period 
         if eval_mode == "promozone":
             self.pre_st_wk = period_cal.week_cal(self.pre_en_wk, (wk_cmp - 1) * -1)
             self.pre_st_promo_wk = period_cal.promo_week_cal(
@@ -826,7 +769,6 @@ class CampaignEval(CampaignParams):
             """Aisle defined by target store config file"""
             self.params["aisle_mode"] = "target_store_config"
             self.aisle_sku = None
-
             adj_tbl = (
                 self.spark.read.csv(
                     self.adjacency_file.spark_api(), header=True, inferSchema=True
@@ -840,9 +782,7 @@ class CampaignEval(CampaignParams):
             date_dim = (
                 self.spark.table("tdm.v_th_date_dim").select("date_id","week_id").drop_duplicates()
             )
-
             self.load_target_store()
-
             feat_subclass = (
                 self.product_dim.join(self.feat_sku, "upc_id", "inner")
                 .select("subclass_code")
@@ -881,11 +821,11 @@ class CampaignEval(CampaignParams):
             #---- Scope upc_id from real txn
             __upc_txn = \
                 (self.spark.table("tdm_dev.v_latest_txn118wk")
+                 .where(F.col("week_id").between(self.ppp_st_mv_wk, self.cmp_en_wk))
                  .join(self.target_store.select("store_id").drop_duplicates(), "store_id")
                  .select("upc_id")
                  .drop_duplicates()
                 )
-            
             aisle_target_store_media_promozone = (
                 self.target_store.where(F.col("aisle_scope").isin(["store"]))
                 .join(date_dim.hint("range_join", 14))
@@ -893,14 +833,28 @@ class CampaignEval(CampaignParams):
                 # .join(prd_dim)
                 .join(__upc_txn)
             )
+            
+            # Aisle for dgs, store level
+            #---- Scope upc_id from real txn
+            aisle_target_store_media_dgs = (
+                self.target_store.where(F.col("aisle_scope").isin(["dgs"]))
+                .join(date_dim.hint("range_join", 14))
+                .where(F.col("date_id").between(F.col("c_start"), F.col("c_end")))
+                # .join(prd_dim)
+                .join(__upc_txn)
+            )
+            
             # Combine each aisle scope into one object
             self.aisle_target_store_conf = (
                 aisle_target_store_media_homeshelf.unionByName(
                     aisle_target_store_media_x_cate, allowMissingColumns=True
                 ).unionByName(
                     aisle_target_store_media_promozone, allowMissingColumns=True
+                ).unionByName(
+                    aisle_target_store_media_dgs, allowMissingColumns=True
                 )
             )
+
             return
 
         # ---- Main
@@ -942,6 +896,7 @@ class CampaignEval(CampaignParams):
             self.spark.sql(f"drop table if exists tdm_dev.th_lotuss_media_eval_aisle_target_store_conf_{self.params['cmp_id']}_temp")
             (
                 self.aisle_target_store_conf.write
+                .format("parquet")
                 .mode("overwrite")
                 .option('overwriteSchema', 'true')
                 .partitionBy("week_id")
@@ -1206,3 +1161,130 @@ class CampaignEval(CampaignParams):
             use_ai_grp_list,
             use_ai_sec_list,
         )
+        
+class CampaignEval(CampaignEvalTemplate):
+
+    def __init__(self, config_file, cmp_row_no):
+        """
+        Initializes a CampaignEval object.
+
+        Args:
+            config_file (CampaignConfigFile): The CampaignConfigFile object.
+            cmp_row_no (int): The row number of the campaign.
+
+        Returns:
+            None
+        """
+        super().__init__(config_file, cmp_row_no)
+        
+        self.output_path = (
+            config_file.cmp_output
+            / self.params["cmp_month"]
+            / self.params["cmp_nm"]
+        )
+        
+        self.store_fmt = self.params["store_fmt"].lower()
+        self.wk_type = self.params["wk_type"]
+
+        self.cmp_id = self.params["cmp_id"]
+        self.cmp_nm = self.params["cmp_nm"]
+        self.cmp_start = self.params["cmp_start"]
+        self.cmp_end = self.params["cmp_end"]
+        self.media_fee = self.params["media_fee"]
+
+        self.sku_file = self.cmp_inputs_files / f"upc_list_{self.params['cmp_id']}.csv"
+        self.target_store_file = (
+            self.cmp_inputs_files / f"target_store_{self.params['cmp_id']}.csv"
+        )
+
+        self.resrv_store_file = (
+            self.std_input_path / f"{self.params['resrv_store_file']}"
+        )
+        self.use_reserved_store = bool(self.params["use_reserved_store"])
+
+        self.custom_ctrl_store_file = (
+            self.cmp_inputs_files / f"control_store_{self.params['cmp_id']}.csv"
+        )
+
+        self.adjacency_file = self.std_input_path / f"{self.params['adjacency_file']}"
+        self.svv_table = self.params["svv_table"]
+        self.purchase_cyc_table = self.params["purchase_cyc_table"]
+
+        self.load_period()
+        self.load_target_store()
+        self.load_control_store()
+        self.load_store_dim_adjusted()
+        self.load_prod()
+        self.load_product_dim_adjusted()
+        self.clean_up_temp_table()
+        self.load_aisle(aisle_mode="target_store_config")
+        # self.load_txn()
+
+        return
+
+    def __repr__(self):
+        """
+        Returns a string representation of the CampaignEval object.
+
+        Returns:
+            str: The string representation of the object.
+        """
+        return f"CampaignEval class \nConfig file : '{self.cmp_config_file}'\nRow number : {self.row_no}"
+
+class CampaignEvalO3(CampaignEvalTemplate):
+    def __init__(self, config_file, cmp_row_no):
+        super().__init__(config_file, cmp_row_no)
+        
+        self.params["cmp_id"] = f'{self.params["cmp_id_is"]}_{self.params["cmp_id_online"]}_{self.params["cmp_id_dgs"]}'
+        self.cmp_nm = self.params["cmp_nm"]
+        
+        self.output_path = (
+            config_file.cmp_output
+            / self.params["cmp_month"]
+            / f'{self.params["cmp_id_is"]}_{self.params["cmp_id_online"]}__{self.params["cmp_id_dgs"]}_{self.params["cmp_nm"]}'
+        )
+
+        self.store_fmt = self.params["store_fmt"].lower()
+        self.wk_type = self.params["wk_type"]
+
+        self.cmp_start = self.params["cmp_start"]
+        self.cmp_end = self.params["cmp_end"]
+        self.media_fee_offline = self.params["media_fee_offline"]
+        self.media_fee_online = self.params["media_fee_online"]
+
+        self.sku_file = self.cmp_inputs_files / f"upc_list_{self.params['cmp_id_is']}.csv"
+        self.target_store_file = (
+            self.cmp_inputs_files / f"target_store_{self.params['cmp_id_is']}.csv"
+        )
+        
+        # Compatibility with Template class
+        self.params["gap_start_date"] = None
+        self.params["gap_end_date"] = None
+        self.params["resrv_store_class"] = None
+        self.params["use_reserved_store"] = 0
+        self.use_reserved_store = False
+        self.custom_ctrl_store_file = (
+            self.cmp_inputs_files / f"control_store_{self.params['cmp_id']}.csv"
+        )
+        self.adjacency_file = self.std_input_path / f"{self.params['adjacency_file']}"
+        
+        self.load_period()
+        self.load_target_store()
+        self.load_control_store()
+        self.load_store_dim_adjusted()
+        self.load_prod()
+        self.load_product_dim_adjusted()
+        self.clean_up_temp_table()
+        self.load_aisle(aisle_mode="target_store_config")
+        # self.load_txn()
+
+        return
+
+    def __repr__(self):
+        """
+        Returns a string representation of the CampaignEval object.
+
+        Returns:
+            str: The string representation of the object.
+        """
+        return f"CampaignEvalO3 class \nConfig file : '{self.cmp_config_file}'\nRow number : {self.row_no}"

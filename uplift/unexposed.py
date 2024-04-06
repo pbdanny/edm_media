@@ -16,9 +16,10 @@ from utils.campaign_config import CampaignEval
 from utils import period_cal
 from activate import activated
 from matching import store_matching
+from utils import helper
 
 #---- Create txn offline at aisle of matched store
-def create_txn_offline_x_aisle_matched_store(cmp: CampaignEval):
+def create_txn_offline_x_aisle_matched_store(cmp):
     """Create offline transaction data with aisle information based on matched stores.
 
     This function creates offline transaction data with aisle information based on matched stores for the provided CampaignEval object (`cmp`). It performs the following steps:
@@ -57,7 +58,7 @@ def create_txn_offline_x_aisle_matched_store(cmp: CampaignEval):
     return
 
 #---- UnExposure any mechnaics 
-def get_cust_first_unexposed_any_mech(cmp: CampaignEval):
+def get_cust_first_unexposed_any_mech(cmp):
     """First unexposure any mechanics, ignore difference of mechanic name, 
     - UnExposure
         - Period based on target store config
@@ -75,7 +76,7 @@ def get_cust_first_unexposed_any_mech(cmp: CampaignEval):
         )
     return cust_first_unexposed
 
-def get_cust_any_mech_unexposed_purchased(cmp: CampaignEval,
+def get_cust_any_mech_unexposed_purchased(cmp,
                                           prd_scope_df: SparkDataFrame,
                                           prd_scope_nm: str):
     """Get product scope (feature sku / feature brand) unexposed - purchased
@@ -111,7 +112,8 @@ def get_cust_any_mech_unexposed_purchased(cmp: CampaignEval,
     return cust_unexposed_purchased
 
 #---- Unexposure by mechanics
-def get_cust_txn_all_unexposed_date_n_mech(cmp: CampaignEval):
+@helper.timer
+def get_cust_txn_all_unexposed_date_n_mech(cmp):
     """household_id unexposed by mech_name
     - Improve version : add aisle_scope
     """
@@ -125,8 +127,8 @@ def get_cust_txn_all_unexposed_date_n_mech(cmp: CampaignEval):
          .withColumnRenamed('tran_datetime', 'unexposed_tran_datetime')
         )
     return cust_txn_unexposed_mech
-
-def get_cust_by_mech_unexposed_purchased(cmp: CampaignEval,
+@helper.timer
+def get_cust_by_mech_unexposed_purchased(cmp,
                                          prd_scope_df: SparkDataFrame,
                                          prd_scope_nm: str):
     """Get the count of customers who made purchases of specific products within a given product scope after being exposed to specific mechanics.
@@ -164,7 +166,7 @@ def get_cust_by_mech_unexposed_purchased(cmp: CampaignEval,
         )
     return cust_purchased_unexposure_count
 
-def get_cust_by_mech_last_seen_unexposed_tag(cmp: CampaignEval,
+def get_cust_by_mech_last_seen_unexposed_tag(cmp,
                                              prd_scope_df: SparkDataFrame,
                                              prd_scope_nm: str):
     
