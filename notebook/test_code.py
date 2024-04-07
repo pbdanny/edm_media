@@ -12,7 +12,7 @@ from utils.campaign_config import CampaignConfigFile, CampaignEval
 # COMMAND ----------
 
 conf = CampaignConfigFile(
-    "/dbfs/FileStore/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_hde_than.csv"
+    "/dbfs/mnt/pvtdmbobazc01/edminput/filestore/share/media/campaign_eval/01_hde/00_cmp_inputs/cmp_list_hde_than.csv"
 )
 
 # COMMAND ----------
@@ -21,7 +21,11 @@ conf.display_details()
 
 # COMMAND ----------
 
-cmp = CampaignEval(conf, cmp_row_no=1)
+cmp = CampaignEval(conf, cmp_row_no=5)
+
+# COMMAND ----------
+
+cmp.save_details()
 
 # COMMAND ----------
 
@@ -30,7 +34,7 @@ cmp.load_aisle(aisle_mode="target_store_config")
 
 # COMMAND ----------
 
-cmp.params
+cmp.product_dim.where(F.col("subclass_code").isin(["1_2_157_1_19"])).display()
 
 # COMMAND ----------
 

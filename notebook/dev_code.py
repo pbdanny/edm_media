@@ -22,7 +22,7 @@ inst.display_details()
 
 # COMMAND ----------
 
-inst_eval = CampaignEval(inst, cmp_row_no=90)
+inst_eval = CampaignEval(inst, cmp_row_no=97)
 
 # COMMAND ----------
 
