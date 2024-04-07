@@ -1,6 +1,6 @@
 import pprint
 from ast import literal_eval
-from typing import List
+from typing import List, Union
 from datetime import datetime, timedelta
 import sys
 import os
@@ -16,7 +16,7 @@ from pyspark.sql import Window
 from pyspark.dbutils import DBUtils
 
 from utils.DBPath import DBPath
-from utils.campaign_config import CampaignEval
+from utils.campaign_config import CampaignEval, CampaignEvalO3
 
 from utils import period_cal
 from activate import activated

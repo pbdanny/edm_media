@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Union
 from copy import deepcopy
 from datetime import datetime, timedelta
 import functools
@@ -15,7 +15,7 @@ from pyspark.sql import Window
 from pyspark.sql import DataFrame as SparkDataFrame
 
 from utils.DBPath import DBPath
-from utils.campaign_config import CampaignEval
+from utils.campaign_config import CampaignEval, CampaignEvalO3
 
 spark = SparkSession.builder.appName("clear_temp").getOrCreate()
 

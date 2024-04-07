@@ -1,7 +1,7 @@
 from copy import deepcopy
 from datetime import datetime, timedelta
 import functools
-from typing import List
+from typing import List, Union
 
 import sys
 import os
@@ -40,7 +40,7 @@ def check_combine_region(store_format_group: str,
     - if HDE / Talad -> count check test vs total store
     - if GoFresh -> adjust 'store_region' in txn, count check
     """
-    from typing import List
+    from typing import List, Union
     from pyspark.sql import DataFrame as SparkDataFrame
 
     print('-'*80)

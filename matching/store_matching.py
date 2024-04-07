@@ -1,6 +1,6 @@
 import pprint
 from ast import literal_eval
-from typing import List
+from typing import List, Union
 from datetime import datetime, timedelta
 import sys
 import os
@@ -21,7 +21,7 @@ import edm_helper
 
 from utils.DBPath import DBPath
 from utils import period_cal
-from utils.campaign_config import CampaignEval
+from utils.campaign_config import CampaignEval, CampaignEvalO3
 from exposure.exposed import create_txn_offline_x_aisle_target_store
 
 from utils import period_cal

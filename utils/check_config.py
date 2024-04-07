@@ -1,6 +1,6 @@
 import pprint
 from ast import literal_eval
-from typing import List
+from typing import List, Union
 from datetime import datetime, timedelta
 import sys
 import os
@@ -14,14 +14,14 @@ import numpy as np
 from pathlib import Path
 
 from utils.DBPath import DBPath
-from utils.campaign_config import CampaignEval
+from utils.campaign_config import CampaignEval, CampaignEvalO3
 
 def check_target_store(cmp):
     """Base on store group name,
     - if HDE / Talad -> count check test vs total store
     - if GoFresh -> adjust 'store_region' in txn, count check
     """
-    from typing import List
+    from typing import List, Union
     from pyspark.sql import DataFrame as SparkDataFrame
 
     print("-" * 80)

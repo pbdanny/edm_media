@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Union
 from copy import deepcopy
 from datetime import datetime, timedelta
 import functools

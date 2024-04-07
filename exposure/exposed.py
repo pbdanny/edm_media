@@ -1,6 +1,6 @@
 import pprint
 from ast import literal_eval
-from typing import List
+from typing import List, Union
 from datetime import datetime, timedelta
 import sys
 import os
@@ -12,7 +12,7 @@ from pyspark.sql import DataFrame as SparkDataFrame
 from utils.DBPath import DBPath
 from utils.campaign_config import CampaignEval, CampaignEvalO3
 
-def create_txn_offline_x_aisle_target_store(cmp):
+def create_txn_offline_x_aisle_target_store(cmp: Union[CampaignEval, CampaignEvalO3]):
     """Create the offline transaction data for the aisle target store.
     
     This function checks if the `txn_offline_x_aisle_target_store` attribute already exists in the provided CampaignEval object (`cmp`). If it does, the function returns without performing any further actions. Otherwise, it creates the offline transaction data for the aisle target store by joining the transaction data and aisle target store configuration based on matching store IDs, UPCs, and date IDs. It filters the resulting data to include only offline transactions.
@@ -32,7 +32,7 @@ def create_txn_offline_x_aisle_target_store(cmp):
         )
     return
 
-def create_store_mech_exposure_cmp(cmp):
+def create_store_mech_exposure_cmp(cmp: Union[CampaignEval, CampaignEvalO3]):
     """Get store and mechanic exposure data for the campaign evaluation.
 
     This function calculates the store and mechanic exposure data for the campaign evaluation. It checks if the `str_mech_exposure_cmp` attribute already exists in the provided CampaignEval object (`cmp`). If it does, the function returns without performing any further actions. Otherwise, it performs the following steps:
@@ -196,7 +196,7 @@ def _exposure_mech(cmp):
     return mech_impression
 
 #---- V2   
-def get_result(cmp):
+def get_result(cmp: Union[CampaignEval, CampaignEvalO3]):
         
     if cmp.params["aisle_mode"] in ["total_store"]:
         cmp.params["exposure_type"] = "store_lv"
@@ -216,7 +216,7 @@ def get_result(cmp):
     return exposure_all, exposure_region, exposure_mech
 
 #---- V1, migrated
-def get_awareness(cmp):
+def get_awareness(cmp: Union[CampaignEval, CampaignEvalO3]):
     """For Awareness of HDE, Talad
 
     """

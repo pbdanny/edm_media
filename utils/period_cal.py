@@ -1,7 +1,7 @@
 import math
 from datetime import datetime, timedelta
 
-from utils.campaign_config import CampaignEval
+from utils.campaign_config import CampaignEval, CampaignEvalO3
 
 
 def first_date_of_wk(in_dt):

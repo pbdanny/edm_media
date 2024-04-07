@@ -1,6 +1,6 @@
 import pprint
 from ast import literal_eval
-from typing import List
+from typing import List, Union
 from datetime import datetime, timedelta
 import sys
 import os
@@ -21,7 +21,7 @@ sys.path.append(os.path.abspath(
     "/Workspace/Repos/thanakrit.boonquarmdee@lotuss.com/edm_util"))
 from edm_class import txnItem
 
-def load_txn(cmp,
+def load_txn(cmp: Union[CampaignEval, CampaignEvalO3],
              txn_mode: str = "central_trans_media"):
     """Load transaction
 
@@ -67,7 +67,7 @@ def load_txn(cmp,
 
     return
 
-def replace_brand_nm(cmp):
+def replace_brand_nm(cmp: Union[CampaignEval, CampaignEvalO3]):
     """Replace the transactions of multi-feature brands with the first main brand.
 
     This function replaces the brand names in the transactions with the brand names from the main products. 
@@ -88,7 +88,7 @@ def replace_brand_nm(cmp):
 
     return
 
-def create_period_col(cmp):
+def create_period_col(cmp: Union[CampaignEval, CampaignEvalO3]):
     """Create period columns for the CampaignEval object.
     
     This function creates three period columns: period_fis_wk, period_promo_wk, and period_promo_mv_wk. 
@@ -146,7 +146,7 @@ def create_period_col(cmp):
 
     return
 
-def replace_store_region(cmp):
+def replace_store_region(cmp: Union[CampaignEval, CampaignEvalO3]):
     """Remapping txn store_region follow cmp.store_dim
     """
     cmp.txn = \
@@ -157,7 +157,7 @@ def replace_store_region(cmp):
         )
     return
 
-def forward_compatible_stored_txn_schema(cmp):
+def forward_compatible_stored_txn_schema(cmp: Union[CampaignEval, CampaignEvalO3]):
     """Perform forward compatibility adjustments from stored transactions in version 1.
     
     This function ensures backward compatibility with the generated transactions from previous code versions by applying the following adjustments:
@@ -180,7 +180,7 @@ def forward_compatible_stored_txn_schema(cmp):
         cmp.txn = cmp.txn.drop("store_format_name").withColumnRenamed("store_format_group", "store_format_name")
     return
 
-def scope_txn(cmp):
+def scope_txn(cmp: Union[CampaignEval, CampaignEvalO3]):
     """Filter and optimize the performance of pre-joined 118-week transactions.
     
     This function improves the performance when using pre-joined 118-week transactions by applying the following steps:
@@ -210,13 +210,13 @@ def scope_txn(cmp):
          )
     return
 
-def save_txn(cmp):
+def save_txn(cmp: Union[CampaignEval, CampaignEvalO3]):
     load_txn()
     cmp.txn.write.saveAsTable(
         f"tdm_dev.media_campaign_eval_txn_data_{cmp.params['cmp_id']}")
     return
 
-def get_backward_compatible_txn_schema(cmp):
+def get_backward_compatible_txn_schema(cmp: Union[CampaignEval, CampaignEvalO3]):
     """Perform backward compatibility adjustments to the stored transactions.
     
     This function ensures backward compatibility with the generated transactions from previous code versions by applying the following adjustments:
