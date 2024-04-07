@@ -28,7 +28,7 @@ def create_txn_offline_x_aisle_target_store(cmp):
     
     cmp.txn_offline_x_aisle_target_store = \
         (cmp.txn.join(cmp.aisle_target_store_conf, ["store_id", "upc_id", "date_id", "week_id"])
-         .where(F.col("offline_online_other_channel")=="OFFLINE")
+         .where(F.col("channel_flag")=="OFFLINE")
         )
     return
 
@@ -57,7 +57,8 @@ def create_store_mech_exposure_cmp(cmp):
     
     STORE_FMT_FAMILY_SIZE = cmp.spark.createDataFrame([("hde", 2.2), ("talad", 1.5), ("gofresh", 1.0),
                                                        ("HDE", 2.2), ("Talad", 1.5), ("GoFresh", 1.0),
-                                                       ("Hyper", 2.2), ("Super", 1.5), ("Mini Super", 1.0)]
+                                                       ("Hyper", 2.2), ("Super", 1.5), ("Mini Super", 1.0),
+                                                       ("Hypermarket", 2.2), ("Supermarket", 1.5), ("Mini Supermarket", 1.0)]
                                                       ,["store_format_name", "family_size"])
     family_size = STORE_FMT_FAMILY_SIZE.where(F.col("store_format_name")==cmp.store_fmt.lower())
 
@@ -195,7 +196,7 @@ def _exposure_mech(cmp):
     return mech_impression
 
 #---- V2   
-def get_exposure(cmp):
+def get_result(cmp):
         
     if cmp.params["aisle_mode"] in ["total_store"]:
         cmp.params["exposure_type"] = "store_lv"

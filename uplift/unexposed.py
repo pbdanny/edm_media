@@ -52,7 +52,7 @@ def create_txn_offline_x_aisle_matched_store(cmp):
     
     cmp.txn_offline_x_aisle_matched_store = \
         (cmp.txn.join(cmp.aisle_matched_store, ["store_id", "upc_id", "date_id"])
-         .where(F.col("offline_online_other_channel")=="OFFLINE")
+         .where(F.col("channel_flag")=="OFFLINE")
         )
         
     return

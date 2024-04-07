@@ -65,7 +65,7 @@ def get_txn_target_store_feature_dur(cmp,
 
     txn_target_store_feature = \
         (cmp.txn
-         .where(F.col("offline_online_other_channel")=="OFFLINE")
+         .where(F.col("channel_flag")=="OFFLINE")
          .join(cmp.target_store.select("store_id").drop_duplicates(), "store_id")
          .where(F.col(period_wk_col_nm).isin(["dur"]))
          .join(prd_scope_df, 'upc_id')
@@ -79,7 +79,7 @@ def get_txn_target_store_total_dur(cmp):
 
     txn_target_store = \
         (cmp.txn
-         .where(F.col("offline_online_other_channel")=="OFFLINE")
+         .where(F.col("channel_flag")=="OFFLINE")
          .join(cmp.target_store.select("store_id").drop_duplicates(), "store_id")
          .where(F.col(period_wk_col_nm).isin(["dur"]))
         )
@@ -139,7 +139,7 @@ def get_txn_target_store_aisle_cross_cate_pre(cmp):
 
     txn_aisle_cross_cate_pre = \
         (cmp.txn
-         .where(F.col("offline_online_other_channel")=="OFFLINE")
+         .where(F.col("channel_flag")=="OFFLINE")
          .where(F.col(period_wk_col_nm).isin(["pre"]))
          .join(cross_cate_target_store, ["store_id", "upc_id"])
          )
@@ -153,7 +153,7 @@ def get_txn_target_store_feature_pre(cmp,
 
     txn_target_store_feature_pre = \
         (cmp.txn
-         .where(F.col("offline_online_other_channel")=="OFFLINE")
+         .where(F.col("channel_flag")=="OFFLINE")
          .join(cmp.target_store.select("store_id").drop_duplicates(), "store_id")
          .where(F.col(period_wk_col_nm).isin(["pre"]))
          .join(prd_scope_df, 'upc_id')
@@ -167,7 +167,7 @@ def get_txn_target_store_total_pre(cmp,):
 
     txn_target_store = \
         (cmp.txn
-         .where(F.col("offline_online_other_channel")=="OFFLINE")
+         .where(F.col("channel_flag")=="OFFLINE")
          .join(cmp.target_store.select("store_id").drop_duplicates(), "store_id")
          .where(F.col(period_wk_col_nm).isin(["pre"]))
         )
@@ -242,7 +242,7 @@ def get_txn_ctrl_store_aisle_cross_cate_dur(cmp):
 
     txn_aisle_cross_cate_ctrl = \
         (cmp.txn
-         .where(F.col("offline_online_other_channel")=="OFFLINE")
+         .where(F.col("channel_flag")=="OFFLINE")
          .where(F.col(period_wk_col_nm).isin(["dur"]))
          .join(cross_cate_ctrl_store, ["store_id", "upc_id"])
          )
@@ -266,7 +266,7 @@ def get_txn_ctrl_store_feature_dur(cmp,
 
     txn_ctrl_store_feature = \
         (cmp.txn
-         .where(F.col("offline_online_other_channel")=="OFFLINE")
+         .where(F.col("channel_flag")=="OFFLINE")
          .join(matched_ctrl_store_id, "store_id")
          .where(F.col(period_wk_col_nm).isin(["dur"]))
          .join(prd_scope_df, 'upc_id')
@@ -289,7 +289,7 @@ def get_txn_ctrl_store_total_dur(cmp):
 
     txn_ctrl_store = \
         (cmp.txn
-         .where(F.col("offline_online_other_channel")=="OFFLINE")
+         .where(F.col("channel_flag")=="OFFLINE")
          .join(matched_ctrl_store_id, "store_id")
          .where(F.col(period_wk_col_nm).isin(["dur"]))
         )
@@ -366,7 +366,7 @@ def get_txn_ctrl_store_aisle_cross_cate_pre(cmp):
 
     txn_aisle_cross_cate_ctrl = \
         (cmp.txn
-         .where(F.col("offline_online_other_channel")=="OFFLINE")
+         .where(F.col("channel_flag")=="OFFLINE")
          .where(F.col(period_wk_col_nm).isin(["pre"]))
          .join(cross_cate_ctrl_store, ["store_id", "upc_id"])
          )
@@ -390,7 +390,7 @@ def get_txn_ctrl_store_feature_pre(cmp,
 
     txn_ctrl_store_feature = \
         (cmp.txn
-         .where(F.col("offline_online_other_channel")=="OFFLINE")
+         .where(F.col("channel_flag")=="OFFLINE")
          .join(matched_ctrl_store_id, "store_id")
          .where(F.col(period_wk_col_nm).isin(["pre"]))
          .join(prd_scope_df, 'upc_id')
@@ -414,7 +414,7 @@ def get_txn_ctrl_store_total_pre(cmp):
 
     txn_ctrl_store = \
         (cmp.txn
-         .where(F.col("offline_online_other_channel")=="OFFLINE")
+         .where(F.col("channel_flag")=="OFFLINE")
          .join(matched_ctrl_store_id, "store_id")
          .where(F.col(period_wk_col_nm).isin(["pre"]))
         )
