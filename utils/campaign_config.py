@@ -467,11 +467,11 @@ class CampaignEvalTemplate:
             self.params["control_store_source"] = "rest"
             store_dim_c = self.spark.table("tdm.v_store_dim_c")
 
-            if self.store_fmt in ["hde", "hyper"]:
+            if self.store_fmt in ["hde", "hyper", "Hypermarket"]:
                 target_format = store_dim_c.where(F.col("format_id").isin([1, 2, 3]))
-            elif self.store_fmt in ["talad", "super"]:
+            elif self.store_fmt in ["talad", "super", "Supermarket"]:
                 target_format = store_dim_c.where(F.col("format_id").isin([4]))
-            elif self.store_fmt in ["gofresh", "mini_super"]:
+            elif self.store_fmt in ["gofresh", "mini_super", "Mini Supermarket"]:
                 target_format = store_dim_c.where(F.col("format_id").isin([5]))
             else:
                 target_format = store_dim_c.where(
@@ -537,9 +537,9 @@ class CampaignEvalTemplate:
             .otherwise(F.col("store_region_orig")),
         ).withColumn(
             "store_format_name",
-            F.when(F.col("format_id").isin([1, 2, 3]), "hde")
-            .when(F.col("format_id").isin([4]), "talad")
-            .when(F.col("format_id").isin([5]), "gofresh")
+            F.when(F.col("format_id").isin([1, 2, 3]), "Hypermarket")
+            .when(F.col("format_id").isin([4]), "Supermarket")
+            .when(F.col("format_id").isin([5]), "Mini Supermarket")
             .otherwise("other_fmt"),
         )
 

@@ -14,7 +14,7 @@ import numpy as np
 from pathlib import Path
 
 from utils.DBPath import DBPath
-from utils.campaign_config import CampaignEval
+from utils.campaign_config import CampaignEval, CampaignEvalO3
 from utils import period_cal
 
 sys.path.append(os.path.abspath(
@@ -22,13 +22,13 @@ sys.path.append(os.path.abspath(
 from edm_class import txnItem
 
 def load_txn(cmp,
-             txn_mode: str = "pre_generated_118wk"):
+             txn_mode: str = "central_trans_media"):
     """Load transaction
 
     Parameters
     ----------
-    txn_mode: str, default = "pre_generated_118wk"
-        "pre_generated_118wk" : load from pregenerated tdm_dev.v_latest_txn118wk
+    txn_mode: str, default = "central_media_trans"
+        "central_trans_media" : load from pregenerated tdm_dev.v_th_central_transaction_item_media
         "stored_campaign_txn" : load from created tdm_dev.media_campaign_eval_txn_data_{cmp.params['cmp_id']}
         "create_new" : create from raw table
     """
@@ -53,11 +53,11 @@ def load_txn(cmp,
                 f"tdm_dev.media_campaign_eval_txn_data_{cmp.params['cmp_id'].lower()}")
             cmp.params["txn_mode"] = "stored_campaign_txn"
         except Exception as e:
-            cmp.params["txn_mode"] = "pre_generated_118wk"
-            cmp.txn = cmp.spark.table("tdm_dev.v_latest_txn118wk")
+            cmp.params["txn_mode"] = "central_trans_media"
+            cmp.txn = cmp.spark.table("tdm_dev.v_th_central_transaction_item_media")
     else:
-        cmp.params["txn_mode"] = "pre_generated_118wk"
-        cmp.txn = cmp.spark.table("tdm_dev.v_latest_txn118wk")
+        cmp.params["txn_mode"] = "central_trans_media"
+        cmp.txn = cmp.spark.table("tdm_dev.v_th_central_transaction_item_media")
 
     create_period_col(cmp)
     scope_txn(cmp)
@@ -162,7 +162,7 @@ def forward_compatible_stored_txn_schema(cmp):
     
     This function ensures backward compatibility with the generated transactions from previous code versions by applying the following adjustments:
     - Change the value in all period columns from 'cmp' to 'dur'.
-    - Change the column name 'pkg_weight_unit' to 'unit'.
+    - Change the column name 'pkg_weight_unit' to 'units'.
     - Change the column name 'store_format_group' to 'store_format_name'.
     
     Args:
@@ -174,7 +174,7 @@ def forward_compatible_stored_txn_schema(cmp):
     cmp.txn = cmp.txn.replace({"cmp":"dur"}, subset=['period_fis_wk', 'period_promo_wk', 'period_promo_mv_wk'])
         
     if "pkg_weight_unit" in cmp.txn.columns:
-        cmp.txn = cmp.txn.drop("unit").withColumnRenamed("pkg_weight_unit", "unit")
+        cmp.txn = cmp.txn.drop("units").withColumnRenamed("pkg_weight_unit", "units")
         
     if "store_format_group" in cmp.txn.columns:
         cmp.txn = cmp.txn.drop("store_format_name").withColumnRenamed("store_format_group", "store_format_name")
