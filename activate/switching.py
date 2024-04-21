@@ -403,7 +403,7 @@ def get_cust_sku_switching(cmp):
         cat_df = class_df
 
     prod_desc = (
-        cmp.spark.table("tdm.v_prod_dim_c")
+        cmp.product_dim
         .select("upc_id", "product_en_desc")
         .drop_duplicates()
     )
