@@ -572,7 +572,6 @@ class CampaignEvalTemplate:
             
         else:
             print("Custom upc details file not exists")
-            self.custom_upc_details = None
         
         return None
         
