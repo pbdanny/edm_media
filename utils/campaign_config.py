@@ -545,7 +545,7 @@ class CampaignEvalTemplate:
 
         return
     @helper.timer
-    def load_prod(self):
+    def load_feature(self):
         """Load feature product, feature brand name, feature subclass, feature subclass
 
         Returns:
@@ -554,9 +554,7 @@ class CampaignEvalTemplate:
         self.feat_sku = self.spark.read.csv(
             (self.sku_file).spark_api(), header=True, inferSchema=True
         ).withColumnRenamed("feature", "upc_id")
-        prd_dim_c = self.spark.table("tdm.v_prod_dim_c").fillna(
-            "Unidentified", subset="brand_name"
-        )
+        prd_dim_c = self.product_dim
         self.feat_subclass_code = (
             prd_dim_c.join(self.feat_sku, "upc_id", "inner")
             .select("subclass_code")
@@ -872,7 +870,7 @@ class CampaignEvalTemplate:
             pass
 
         # Then create object aisle_target_store_conf
-        self.load_prod()
+        self.load_feature()
         self.cross_cate_cd_list = self.convert_param_to_list("cross_cate_cd")
         # If not specified aisle_mode, will create aisle from x_cate if config have cross_cate_cd unless create aisle from homeshelf
         if aisle_mode == "":
@@ -955,7 +953,7 @@ class CampaignEvalTemplate:
         x_cate_flag = 0.0 if self.params["cross_cate_flag"] is None else 1.0
         x_cate_cd = 0.0 if self.params["cross_cate_cd"] is None else 1.0
 
-        prod_all = self.spark.table("tdm.v_prod_dim_c")
+        prod_all = self.product_dim
         mfr = self.spark.table("tdm.v_mfr_dim_c")
 
         prod_mfr = (
@@ -1211,11 +1209,11 @@ class CampaignEval(CampaignEvalTemplate):
         self.purchase_cyc_table = self.params["purchase_cyc_table"]
 
         self.load_period()
+        self.load_store_dim_adjusted()
         self.load_target_store()
         self.load_control_store()
-        self.load_store_dim_adjusted()
-        self.load_prod()
         self.load_product_dim_adjusted()
+        self.load_feature()
         self.clean_up_temp_table()
         self.load_aisle(aisle_mode="target_store_config")
         # self.load_txn()
@@ -1269,11 +1267,11 @@ class CampaignEvalO3(CampaignEvalTemplate):
         self.adjacency_file = self.std_input_path / f"{self.params['adjacency_file']}"
         
         self.load_period()
+        self.load_store_dim_adjusted()
         self.load_target_store()
         self.load_control_store()
-        self.load_store_dim_adjusted()
-        self.load_prod()
         self.load_product_dim_adjusted()
+        self.load_feature()
         self.clean_up_temp_table()
         self.load_aisle(aisle_mode="target_store_config")
         # self.load_txn()

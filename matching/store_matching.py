@@ -60,39 +60,64 @@ def get_backward_compatible_stored_matching_schema(cmp):
     
     return back_matched_store
 
-def get_store_matching_across_region(cmp,
+def get_store_matching_across_region(cmp: Union[CampaignEval, CampaignEvalO3],
                                      matching_methodology: str = 'cosine_distance',
                                      bad_match_threshold: float = 2.5):
     """
-    Parameters
-    ----------
-    txn: SparkDataFrame
+    This function performs store matching across regions based on a specified methodology.
 
-    wk_type: "fis_week" or "promo_week"
+    Parameters:
+    -----
+    - cmp (Union[CampaignEval, CampaignEvalO3]): The campaign object containing relevant data for store matching.
+    - matching_methodology (str, default='cosine_distance'): The method used to calculate distance between stores. Can be 'varience', 'euclidean', or 'cosine_distance'.
+    - bad_match_threshold (float, default=2.5): The threshold value for identifying outlier stores (bad matches) using the Median Absolute Deviation (MAD) method.
 
-    pre_en_wk: End of pre_period week id in format yyyyww
-        Support fis_week / promo_week
+    Returns:
+    ----
+    - None
 
-    feat_sf: SparkDataFrame
-        Features upc_id
+    This function performs the following steps:
 
-    brand_df: SparkDataFrame
-        Feature brand upc_id (brand in switching level)
+    1. **Input Validation:**
+       - Checks if the 'matched_store' attribute already exists in the campaign object. If so, it exits without further processing.
+       - Attempts to load a previously saved 'matched_store' DataFrame from the campaign's output path. If successful, it updates the campaign object and exits.
 
-    sclass_df: SparkDataFrame
-        Featurs subclass upc_id (subclass in switching level)
+    2. **Data Preparation:**
+       - Extracts relevant data from the campaign object, including transaction data (txn), week type (wk_type), pre-period start and end week IDs (pre_st_wk, pre_en_wk), feature DataFrames for SKU (feat_sku), brand (feat_brand_sku), and subclass (feat_subclass_sku), target and control store DataFrames (test_store_sf, control_store), and the column name representing the week ID (wk_id_col_nm) based on the campaign type.
+       - Defines helper functions for:
+           - Calculating the minimum number of sales weeks for target and control stores (_get_min_wk_sales).
+           - Calculating the weekly average composite score (sales and customer count) for each store (_get_comp_score).
+           - Calculating pairwise distances between stores using different distance metrics (_get_pair_min_dist, _get_pair_min_dist_func).
+           - Identifying outlier stores (bad matches) using the MAD method (_flag_outlier_mad).
+           - Plotting comparisons between matched store pairs (__plt_pair, optional).
 
-    test_store_sf: SparkDataFrame
-        Media features store list
+    3. **Main Logic:**
+       - Prints a message indicating the start of the store matching process.
+       - Identifies the week ID column name and prints a message specifying the column used.
+       - Limits matching to the "OFFLINE" channel.
+       - Finds the minimum required sales weeks for target and control stores to be included in the matching process.
+       - Selects the appropriate matching level (SKU, brand, or subclass) based on the minimum sales weeks.
+       - Stores the matching level, minimum sales weeks for target and control stores in the campaign object's parameters.
+       - Prints messages indicating the chosen matching level and methodology.
 
-    reserved_store_sf: SparkDataFrame
-        Customer picked reserved store list, for finding store matching -> control store
+    4. **Composite Score Calculation:**
+       - Calculates the weekly average composite score (sales and customer count) for each store involved in the matching process (including target and control stores).
 
-    matching_methodology: str, default 'cosine_distance'
-        'varience', 'euclidean', 'cosine_distance'
+    5. **Store Matching:**
+       - Creates a Pandas DataFrame representation of the store composite scores for easier manipulation.
+       - Iterates through regions identified from the store data.
+          - For each region:
+              - Extracts store IDs, regions, and types (test or control) for stores in that region.
+              - Filters the composite score DataFrame to include only stores in the current region.
+              - Converts the composite score DataFrame to a matrix with store IDs as index and week IDs as columns.
+              - Calculates pairwise distances between test and control stores using the specified matching methodology.
+              - Identifies outlier (bad match) store pairs using the MAD method and a predefined threshold.
+              - Prints information about the identified bad matches, including details about the store pairs and their outlier scores.
 
-    bad_match_threshold: float, default = 2.5
-        Threshold value for `bad match` store, threshod baed on MAD methodology to identify outlier
+    6. **Output:**
+       - Creates a list to store control stores identified through the matching process.
+       - Creates a Pandas DataFrame containing details of the matched store pairs (test store ID, control store ID, test store region, control store region).
+       - Updates the campaign object with the list of matched control stores and the DataFrame containing matched store pairs.
     """
     from pyspark.sql import functions as F
     from pyspark.sql.types import StringType
