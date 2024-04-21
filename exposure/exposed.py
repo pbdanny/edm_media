@@ -215,6 +215,9 @@ def get_result(cmp: Union[CampaignEval, CampaignEvalO3]):
     exposure_mech = _exposure_mech(cmp)
     return exposure_all, exposure_region, exposure_mech
 
+# Alias function for backward compatibility
+get_exposure = get_result
+
 #---- V1, migrated
 def get_awareness(cmp: Union[CampaignEval, CampaignEvalO3]):
     """For Awareness of HDE, Talad

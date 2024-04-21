@@ -408,6 +408,7 @@ class CampaignEvalTemplate:
             )
 
         return
+    
     @helper.timer
     def load_target_store(self):
         """Load target store
@@ -425,6 +426,7 @@ class CampaignEvalTemplate:
             .fillna(str(self.cmp_end), subset="c_end")
         )
         return
+    
     @helper.timer
     def load_control_store(self, control_store_mode: str = ""):
         """Load control store
@@ -506,6 +508,7 @@ class CampaignEvalTemplate:
             else:
                 _rest()
         return
+    
     @helper.timer
     def load_store_dim_adjusted(self):
         """Create internal store dim with adjusted store region & combine "West" & "Central" -> West+Central"
@@ -544,6 +547,7 @@ class CampaignEvalTemplate:
         )
 
         return
+    
     @helper.timer
     def load_feature(self):
         """Load feature product, 
@@ -552,7 +556,6 @@ class CampaignEvalTemplate:
         self.feat_sku = self.spark.read.csv(
             (self.sku_file).spark_api(), header=True, inferSchema=True
         ).withColumnRenamed("feature", "upc_id")
-        
         return None
     
     @helper.timer
@@ -580,9 +583,19 @@ class CampaignEvalTemplate:
         2) Mulitiple feature brand name -> Single brand name
         """    
         if hasattr(self, "custom_upc_details"):
-            # To be develop
-            prd_dim_c = self.spark.table("tdm.v_prod_dim_c").fillna(
-                "Unidentified", subset="brand_name"
+            # replace column in product dim with column in custom upc, union back 
+            prd_dim = self.spark.table("tdm.v_prod_dim_c")
+            prd_dim_exc_custom = prd_dim.join(self.custom_upc_details, "upc_id", "leftanti")
+            custom_from_prd_dim = prd_dim.join(self.custom_upc_details, "upc_id", "leftsemi")
+            custom_col_name = self.custom_upc_details.columns
+            custom_col_name.remove("upc_id")
+            custom_add_details = (custom_from_prd_dim
+                                  .drop(*custom_col_name)
+                                  .join(self.custom_upc_details, "upc_id", "inner")
+            )
+            prd_dim_c = (prd_dim_exc_custom
+                         .unionByName(custom_add_details, allowMissingColumns=True)
+                         .fillna("Unidentified", subset="brand_name")
             )
         else:
             prd_dim_c = self.spark.table("tdm.v_prod_dim_c").fillna(
@@ -680,6 +693,7 @@ class CampaignEvalTemplate:
                 ).otherwise(F.col("brand_name")),
             )
         return None
+    
     @helper.timer
     def load_aisle(self, aisle_mode: str = "target_store_config"):
         """Load aisle for exposure calculation, default "target_store_config"
@@ -941,6 +955,7 @@ class CampaignEvalTemplate:
         except Exception as e:
             print(e)
         return
+    
     @helper.timer
     def clean_up_temp_table(self):
         """Clean up temp table (if any)"""
@@ -958,6 +973,7 @@ class CampaignEvalTemplate:
             print(f"Drop temp table (if exist) tdm_dev.{row[1]}")
             self.spark.sql(f"DROP TABLE IF EXISTS tdm_dev.{row[1]}")
         return
+    
     @helper.timer
     def _get_prod_df(self):
         """To get Product information refering to input SKU list (expected input as list )
