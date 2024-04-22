@@ -130,13 +130,13 @@ def get_store_matching_across_region(cmp: Union[CampaignEval, CampaignEvalO3],
 
     if hasattr(cmp, "matching_df"):
         print("Campaign object already have attribute 'matched_store'")
-        cmp.ctr_store_list = cmp.matching_df["ctrl_store_cos"].unique().to_numpy().tolist()
+        cmp.ctr_store_list = cmp.matching_df["ctr_store_cos"].unique().tolist()
         return cmp.ctr_store_list, cmp.matching_df
     
     try:
-        cmp.matching_df = cmp.spark.read.csv((cmp.output_path/"output"/"store_matching.csv").spark_api(), header=True, inferSchema=True).toPandas()
+        cmp.matching_df = pd.read_csv((cmp.output_path/"output"/"store_matching.csv").file_api())
         # forward_compatible_stored_matching_schema(cmp)
-        cmp.ctr_store_list = cmp.matching_df["ctrl_store_cos"].unique().to_numpy().tolist()
+        cmp.ctr_store_list = cmp.matching_df["ctr_store_cos"].unique().tolist()
         print(f"Load 'matched_store' from {(cmp.output_path/'output'/'store_matching.csv').file_api()}" )
         return cmp.ctr_store_list, cmp.matching_df
     
