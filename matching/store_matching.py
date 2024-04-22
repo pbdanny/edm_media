@@ -475,9 +475,10 @@ def get_store_matching_across_region(cmp,
     matching_df = (no_outlier
                    .merge(test_str_region, on="test_store_id", how="left")
                    .merge(ctrl_str_region, on="ctrl_store_id", how="left")
+                   .rename(columns={"test_store_id":"store_id", "ctrl_store_id":"ctr_store_cos"})                   
                   )
 
     cmp.matched_store_list = ctr_store_list
     cmp.matched_store = cmp.spark.createDataFrame(matching_df)
     
-    return
+    return ctr_store_list, matching_df
