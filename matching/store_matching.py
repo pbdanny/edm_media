@@ -128,16 +128,18 @@ def get_store_matching_across_region(cmp: Union[CampaignEval, CampaignEvalO3],
     import statistics as stats
     from sklearn.metrics.pairwise import cosine_similarity
 
-    if hasattr(cmp, "matched_store"):
+    if hasattr(cmp, "matching_df"):
         print("Campaign object already have attribute 'matched_store'")
-        return
+        cmp.ctr_store_list = cmp.matching_df["ctrl_store_cos"].unique().to_numpy().tolist()
+        return cmp.ctr_store_list, cmp.matching_df
     
     try:
-        cmp.matched_store = cmp.spark.read.csv((cmp.output_path/"output"/"store_matching.csv").spark_api(), header=True, inferSchema=True)
-        forward_compatible_stored_matching_schema(cmp)
-        cmp.matched_store_list = cmp.matched_store.select("ctrl_store_id").drop_duplicates().toPandas()["ctrl_store_id"].to_numpy().tolist()
+        cmp.matching_df = cmp.spark.read.csv((cmp.output_path/"output"/"store_matching.csv").spark_api(), header=True, inferSchema=True).toPandas()
+        # forward_compatible_stored_matching_schema(cmp)
+        cmp.ctr_store_list = cmp.matching_df["ctrl_store_cos"].unique().to_numpy().tolist()
         print(f"Load 'matched_store' from {(cmp.output_path/'output'/'store_matching.csv').file_api()}" )
-        return
+        return cmp.ctr_store_list, cmp.matching_df
+    
     except Exception as e:
         print(e)
         pass
@@ -503,7 +505,7 @@ def get_store_matching_across_region(cmp: Union[CampaignEval, CampaignEvalO3],
                    .rename(columns={"test_store_id":"store_id", "ctrl_store_id":"ctr_store_cos"})                   
                   )
 
-    cmp.matched_store_list = ctr_store_list
-    cmp.matched_store = cmp.spark.createDataFrame(matching_df)
+    cmp.ctr_store_list = ctr_store_list
+    cmp.matching_df = matching_df
     
-    return ctr_store_list, matching_df
+    return cmp.ctr_store_list, cmp.matching_df
