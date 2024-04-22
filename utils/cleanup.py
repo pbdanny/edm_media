@@ -35,3 +35,10 @@ def clear_attr_and_temp_tbl(cmp):
     for row in tables.collect():
         print(f"Drop temp table (if exist) tdm_dev.{row[1]}")
         spark.sql(f"DROP TABLE IF EXISTS tdm_dev.{row[1]}")
+        
+    # clear saved store matching
+    matching_df_file = (cmp.output_path/"output"/"store_matching.csv").file_api()    
+    try:
+        matching_df_file.unlink()
+    except Exception as e:
+        print(f"File not found: {matching_df_file}")
