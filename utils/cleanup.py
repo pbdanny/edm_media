@@ -37,7 +37,7 @@ def clear_attr_and_temp_tbl(cmp):
         spark.sql(f"DROP TABLE IF EXISTS tdm_dev.{row[1]}")
         
     # clear saved store matching
-    matching_df_file = (cmp.output_path/"output"/"store_matching.csv").file_api()    
+    matching_df_file = (cmp.output_path/"output"/"store_matching.csv")   
     try:
         matching_df_file.unlink()
     except Exception as e:
