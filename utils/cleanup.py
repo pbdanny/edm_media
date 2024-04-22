@@ -40,5 +40,6 @@ def clear_attr_and_temp_tbl(cmp):
     matching_df_file = (cmp.output_path/"output"/"store_matching.csv")   
     try:
         matching_df_file.unlink()
+        print(f"Cleared previous ran 'store_matching.csv' : {matching_df_file}")
     except Exception as e:
-        print(f"File not found: {matching_df_file}")
+        print(f"Not found previous ran 'store_matching.csv' : {matching_df_file}")
