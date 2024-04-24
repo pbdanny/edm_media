@@ -207,20 +207,21 @@ def forward_compatible_stored_txn_schema(cmp: Union[CampaignEval, CampaignEvalO3
     Returns:
         None
     """
-    if txn_mode == "stored_campaign_txn":
+    if cmp.params["txn_mode"] == "stored_campaign_txn":
         print("Forward compatibility from saved transaction")
-    cmp.txn = cmp.txn.replace({"cmp":"dur"}, subset=['period_fis_wk', 'period_promo_wk', 'period_promo_mv_wk'])
         
-    if "pkg_weight_unit" in cmp.txn.columns:
-        cmp.txn = cmp.txn.drop("units").withColumnRenamed("pkg_weight_unit", "units")
+        cmp.txn = cmp.txn.replace({"cmp":"dur"}, subset=['period_fis_wk', 'period_promo_wk', 'period_promo_mv_wk'])
         
-    if "store_format_group" in cmp.txn.columns:
-        cmp.txn = cmp.txn.drop("store_format_name").withColumnRenamed("store_format_group", "store_format_name")
-        
-    if "channel_flag" in cmp.txn.columns:
-        cmp.txn = cmp.txn.drop("offline_online_other_channel").withColumn("offline_online_other_channel", F.col("channel_flag"))
-        
-    return
+        if "pkg_weight_unit" in cmp.txn.columns:
+            cmp.txn = cmp.txn.drop("units").withColumnRenamed("pkg_weight_unit", "units")
+            
+        if "store_format_group" in cmp.txn.columns:
+            cmp.txn = cmp.txn.drop("store_format_name").withColumnRenamed("store_format_group", "store_format_name")
+            
+        if "channel_flag" in cmp.txn.columns:
+            cmp.txn = cmp.txn.drop("offline_online_other_channel").withColumn("offline_online_other_channel", F.col("channel_flag"))
+            
+    return None
 
 def scope_txn(cmp: Union[CampaignEval, CampaignEvalO3]):
     """Filter and optimize the performance of pre-joined 118-week transactions.
