@@ -935,8 +935,8 @@ class CampaignEvalTemplate:
             self.spark.sql(f"drop table if exists tdm_dev.th_lotuss_media_eval_aisle_target_store_conf_{self.params['cmp_id']}_temp")
             (
                 self.aisle_target_store_conf.write
-                .option("path", 
-                        f"abfss://data-dev@pvtdmdlsazc02.dfs.core.windows.net/tdm_dev.db/th_lotuss_media_eval_aisle_target_store_conf_{self.params['cmp_id']}_temp")
+                # .option("path", 
+                #         f"abfss://data-dev@pvtdmdlsazc02.dfs.core.windows.net/tdm_dev.db/th_lotuss_media_eval_aisle_target_store_conf_{self.params['cmp_id']}_temp")
                 .format("parquet")
                 .mode("overwrite")
                 .option('overwriteSchema', 'true')
