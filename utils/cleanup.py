@@ -15,7 +15,7 @@ from pyspark.sql import Window
 from pyspark.sql import DataFrame as SparkDataFrame
 
 from utils.DBPath import DBPath
-from utils.campaign_config import CampaignEval, CampaignEvalO3
+# from utils.campaign_config import CampaignEval, CampaignEvalO3
 
 spark = SparkSession.builder.appName("clear_temp").getOrCreate()
 
