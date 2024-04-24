@@ -27,7 +27,7 @@ def _agg_total(txn):
     
     out = (txn.agg(F.count_distinct("week_id").alias("week_selling"),
               F.sum("net_spend_amt").alias("sales"),
-              F.sum("unit").alias("units"),
+              F.sum("units").alias("units"),
               F.count_distinct("transaction_uid").alias("visits"),
               (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
               )
@@ -39,7 +39,7 @@ def _agg_wkly(txn):
     out = (txn.groupBy("week_id")
            .agg(F.count_distinct("week_id").alias("week_selling"),
                 F.sum("net_spend_amt").alias("sales"),
-                F.sum("unit").alias("units"),
+                F.sum("units").alias("units"),
                 F.count_distinct("transaction_uid").alias("visits"),
                 (F.sum("net_spend_amt")/F.count_distinct("transaction_uid")).alias("spv")
                 )

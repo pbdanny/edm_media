@@ -749,7 +749,7 @@ def get_cust_txn_all_prod_purchase_date(cmp, prd_scope_df: SparkDataFrame):
         .where(F.col(period_wk_col_nm).isin(["dur"]))
         .join(prd_scope_df, "upc_id")
         .select(
-            "household_id", "transaction_uid", "tran_datetime", "net_spend_amt", "unit"
+            "household_id", "transaction_uid", "tran_datetime", "net_spend_amt", "units"
         )
         .withColumnRenamed("transaction_uid", "purchase_transaction_uid")
         .withColumnRenamed("tran_datetime", "purchase_tran_datetime")
