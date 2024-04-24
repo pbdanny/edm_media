@@ -88,6 +88,37 @@ def replace_brand_nm(cmp):
 
     return
 
+def replace_custom_upc_details(cmp):
+    """Replace the transactions with custom upc details
+
+    This function replaces all the product dim in transactions with the brand names from the main products. 
+    It ensures that each transaction is associated with a single brand, even if the product has multiple features.
+
+    Args:
+        cmp (CampaignEval): The CampaignEval object containing the transactions and product information.
+
+    Returns:
+        None
+    """
+    
+    if hasattr(cmp, "custom_upc_details"):
+        print("Update transaction with details in custom sku details")    
+        cmp_txn_col = cmp.txn.columns
+        cmp_product_dim_col = cmp.product_dim.columns
+        common_col = set(cmp_txn_col).intersection(cmp_product_dim_col)
+        common_col.discard("upc_id")
+        print(f"List of column from custom upc details to be replace {list(common_col)}")
+        
+        cmp.txn = \
+        (cmp.txn
+            .drop(*common_col)
+            .join(cmp.product_dim, 'upc_id', 'left')
+            )
+    else:
+        pass
+
+    return None
+
 def create_period_col(cmp):
     """Create period columns for the CampaignEval object.
     
