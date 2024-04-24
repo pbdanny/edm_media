@@ -62,6 +62,7 @@ def load_txn(cmp,
     create_period_col(cmp)
     scope_txn(cmp)
     replace_brand_nm(cmp)
+    replace_custom_upc_details(cmp)
     replace_store_region(cmp)
     forward_compatible_stored_txn_schema(cmp)
 
