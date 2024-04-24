@@ -825,6 +825,7 @@ def get_cust_by_mech_exposed_purchased(cmp, prd_scope_df: SparkDataFrame, prd_sc
         print(e)
     return
 
+@helper.timer
 def get_cust_by_mech_last_seen_exposed_tag(cmp, prd_scope_df: SparkDataFrame, prd_scope_nm: str):
     purchased_exposure_count = get_cust_by_mech_exposed_purchased(
         cmp, prd_scope_df, prd_scope_nm
@@ -855,6 +856,7 @@ def get_cust_by_mech_last_seen_exposed_tag(cmp, prd_scope_df: SparkDataFrame, pr
 
     return total_purchased_exposure_flagged_by_cust
 
+@helper.timer
 def get_cust_by_mach_activated(cmp):
     mechanic_list = (
         cmp.target_store.select("mech_name")
@@ -921,3 +923,5 @@ def get_cust_by_mach_activated(cmp):
         cmp_shppr_last_seen_sku_exposed_tag,
         activated_both_num,
     )
+
+get_result = get_cust_by_mach_activated
