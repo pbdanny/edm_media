@@ -189,7 +189,7 @@ def sales_uplift_reg_mech(txn,
                                                      .groupBy(F.col('store_id'))\
                                                      .agg( F.sum('net_spend_amt').alias('cc_sales')
                                                           ,F.countDistinct('transaction_uid').alias('cc_bask')
-                                                          ,F.sum('pkg_weight_unit').alias('cc_qty')
+                                                          ,F.sum('units').alias('cc_qty')
                                                          )
 #    cc_sales_pre_df = to_pandas(cc_sales_pre)
     cc_kpi_dur_df = to_pandas(cc_kpi_dur)
@@ -638,7 +638,7 @@ def sales_uplift_by_region_mechanic(cmp,
                                                      .groupBy(F.col('store_id'))\
                                                      .agg( F.sum('net_spend_amt').alias('cc_sales')
                                                           ,F.countDistinct('transaction_uid').alias('cc_bask')
-                                                          ,F.sum('pkg_weight_unit').alias('cc_qty')
+                                                          ,F.sum('units').alias('cc_qty')
                                                          )
 #    cc_sales_pre_df = to_pandas(cc_sales_pre)
     cc_kpi_dur_df = helper.to_pandas(cc_kpi_dur)

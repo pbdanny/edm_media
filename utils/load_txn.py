@@ -17,8 +17,7 @@ from utils.DBPath import DBPath
 from utils.campaign_config import CampaignEval, CampaignEvalO3
 from utils import period_cal
 
-sys.path.append(os.path.abspath(
-    "/Workspace/Repos/thanakrit.boonquarmdee@lotuss.com/edm_util"))
+sys.path.append(os.path.abspath("/Workspace/Repos/thanakrit.boonquarmdee@lotuss.com/edm_util"))
 from edm_class import txnItem
 
 def load_txn(cmp: Union[CampaignEval, CampaignEvalO3],
@@ -46,18 +45,23 @@ def load_txn(cmp: Union[CampaignEval, CampaignEvalO3],
                                         'department_code', 'section_code', 'class_code', 'subclass_code'])
 
         cmp.txn = snap.txn
+        print("Created txn from module edm_class.txnItem")
 
     elif txn_mode == "stored_campaign_txn":
         try:
             cmp.txn = cmp.spark.table(
                 f"tdm_dev.media_campaign_eval_txn_data_{cmp.params['cmp_id'].lower()}")
             cmp.params["txn_mode"] = "stored_campaign_txn"
+            print("Load txn from previous evaluation ran")
         except Exception as e:
             cmp.params["txn_mode"] = "central_trans_media"
             cmp.txn = cmp.spark.table("tdm_dev.v_th_central_transaction_item_media")
+            print("Could not load txn from previous evaluation ran")
+            print("Fallback to load txn from from v_th_central_transaction_item_media")
     else:
         cmp.params["txn_mode"] = "central_trans_media"
         cmp.txn = cmp.spark.table("tdm_dev.v_th_central_transaction_item_media")
+        print("Load txn from v_th_central_transaction_item_media")
 
     create_period_col(cmp)
     scope_txn(cmp)
@@ -203,6 +207,8 @@ def forward_compatible_stored_txn_schema(cmp: Union[CampaignEval, CampaignEvalO3
     Returns:
         None
     """
+    if txn_mode == "stored_campaign_txn":
+        print("Forward compatibility from saved transaction")
     cmp.txn = cmp.txn.replace({"cmp":"dur"}, subset=['period_fis_wk', 'period_promo_wk', 'period_promo_mv_wk'])
         
     if "pkg_weight_unit" in cmp.txn.columns:

@@ -155,10 +155,10 @@ def get_cust_activated(cmp):
                 .when(txn_dur.date_id < shppr_actv.first_shp_date, F.lit(0))
                 .otherwise(F.lit(None))
                 .alias("actv_sales"),
-                txn_dur.pkg_weight_unit.alias("pkg_weight_unit_orig"),
+                F.col("units").alias("units_orig").
                 F.when(
                     txn_dur.date_id >= shppr_actv.first_shp_date,
-                    txn_dur.pkg_weight_unit,
+                    txn_dur.units,
                 )
                 .when(txn_dur.date_id < shppr_actv.first_shp_date, F.lit(0))
                 .otherwise(F.lit(None))
@@ -694,10 +694,10 @@ def get_cust_any_mech_activated_sales(cmp, prd_scope_df: SparkDataFrame, prd_sco
             .when(txn_dur.date_id < cmp.cust_activated.first_purchase_date, F.lit(0))
             .otherwise(F.lit(None))
             .alias("actv_sales"),
-            txn_dur.pkg_weight_unit.alias("pkg_weight_unit_orig"),
+            F.col("units").alias("units_orig"),
             F.when(
                 txn_dur.date_id >= cmp.cust_activated.first_purchase_date,
-                txn_dur.pkg_weight_unit,
+                txn_dur.units,
             )
             .when(txn_dur.date_id < cmp.cust_activated.first_purchase_date, F.lit(0))
             .otherwise(F.lit(None))

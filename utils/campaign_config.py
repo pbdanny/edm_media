@@ -858,7 +858,7 @@ class CampaignEvalTemplate:
             # Aisle at store level
             #---- Scope upc_id from real txn
             __upc_txn = \
-                (self.spark.table("tdm_dev.v_latest_txn118wk")
+                (self.spark.table("tdm_dev.v_th_central_transaction_item_media")
                  .where(F.col("week_id").between(self.ppp_st_mv_wk, self.cmp_en_wk))
                  .join(self.target_store.select("store_id").drop_duplicates(), "store_id")
                  .select("upc_id")
