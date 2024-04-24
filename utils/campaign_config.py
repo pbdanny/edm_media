@@ -16,6 +16,7 @@ from utils import period_cal
 from utils.DBPath import DBPath
 from utils import logger
 from utils import helper
+from utils import cleanup
 
 class CampaignConfigFile:
     def __init__(self, source_file):
@@ -960,6 +961,7 @@ class CampaignEvalTemplate:
     @helper.timer
     def clean_up_temp_table(self):
         """Clean up temp table (if any)"""
+        print("Clear temp file/table from previous evaluation")
         cmp_id = self.params["cmp_id"]
         tbl_nm = f"tdm_dev.th_lotuss_media_eval_aisle_target_store_conf_{cmp_id}_temp"
         print(f"Drop temp table (if exist) {tbl_nm}")
@@ -1261,7 +1263,8 @@ class CampaignEval(CampaignEvalTemplate):
         self.load_feature()        
         self.load_custom_upc_details()
         self.load_product_dim()
-        self.clean_up_temp_table()
+        # self.clean_up_temp_table()
+        cleanup.clear_attr_and_temp_tbl(self)
         self.load_aisle(aisle_mode="target_store_config")
         # self.load_txn()
 
@@ -1324,7 +1327,8 @@ class CampaignEvalO3(CampaignEvalTemplate):
         self.load_feature()
         self.load_custom_upc_details()        
         self.load_product_dim()
-        self.clean_up_temp_table()
+        # self.clean_up_temp_table()
+        cleanup.clear_attr_and_temp_tbl(self)        
         self.load_aisle(aisle_mode="target_store_config")
         # self.load_txn()
 
