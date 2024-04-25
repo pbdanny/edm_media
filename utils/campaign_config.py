@@ -1284,7 +1284,7 @@ class CampaignEvalO3(CampaignEvalTemplate):
         self.output_path = (
             config_file.cmp_output
             / self.params["cmp_month"]
-            / f'{self.params["cmp_id_is"]}_{self.params["cmp_id_online"]}__{self.params["cmp_id_dgs"]}_{self.params["cmp_nm"]}'
+            / f'{self.params["cmp_id_is"]}_{self.params["cmp_id_online"]}_{self.params["cmp_id_dgs"]}_{self.params["cmp_nm"]}'
         )
 
         self.store_fmt = self.params["store_fmt"].lower()
