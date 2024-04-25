@@ -481,4 +481,6 @@ def get_store_matching_across_region(cmp,
     cmp.matched_store_list = ctr_store_list
     cmp.matched_store = cmp.spark.createDataFrame(matching_df)
     
-    return ctr_store_list, matching_df
+    backward_matching_df = matching_df.rename(columns={"test_store_id":"store_id", "ctrl_store_id":"ctr_store_cos"})
+    
+    return ctr_store_list, backward_matching_df
