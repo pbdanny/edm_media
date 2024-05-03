@@ -3651,7 +3651,7 @@ def get_cust_cltv(txn: SparkDataFrame,
     # Total uplift
     try:
         # support new customer uplift by mech
-        total_uplift = uplift_brand.where(F.col("mechanic")=="all").where(F.col("customer_group")=="Total").select("pstv_cstmr_uplift").collect()[0][0]
+        total_uplift = uplift_brand.where(F.col("mechanic")=="All").where(F.col("customer_group")=="Total").select("pstv_cstmr_uplift").collect()[0][0]
     except:
         # Fall back to old customer uplift mech
         total_uplift = uplift_brand.where(F.col("customer_group")=="Total").select("pstv_cstmr_uplift").collect()[0][0]
