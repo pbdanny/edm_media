@@ -859,7 +859,7 @@ class CampaignEvalTemplate:
             # Aisle at store level
             #---- Scope upc_id from real txn
             __upc_txn = \
-                (self.spark.table("tdm_dev.v_th_central_transaction_item_media")
+                (self.spark.table("tdm_dev.v_th_central_transaction_item_media") ## change from 118 week table to central txn (Pat -- 8 May 2024)
                  .where(F.col("week_id").between(self.ppp_st_mv_wk, self.cmp_en_wk))
                  .join(self.target_store.select("store_id").drop_duplicates(), "store_id")
                  .select("upc_id")
@@ -935,8 +935,6 @@ class CampaignEvalTemplate:
             self.spark.sql(f"drop table if exists tdm_dev.th_lotuss_media_eval_aisle_target_store_conf_{self.params['cmp_id']}_temp")
             (
                 self.aisle_target_store_conf.write
-                .option("path", 
-                        f"abfss://data-dev@pvtdmdlsazc02.dfs.core.windows.net/tdm_dev.db/th_lotuss_media_eval_aisle_target_store_conf_{self.params['cmp_id']}_temp")
                 .format("parquet")
                 .mode("overwrite")
                 .option('overwriteSchema', 'true')
