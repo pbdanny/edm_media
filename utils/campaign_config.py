@@ -16,7 +16,7 @@ from utils import period_cal
 from utils.DBPath import DBPath
 from utils import logger
 from utils import helper
-from utils import Config
+from utils.config import Config
 
 class CampaignConfigFile:
     def __init__(self, source_file):
