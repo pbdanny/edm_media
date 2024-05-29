@@ -1204,7 +1204,11 @@ def pandas_to_csv_filestore(df: PandasDataFrame, csv_file_name: str, prefix: str
     from pathlib import Path
     
     # auto convert all prefix to File API
-    prefix = os.path.join('/dbfs', prefix[6:])
+    
+    if (prefix[:8] !="/Volumes") and (prefix[:13] !="dbfs:/Volumes") :
+        prefix = os.path.join('/dbfs', prefix[6:])
+    elif prefix[:13] =="dbfs:/Volumes":
+        prefix = prefix[5:]
     
     # if not existed prefix, create prefix
     try:
