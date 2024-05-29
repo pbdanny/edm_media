@@ -18,8 +18,11 @@ class DBPath(_Path_):
         return f"DBPath class : {self.as_posix()}"
     
     def file_api(self):
-        rm_first_5_str = str(self.as_posix())[5:]
-        return str("/dbfs"+rm_first_5_str)
+        if self.as_posix()[:8] != "/Volumes":
+            rm_first_5_str = str(self.as_posix())[5:]
+            return str("/dbfs"+rm_first_5_str)
+        else:
+            return str(self.as_posix())
     
     def spark_api(self):
         rm_first_5_str = str(self.as_posix())[5:]
