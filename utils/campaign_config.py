@@ -16,6 +16,7 @@ from utils import period_cal
 from utils.DBPath import DBPath
 from utils import logger
 from utils import helper
+from utils import Config
 
 class CampaignConfigFile:
     def __init__(self, source_file):
@@ -29,7 +30,10 @@ class CampaignConfigFile:
             None
         """
         self.source_config_file = source_file
-        self.cmp_config_file = DBPath(str("/dbfs" + source_file[5:]))
+        if source_file[:8] != "/Volumes":
+            self.cmp_config_file = DBPath(str("/dbfs" + source_file[5:]))
+        else:
+            self.cmp_config_file = DBPath(str(source_file))
         self.cmp_config_file_name = self.cmp_config_file.name
         self.cmp_config_df = pd.read_csv(self.cmp_config_file.file_api(), dtype={"cross_cate_cd":pd.StringDtype()})
         self.cmp_config_df.insert(
@@ -110,7 +114,8 @@ class CampaignEvalTemplate:
         """
         self.spark = SparkSession.builder.appName(f"campaignEval").getOrCreate()
         self.spark.sparkContext.setCheckpointDir(
-            "dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint"
+
+            f"{Config.SPARK_PREFIX}/user/thanakrit_boo/tmp/checkpoint"
         )
         self.spark.conf.set("spark.databricks.io.cache.enabled", True)
         self.spark.conf.set("spark.databricks.queryWatchdog.maxQueryTasks", 0)
@@ -310,7 +315,7 @@ class CampaignEvalTemplate:
         # create period_fis_wk, period_promo_wk, period_promo_mv_wk
 
         date_dim = (
-            self.spark.table("tdm.v_th_date_dim")
+            self.spark.table(Config.TBL_DATE)
             .select("date_id", "week_id", "promoweek_id")
             .drop_duplicates()
         )
@@ -467,17 +472,17 @@ class CampaignEvalTemplate:
         def _rest():
             """Load control store from rest"""
             self.params["control_store_source"] = "rest"
-            store_dim_c = self.spark.table("tdm.v_store_dim_c")
+            store_dim_c = self.spark.table(Config.TBL_STORE)
 
             if self.store_fmt in ["hde", "hyper", "Hypermarket"]:
-                target_format = store_dim_c.where(F.col("format_id").isin([1, 2, 3]))
+                target_format = store_dim_c.where(F.col("format_id").isin(Config.HDE_STORE))
             elif self.store_fmt in ["talad", "super", "Supermarket"]:
-                target_format = store_dim_c.where(F.col("format_id").isin([4]))
+                target_format = store_dim_c.where(F.col("format_id").isin(Config.TALAD_STORE))
             elif self.store_fmt in ["gofresh", "mini_super", "Mini Supermarket"]:
-                target_format = store_dim_c.where(F.col("format_id").isin([5]))
+                target_format = store_dim_c.where(F.col("format_id").isin(Config.GF_STORE))
             else:
                 target_format = store_dim_c.where(
-                    F.col("format_id").isin([1, 2, 3, 4, 5])
+                    F.col("format_id").isin(Config.KEY_STORE)
                 )
 
             self.control_store = (
@@ -517,7 +522,7 @@ class CampaignEvalTemplate:
         None
         """
         store_dim = (
-            self.spark.table("tdm.v_store_dim")
+            self.spark.table(Config.TBL_STORE)
             .select(
                 "store_id",
                 "format_id",
@@ -556,6 +561,7 @@ class CampaignEvalTemplate:
         self.feat_sku = self.spark.read.csv(
             (self.sku_file).spark_api(), header=True, inferSchema=True
         ).withColumnRenamed("feature", "upc_id")
+        self.feat_list = self.feat_sku.toPandas()["upc_id"].to_numpy().tolist()
         return None
     
     @helper.timer
@@ -986,7 +992,7 @@ class CampaignEvalTemplate:
                         ,list of subclass_name (sclass_nm_list)
         """
 
-        sku_list = self.feat_sku.toPandas()["upc_id"].to_numpy().tolist()
+        sku_list = self.feat_list
         cate_lvl = self.params["cate_lvl"]
         std_ai_df = self.spark.read.csv(
             self.adjacency_file.spark_api(), header=True, inferSchema=True
@@ -1216,6 +1222,7 @@ class CampaignEval(CampaignEvalTemplate):
         """
         super().__init__(config_file, cmp_row_no)
         
+        self.txn = None
         self.output_path = (
             config_file.cmp_output
             / self.params["cmp_month"]
