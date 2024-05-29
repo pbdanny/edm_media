@@ -187,7 +187,8 @@ def get_cust_activated(txn: SparkDataFrame,
     def _create_adj_prod_df(txn: SparkDataFrame) -> SparkDataFrame:
         """If adj_prod_sf is None, create from all upc_id in txn
         """
-        out = txn.select("upc_id").drop_duplicates().checkpoint()
+        out = txn.select("upc_id").drop_duplicates()
+        # .checkpoint()
         return out
 
     def _get_exposed_cust(txn: SparkDataFrame,
@@ -402,7 +403,7 @@ def get_cust_movement(txn: SparkDataFrame,
      .join(prior_pre_sku_shopper, 'household_id', 'inner')
      .withColumn('customer_macro_flag', F.lit('existing'))
      .withColumn('customer_micro_flag', F.lit('existing_sku'))
-     .checkpoint()
+    #  .checkpoint()
     )
 
     new_exposed_cust_and_sku_shopper = \
@@ -410,7 +411,7 @@ def get_cust_movement(txn: SparkDataFrame,
      .select("household_id")
      .join(existing_exposed_cust_and_sku_shopper, 'household_id', 'leftanti')
      .withColumn('customer_macro_flag', F.lit('new'))
-     .checkpoint()
+    #  .checkpoint()
     )
 
     # Customer movement for Feature SKU
@@ -500,7 +501,7 @@ def get_cust_movement(txn: SparkDataFrame,
          .unionByName(new_sku_new_subclass)
          .unionByName(new_sku_new_brand_shopper)
          .unionByName(new_sku_within_brand_shopper)
-         .checkpoint()
+        #  .checkpoint()
         )
 
         return result_movement, new_exposed_cust_and_sku_shopper
@@ -540,7 +541,7 @@ def get_cust_movement(txn: SparkDataFrame,
          .unionByName(new_sku_new_class)
          .unionByName(new_sku_new_brand_shopper)
          .unionByName(new_sku_within_brand_shopper)
-         .checkpoint()
+        #  .checkpoint()
         )
 
         return result_movement, new_exposed_cust_and_sku_shopper
@@ -654,7 +655,8 @@ def get_cust_brand_switching_and_penetration(
                 #   F.col('pct_spend_oth_'+full_prod_lev).desc()
         )
 
-        switching_result = switching_result.checkpoint()
+        switching_result = switching_result
+        # .checkpoint()
 
         return switching_result
 
@@ -1938,7 +1940,8 @@ def get_customer_uplift(txn: SparkDataFrame,
     def _create_adj_prod_df(txn: SparkDataFrame) -> SparkDataFrame:
         """If adj_prod_sf is None, create from all upc_id in txn
         """
-        out = txn.select("upc_id").drop_duplicates().checkpoint()
+        out = txn.select("upc_id").drop_duplicates()
+        # .checkpoint()
         return out
 
     def _get_exposed_cust(txn: SparkDataFrame,
@@ -2214,7 +2217,8 @@ def get_customer_uplift_by_mech(txn: SparkDataFrame,
     def _create_adj_prod_df(txn: SparkDataFrame) -> SparkDataFrame:
         """If adj_prod_sf is None, create from all upc_id in txn
         """
-        out = txn.select("upc_id").drop_duplicates().checkpoint()
+        out = txn.select("upc_id").drop_duplicates()
+        # .checkpoint()
         return out
 
     def _get_exposed_cust(txn: SparkDataFrame,
@@ -2581,7 +2585,8 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
    def _create_adj_prod_df(txn: SparkDataFrame) -> SparkDataFrame:
        """If adj_prod_sf is None, create from all upc_id in txn
        """
-       out = txn.select("upc_id").drop_duplicates().checkpoint()
+       out = txn.select("upc_id").drop_duplicates()
+    #    .checkpoint()
        return out
 
    def _get_all_feat_trans(txn: SparkDataFrame,
@@ -3913,7 +3918,7 @@ def _get_cust_brnd_swtchng_pntrtn(
          .select(sel_col)
          .withColumn('pct_cust_oth_'+agg_lvl_re_nm, F.col('oth_'+agg_lvl+'_customers')/F.col('total_ori_brand_cust'))
          .withColumn('pct_spend_oth_'+agg_lvl_re_nm, F.col('oth_'+agg_lvl+'_spend')/F.col('total_oth_'+agg_lvl+'_spend'))
-         .checkpoint()
+        #  .checkpoint()
         )
 
         return switching_result
