@@ -55,7 +55,7 @@ import pathlib
 
 # COMMAND ----------
 
-# MAGIC %run /EDM_Share/EDM_Media/Campaign_Evaluation/Instore/utility_def/edm_utils
+# MAGIC %run /Workspace/Repos/niti.buesamae@lotuss.com/edm_media_test/notebook/utility_def/edm_utils
 
 # COMMAND ----------
 
