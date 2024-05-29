@@ -20,7 +20,7 @@ from pyspark.dbutils import DBUtils
 spark = SparkSession.builder.appName("media_eval").getOrCreate()
 dbutils = DBUtils(spark)
 
-sys.path.append(os.path.abspath("/Workspace/Repos/thanakrit.boonquarmdee@lotuss.com/edm_util"))
+sys.path.append(os.path.abspath("/Workspace/Repos/niti.buesamae@lotuss.com/edm_media_test/notebook/utility_def/edm_utils"))
 from edm_helper import get_lag_wk_id, to_pandas, pandas_to_csv_filestore
 
 def print_dev(func):

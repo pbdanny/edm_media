@@ -1204,7 +1204,7 @@ def pandas_to_csv_filestore(df: PandasDataFrame, csv_file_name: str, prefix: str
     from pathlib import Path
     
     # auto convert all prefix to File API
-    
+
     if (prefix[:8] !="/Volumes") and (prefix[:13] !="dbfs:/Volumes") :
         prefix = os.path.join('/dbfs', prefix[6:])
     elif prefix[:13] =="dbfs:/Volumes":
@@ -1233,8 +1233,8 @@ def pandas_to_csv_filestore(df: PandasDataFrame, csv_file_name: str, prefix: str
 
 # COMMAND ----------
 
-sys.path.append(os.path.abspath("/Workspace/Repos/thanakrit.boonquarmdee@lotuss.com/edm_util"))
-from edm_helper import pandas_to_csv_filestore
+# sys.path.append(os.path.abspath("/Workspace/Repos/thanakrit.boonquarmdee@lotuss.com/edm_util"))
+# from edm_helper import pandas_to_csv_filestore
 
 # COMMAND ----------
 
