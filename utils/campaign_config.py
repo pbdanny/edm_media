@@ -113,7 +113,7 @@ class CampaignEvalTemplate:
             None
         """
         self.spark = SparkSession.builder.appName(f"campaignEval").getOrCreate()
-        self.spark.sparkContext.setCheckpointDir(
+        self.spark.setCheckpointDir(
 
             f"{Config.SPARK_PREFIX}/user/thanakrit_boo/tmp/checkpoint"
         )
