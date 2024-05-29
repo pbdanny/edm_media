@@ -113,10 +113,10 @@ class CampaignEvalTemplate:
             None
         """
         self.spark = SparkSession.builder.appName(f"campaignEval").getOrCreate()
-        self.spark.setCheckpointDir(
+        # self.spark.setCheckpointDir(
 
-            f"{Config.SPARK_PREFIX}/user/thanakrit_boo/tmp/checkpoint"
-        )
+        #     f"{Config.SPARK_PREFIX}/user/thanakrit_boo/tmp/checkpoint"
+        # )
         self.spark.conf.set("spark.databricks.io.cache.enabled", True)
         self.spark.conf.set("spark.databricks.queryWatchdog.maxQueryTasks", 0)
         self.spark.conf.set(
