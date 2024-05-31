@@ -6,3 +6,4 @@ from . import check_config
 from . import load_txn
 from . import helper
 from . import cleanup
+from . import config

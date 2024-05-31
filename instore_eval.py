@@ -20,8 +20,7 @@ from pyspark.dbutils import DBUtils
 spark = SparkSession.builder.appName("media_eval").getOrCreate()
 dbutils = DBUtils(spark)
 
-sys.path.append(os.path.abspath("/Workspace/Repos/thanakrit.boonquarmdee@lotuss.com/edm_util"))
-from edm_helper import get_lag_wk_id, to_pandas, pandas_to_csv_filestore
+from utils.helper import get_lag_wk_id, to_pandas, pandas_to_csv_filestore
 
 def print_dev(func):
     @functools.wraps(func)
@@ -155,7 +154,7 @@ def get_cust_activated(txn: SparkDataFrame,
     wk_type:
         "fis_week" or "promo_week"
     """
-    spark.sparkContext.setCheckpointDir("dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint")
+    # spark.sparkContext.setCheckpointDir("dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint")
 
     #--- Helper fn
     def _get_period_wk_col_nm(wk_type: str
@@ -187,7 +186,8 @@ def get_cust_activated(txn: SparkDataFrame,
     def _create_adj_prod_df(txn: SparkDataFrame) -> SparkDataFrame:
         """If adj_prod_sf is None, create from all upc_id in txn
         """
-        out = txn.select("upc_id").drop_duplicates().checkpoint()
+        out = txn.select("upc_id").drop_duplicates()
+        # .checkpoint()
         return out
 
     def _get_exposed_cust(txn: SparkDataFrame,
@@ -359,7 +359,7 @@ def get_cust_movement(txn: SparkDataFrame,
     """Customer movement based on tagged feature activated & brand activated
 
     """
-    spark.sparkContext.setCheckpointDir("dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint")
+    # spark.sparkContext.setCheckpointDir("dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint")
     #---- Helper function
     def _get_period_wk_col_nm(wk_type: str
                               ) -> str:
@@ -402,7 +402,7 @@ def get_cust_movement(txn: SparkDataFrame,
      .join(prior_pre_sku_shopper, 'household_id', 'inner')
      .withColumn('customer_macro_flag', F.lit('existing'))
      .withColumn('customer_micro_flag', F.lit('existing_sku'))
-     .checkpoint()
+    #  .checkpoint()
     )
 
     new_exposed_cust_and_sku_shopper = \
@@ -410,7 +410,7 @@ def get_cust_movement(txn: SparkDataFrame,
      .select("household_id")
      .join(existing_exposed_cust_and_sku_shopper, 'household_id', 'leftanti')
      .withColumn('customer_macro_flag', F.lit('new'))
-     .checkpoint()
+    #  .checkpoint()
     )
 
     # Customer movement for Feature SKU
@@ -500,7 +500,7 @@ def get_cust_movement(txn: SparkDataFrame,
          .unionByName(new_sku_new_subclass)
          .unionByName(new_sku_new_brand_shopper)
          .unionByName(new_sku_within_brand_shopper)
-         .checkpoint()
+        #  .checkpoint()
         )
 
         return result_movement, new_exposed_cust_and_sku_shopper
@@ -540,7 +540,7 @@ def get_cust_movement(txn: SparkDataFrame,
          .unionByName(new_sku_new_class)
          .unionByName(new_sku_new_brand_shopper)
          .unionByName(new_sku_within_brand_shopper)
-         .checkpoint()
+        #  .checkpoint()
         )
 
         return result_movement, new_exposed_cust_and_sku_shopper
@@ -560,7 +560,7 @@ def get_cust_brand_switching_and_penetration(
         ):
     """Media evaluation solution, customer switching
     """
-    spark.sparkContext.setCheckpointDir("dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint")
+    # spark.sparkContext.setCheckpointDir("dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint")
     #---- Helper fn
     def _get_period_wk_col_nm(wk_type: str
                               ) -> str:
@@ -654,7 +654,8 @@ def get_cust_brand_switching_and_penetration(
                 #   F.col('pct_spend_oth_'+full_prod_lev).desc()
         )
 
-        switching_result = switching_result.checkpoint()
+        switching_result = switching_result
+        # .checkpoint()
 
         return switching_result
 
@@ -758,7 +759,7 @@ def get_cust_brand_switching_and_penetration_multi(
         ):
     """Media evaluation solution, customer switching
     """
-    spark.sparkContext.setCheckpointDir("dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint")
+    # spark.sparkContext.setCheckpointDir("dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint")
     #---- Helper fn
     def _get_period_wk_col_nm(wk_type: str
                               ) -> str:
@@ -849,7 +850,7 @@ def get_cust_sku_switching(
         ):
     """Media evaluation solution, customer sku switching
     """
-    spark.sparkContext.setCheckpointDir("dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint")
+    # spark.sparkContext.setCheckpointDir("dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint")
     #---- Helper fn
     def _get_period_wk_col_nm(wk_type: str
                               ) -> str:
@@ -1938,7 +1939,8 @@ def get_customer_uplift(txn: SparkDataFrame,
     def _create_adj_prod_df(txn: SparkDataFrame) -> SparkDataFrame:
         """If adj_prod_sf is None, create from all upc_id in txn
         """
-        out = txn.select("upc_id").drop_duplicates().checkpoint()
+        out = txn.select("upc_id").drop_duplicates()
+        # .checkpoint()
         return out
 
     def _get_exposed_cust(txn: SparkDataFrame,
@@ -2214,7 +2216,8 @@ def get_customer_uplift_by_mech(txn: SparkDataFrame,
     def _create_adj_prod_df(txn: SparkDataFrame) -> SparkDataFrame:
         """If adj_prod_sf is None, create from all upc_id in txn
         """
-        out = txn.select("upc_id").drop_duplicates().checkpoint()
+        out = txn.select("upc_id").drop_duplicates()
+        # .checkpoint()
         return out
 
     def _get_exposed_cust(txn: SparkDataFrame,
@@ -2581,7 +2584,8 @@ def get_customer_uplift_per_mechanic(txn: SparkDataFrame,
    def _create_adj_prod_df(txn: SparkDataFrame) -> SparkDataFrame:
        """If adj_prod_sf is None, create from all upc_id in txn
        """
-       out = txn.select("upc_id").drop_duplicates().checkpoint()
+       out = txn.select("upc_id").drop_duplicates()
+    #    .checkpoint()
        return out
 
    def _get_all_feat_trans(txn: SparkDataFrame,
@@ -3098,7 +3102,7 @@ def get_cust_activated_prmzn(
     wk_type:
     "fis_week" or "promo"
     """
-    spark.sparkContext.setCheckpointDir("dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint")
+    # spark.sparkContext.setCheckpointDir("dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint")
 
     #--- Helper fn
     def _get_period_wk_col_nm(wk_type: str
@@ -3796,7 +3800,7 @@ def _get_cust_brnd_swtchng_pntrtn(
     Customer brand switching and penetration
     Support feature brand in multi subclass
     """
-    spark.sparkContext.setCheckpointDir("dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint")
+    # spark.sparkContext.setCheckpointDir("dbfs:/mnt/pvtdmbobazc01/edminput/filestore/user/thanakrit_boo/tmp/checkpoint")
     #---- Helper fn
     def _get_period_wk_col_nm(wk_type: str
                               ) -> str:
@@ -3913,7 +3917,7 @@ def _get_cust_brnd_swtchng_pntrtn(
          .select(sel_col)
          .withColumn('pct_cust_oth_'+agg_lvl_re_nm, F.col('oth_'+agg_lvl+'_customers')/F.col('total_ori_brand_cust'))
          .withColumn('pct_spend_oth_'+agg_lvl_re_nm, F.col('oth_'+agg_lvl+'_spend')/F.col('total_oth_'+agg_lvl+'_spend'))
-         .checkpoint()
+        #  .checkpoint()
         )
 
         return switching_result
