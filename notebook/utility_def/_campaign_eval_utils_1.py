@@ -40,7 +40,7 @@ from pandas import DataFrame as pandasDataFrame
 
 # COMMAND ----------
 
-# MAGIC %run /Workspace/Repos/niti.buesamae@lotuss.com/edm_media_test/notebook/utility_def/edm_utils
+# MAGIC %run /Workspace/Repos/thanakrit.boonquarmdee@lotuss.com/edm_media/notebook/utility_def/edm_utils
 
 # COMMAND ----------
 
